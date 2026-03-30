@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { Platform, useColorScheme } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useNavigationState } from '@react-navigation/native';
-import { StatusBar } from 'expo-status-bar';
 import * as NavigationBar from 'expo-navigation-bar';
 import LoginScreen from '../screens/LoginScreen';
 import MyTabs from '../screens/MyTabs';
@@ -57,11 +56,6 @@ function Navigation({ route }) {
 
   return (
     <>
-      <StatusBar
-        translucent
-        style={darkScreens.includes(routeName) ? 'light' : 'dark'}
-        backgroundColor="transparent"
-      />
       <Stack.Navigator initialRouteName="Initial">
         <Stack.Screen
           name="Initial"

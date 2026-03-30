@@ -11,7 +11,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { color } from '../color/color';
 import SvgIcons from '../components/SvgIcons';
-import { StatusBar } from 'expo-status-bar';
 import Typography, { Heading3, Body1, ButtonTextDemiBold, Caption } from '../components/Typography';
 import MiddleSection from '../components/MiddleSection';
 import * as SecureStore from 'expo-secure-store';
@@ -43,11 +42,6 @@ const SplashScreenComponent = () => {
   return (
 
     <View style={{ flex: 1, backgroundColor: 'black' }}>
-      <StatusBar
-        style="light"
-        backgroundColor="transparent"
-        translucent
-      />
       <SafeAreaView style={styles.container}>
         <View style={styles.topSection}>
           <SvgIcons.splashQrImg width={172} height={163} fill="transparent" />

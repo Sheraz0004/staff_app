@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(adb wait-for-device:*)",
+      "Bash(adb shell:*)",
+      "Bash(node_modules/.bin/expo run:android)"
+    ]
+  }
+}

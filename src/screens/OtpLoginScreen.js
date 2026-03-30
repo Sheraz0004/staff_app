@@ -16,7 +16,6 @@ import {
 import { Image as ExpoImage, ImageBackground as ExpoImageBackground } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import { color } from '../color/color';
-import { StatusBar } from 'expo-status-bar';
 import SvgIcons from '../components/SvgIcons';
 import { authService, eventService } from '../api/apiService';
 import * as SecureStore from 'expo-secure-store';
@@ -403,7 +402,6 @@ const OtpLoginScreen = ({ route }) => {
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={{ flex: 1 }}>
-          <StatusBar style="light" backgroundColor="transparent" translucent />
           {/* <ExpoImageBackground
             source={require('../../assets/images/bg-img-signup.png')}
             contentFit="cover"

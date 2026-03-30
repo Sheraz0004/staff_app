@@ -8,7 +8,6 @@ import { useNavigation } from '@react-navigation/native';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { color } from '../color/color';
-import { StatusBar } from 'expo-status-bar';
 import SvgIcons from '../components/SvgIcons';
 import { authService } from '../api/apiService';
 import Typography, { Body1, Caption } from '../components/Typography';
@@ -164,11 +163,6 @@ const LoginScreen = () => {
     <>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={{ flex: 1, backgroundColor: 'black' }}>
-          <StatusBar
-            style="light"
-            backgroundColor="transparent"
-            translucent
-          />
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <View style={[styles.centeredContent, { paddingTop: screenHeight * 0.40 }]}>
               <Formik
