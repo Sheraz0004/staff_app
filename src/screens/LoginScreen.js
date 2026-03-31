@@ -89,20 +89,21 @@ const LoginScreen = () => {
 
   const handleSignIn = async (values) => {
     try {
-      let userIdentifier = values.user_identifier.trim();
+      let identityKey = values.user_identifier.trim();
 
-      // If it's a phone number, add the country code
+      // For phone, prepend dial code to form E.164 number (e.g. +923001234567)
       if (inputType === 'phone') {
-        userIdentifier = selectedCountry.dialCode + userIdentifier;
+        identityKey = selectedCountry.dialCode + identityKey;
       }
 
-      const response = await authService.requestOtp({
-        user_identifier: userIdentifier,
-      });
+      // Swagger: POST /otp/request — { identityKey, channel }
+      const channel = inputType === 'phone' ? 'sms' : 'email';
+      const response = await authService.requestOtp({ identityKey, channel });
+
       if (response && response.success) {
         navigation.navigate('OtpLogin', {
-          uuid: response.data.uuid,
-          user_identifier: userIdentifier
+          traceId: response.data.traceId,
+          user_identifier: identityKey,
         });
       } else {
         setShowError(false);
@@ -163,105 +164,112 @@ const LoginScreen = () => {
     <>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={{ flex: 1, backgroundColor: 'black' }}>
-          <View style={{ flex: 1, justifyContent: 'center' }}>
-            <View style={[styles.centeredContent, { paddingTop: screenHeight * 0.40 }]}>
-              <Formik
-                initialValues={{ user_identifier: '' }}
-                validationSchema={validationSchema}
-                onSubmit={handleSignIn}
-              >
-                {({ handleChange, handleBlur, handleSubmit, values, errors, touched, setFieldValue }) => (
-                  <Animated.View style={{ width: '100%', opacity: fadeAnim }}>
-                    <View style={[
-                      styles.inputRow,
-                      (touched.user_identifier && errors.user_identifier) || showError ? styles.inputError : null
-                    ]}>
-                      {/* Country Code Picker (only show for phone input) */}
-                      {inputType === 'phone' && (
-                        <TouchableOpacity
-                          style={styles.countryCodeButton}
-                          onPress={() => setShowCountryPicker(true)}
-                          disabled={isDetectingCountry}
-                        >
-                          <Text style={styles.flagText}>{selectedCountry.flag}</Text>
-                          <Typography
-                            weight="600"
-                            size={14}
-                            color={isDetectingCountry ? color.grey_87807C : color.grey_DEDCDC}
-                            style={styles.countryCodeText}
-                          >
-                            {isDetectingCountry ? '...' : selectedCountry.dialCode}
-                          </Typography>
-                          {!isDetectingCountry && (
-                            <SvgIcons.downArrow width={12} height={12} fill={color.grey_87807C} />
-                          )}
-                        </TouchableOpacity>
-                      )}
 
-                      <TextInput
-                        style={[
-                          styles.inputField,
-                          touched.user_identifier && errors.user_identifier ? styles.inputError : null,
-                          inputType === 'phone' ? styles.inputFieldWithCountryCode : styles.inputFieldWithoutCountryCode
-                        ]}
-                        placeholder={inputType === 'phone' ? "Enter Phone Number" : "Enter Email"}
-                        placeholderTextColor={color.grey_87807C}
-                        onChangeText={(text) => handleInputChange(text, setFieldValue)}
-                        onBlur={handleBlur('user_identifier')}
-                        value={values.user_identifier}
-                        keyboardType={inputType === 'phone' ? "numeric" : "email-address"}
-                        selectionColor={color.selectField_CEBCA0}
-                        autoCapitalize="none"
-                        autoComplete={inputType === 'phone' ? "tel" : "email"}
-                      />
-                      <TouchableOpacity
-                        style={styles.arrowButton}
-                        onPress={handleSubmit}
-                        disabled={!values.user_identifier.trim()}
-                      >
-                        <SvgIcons.rightArrowWhite width={28} height={28} fill={color.black_544B45} />
-                      </TouchableOpacity>
-                    </View>
-                    {touched.user_identifier && errors.user_identifier && (
-                      <Caption color={color.red_FF0000} style={styles.errorText}>{errors.user_identifier}</Caption>
-                    )}
-                    
-                    {/* Toggle Button */}
-                    <TouchableOpacity 
-                      style={styles.toggleButton} 
-                      onPress={() => toggleInputType(setFieldValue)}
-                    >
-                      <Typography 
-                        weight="400" 
-                        size={14} 
-                        color={color.btnBrown_AE6F28}
-                      >
-                        {inputType === 'phone' ? 'Sign In with Email' : 'Sign In with Phone Number'}
-                      </Typography>
-                    </TouchableOpacity>
-                  </Animated.View>
-                )}
-              </Formik>
-              {showError && (
-                <View style={[styles.errorContainer, { top: screenHeight * 0.48 }]}>
-                  <TouchableOpacity onPress={dismissError}>
-                    <SvgIcons.crossIconRed width={20} height={20} fill={color.red_FF3B30} />
-                  </TouchableOpacity>
-                  <Typography weight="400" size={14} color={color.red_EF3E32} style={styles.errorTextCross}>
-                    {errorMessage}
-                  </Typography>
-                </View>
-              )}
-            </View>
-          </View>
-
+          {/* Gradient covers full screen as background */}
           {!isKeyboardVisible && (
             <LinearGradient
               colors={["#000000", "#281c10"]}
-              style={{ flex: 1 }}
+              style={StyleSheet.absoluteFillObject}
+            />
+          )}
+
+          {/* Form area — not flex:1 so it grows freely with content */}
+          <View style={[styles.centeredContent, { paddingTop: screenHeight * 0.36 }]}>
+            <Formik
+              initialValues={{ user_identifier: '' }}
+              validationSchema={validationSchema}
+              onSubmit={handleSignIn}
             >
+              {({ handleChange, handleBlur, handleSubmit, values, errors, touched, setFieldValue }) => (
+                <Animated.View style={{ width: '100%', opacity: fadeAnim }}>
+                  <View style={[
+                    styles.inputRow,
+                    (touched.user_identifier && errors.user_identifier) || showError ? styles.inputError : null
+                  ]}>
+                    {/* Country Code Picker (only show for phone input) */}
+                    {inputType === 'phone' && (
+                      <TouchableOpacity
+                        style={styles.countryCodeButton}
+                        onPress={() => setShowCountryPicker(true)}
+                        disabled={isDetectingCountry}
+                      >
+                        <Text style={styles.flagText}>{selectedCountry.flag}</Text>
+                        <Typography
+                          weight="600"
+                          size={14}
+                          color={isDetectingCountry ? color.grey_87807C : color.grey_DEDCDC}
+                          style={styles.countryCodeText}
+                        >
+                          {isDetectingCountry ? '...' : selectedCountry.dialCode}
+                        </Typography>
+                        {!isDetectingCountry && (
+                          <SvgIcons.downArrow width={12} height={12} fill={color.grey_87807C} />
+                        )}
+                      </TouchableOpacity>
+                    )}
+
+                    <TextInput
+                      style={[
+                        styles.inputField,
+                        touched.user_identifier && errors.user_identifier ? styles.inputError : null,
+                        inputType === 'phone' ? styles.inputFieldWithCountryCode : styles.inputFieldWithoutCountryCode
+                      ]}
+                      placeholder={inputType === 'phone' ? "Enter Phone Number" : "Enter Email"}
+                      placeholderTextColor={color.grey_87807C}
+                      onChangeText={(text) => handleInputChange(text, setFieldValue)}
+                      onBlur={handleBlur('user_identifier')}
+                      value={values.user_identifier}
+                      keyboardType={inputType === 'phone' ? "numeric" : "email-address"}
+                      selectionColor={color.selectField_CEBCA0}
+                      autoCapitalize="none"
+                      autoComplete={inputType === 'phone' ? "tel" : "email"}
+                    />
+                    <TouchableOpacity
+                      style={styles.arrowButton}
+                      onPress={handleSubmit}
+                      disabled={!values.user_identifier.trim()}
+                    >
+                      <SvgIcons.rightArrowWhite width={28} height={28} fill={color.black_544B45} />
+                    </TouchableOpacity>
+                  </View>
+                  {touched.user_identifier && errors.user_identifier && (
+                    <Caption color={color.red_FF0000} style={styles.errorText}>{errors.user_identifier}</Caption>
+                  )}
+
+                  {/* Toggle Button */}
+                  <TouchableOpacity
+                    style={styles.toggleButton}
+                    onPress={() => toggleInputType(setFieldValue)}
+                  >
+                    <Typography
+                      weight="400"
+                      size={14}
+                      color={color.btnBrown_AE6F28}
+                    >
+                      {inputType === 'phone' ? 'Sign In with Email' : 'Sign In with Phone Number'}
+                    </Typography>
+                  </TouchableOpacity>
+
+                  {showError && (
+                    <View style={styles.errorContainer}>
+                      <TouchableOpacity onPress={dismissError}>
+                        <SvgIcons.crossIconRed width={20} height={20} fill={color.red_FF3B30} />
+                      </TouchableOpacity>
+                      <Typography weight="400" size={14} color={color.red_EF3E32} style={styles.errorTextCross}>
+                        {errorMessage}
+                      </Typography>
+                    </View>
+                  )}
+                </Animated.View>
+              )}
+            </Formik>
+          </View>
+
+          {/* Branding pinned to bottom */}
+          {!isKeyboardVisible && (
+            <View style={styles.brandingContainer}>
               <MiddleSection showGetStartedButton={false} />
-            </LinearGradient>
+            </View>
           )}
         </View>
       </TouchableWithoutFeedback>
@@ -279,11 +287,7 @@ const LoginScreen = () => {
 
 const styles = StyleSheet.create({
   centeredContent: {
-    flex: 1,
-    justifyContent: 'flex-start',
-    alignItems: 'center',
     width: '100%',
-    backgroundColor: "#000000",
   },
   logoSection: {
     alignItems: 'center',
@@ -346,7 +350,7 @@ const styles = StyleSheet.create({
   arrowButton: {
     backgroundColor: color.btnBrown_AE6F28,
     height: '100%',
-    width: 60,
+    width: 72,
     justifyContent: 'center',
     alignItems: 'center',
     borderTopRightRadius: 14,
@@ -360,19 +364,15 @@ const styles = StyleSheet.create({
     marginHorizontal: 20
   },
   errorContainer: {
-    position: 'absolute',
     marginHorizontal: 20,
+    marginTop: 10,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: color.white_FFFFFF,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 15,
-    width: '90%',
-    alignSelf: 'center',
-    borderWidth: 2,
     gap: 10,
-    zIndex: 1000,
   },
   errorIconCircle: {
     width: 30,
@@ -389,6 +389,13 @@ const styles = StyleSheet.create({
   toggleButton: {
     alignItems: 'center',
     marginTop: 8,
+    paddingVertical: 6,
+  },
+  brandingContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
 });
 

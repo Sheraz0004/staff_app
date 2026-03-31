@@ -1,6 +1,6 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { API_BASE_URL } from '../config/env';
+import { API_BASE_URL, API_KEY } from '../config/env';
 import { logger } from '../utils/logger';
 import { networkService } from '../utils/network';
 import { offlineStorage } from '../utils/offlineStorage';
@@ -13,6 +13,7 @@ const apiClient = axios.create({
   baseURL: BASE_URL,
   headers: {
     'Content-Type': 'application/json',
+    ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
   },
 });
 
@@ -20,7 +21,7 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   async (config) => {
     // Skip auth for public endpoints
-    const publicEndpoints = [endpoints.otpRequest, endpoints.verifyOtp];
+    const publicEndpoints = [endpoints.otpRequest, endpoints.verifyOtp, endpoints.refreshToken];
 
     if (!publicEndpoints.some(endpoint => config.url?.includes(endpoint))) {
       try {
@@ -77,8 +78,9 @@ apiClient.interceptors.response.use(
 
 // API endpoints
 const endpoints = {
-  otpRequest: '/api/otp-request/',
-  verifyOtp: '/api/login/',
+  otpRequest: '/otp/request',
+  verifyOtp: '/otp/verify',
+  refreshToken: '/login/refresh',
   scanTicket: '/ticket/scan/{event_uuid}/{ticket_code}/',
   staffEvents: '/organization/staff/events/',
   eventInfo: '/ticket/event/',
@@ -94,33 +96,32 @@ const endpoints = {
   boxOfficeCheckInAllTicket: (eventUuid, orderNumber) => `/ticket/checkin-all/${eventUuid}/${orderNumber}/`,
   dashboardStats: '/events/{event_uuid}/sales/',
   userProfile: '/api/me/',
-  logout: '/api/logout/',
+  logout: '/identities/logout',
   updateProfile: '/api/profile/',
   adminDashboardTerminals: '/events/terminals/',
 };
 
 // API services
 export const authService = {
-  // Request OTP service
-  requestOtp: async (data) => {
+  // POST /otp/request — { identityKey, channel }  → { traceId }
+  requestOtp: async ({ identityKey, channel }) => {
     try {
-      const response = await apiClient.post(endpoints.otpRequest, data);
-      logger.log('API Response:', response.data);
+      const response = await apiClient.post(endpoints.otpRequest, { identityKey, channel });
+      logger.log('OTP Request Response:', response.data);
 
       if (!response.data) {
         throw new Error('No data received from server');
       }
 
-      return response.data;
+      // Swagger returns { traceId: "..." }
+      return { success: true, data: { traceId: response.data.traceId } };
     } catch (error) {
       logger.error('OTP Request Error:', {
         status: error.response?.status,
         data: error.response?.data,
         message: error.message,
-        request: error.config?.data
       });
 
-      // If we have a response from the server
       if (error.response?.data) {
         throw {
           message: error.response.data.message || 'Server error',
@@ -135,51 +136,38 @@ export const authService = {
     }
   },
 
-  // Verify OTP service
-  verifyOtp: async (data) => {
+  // POST /otp/verify — { traceId, otp }  → { authToken, refreshToken }
+  verifyOtp: async ({ traceId, otp, role }) => {
     try {
-      logger.log('🔐 Verifying OTP with payload:', { uuid: data.uuid, otp: '***' });
-      const response = await apiClient.post(endpoints.verifyOtp, data);
-      logger.log('✅ OTP Verification Response Status:', response.status);
-      logger.log('✅ OTP Verification Response Data:', JSON.stringify(response.data, null, 2));
-      
-      // Handle different response structures
-      // Structure 1: { success: true, data: { access_token: "..." } }
-      // Structure 2: { access_token: "..." } directly
-      const responseData = response.data;
-      const accessToken = responseData?.data?.access_token || responseData?.access_token;
-      
-      if (accessToken) {
-        await SecureStore.setItemAsync('accessToken', accessToken);
-        logger.log('✅ Token stored successfully in SecureStore');
-        
-        // Verify token was stored
-        const storedToken = await SecureStore.getItemAsync('accessToken');
-        logger.log('✅ Token verification - stored:', !!storedToken);
-      } else {
-        logger.warn('⚠️ No access_token found in response');
-        logger.warn('Response structure:', JSON.stringify(responseData, null, 2));
+      logger.log('verifyOtp payload:', { traceId, otp, role });
+      const response = await apiClient.post(endpoints.verifyOtp, { traceId, otp, role });
+      logger.log('verifyOtp response:', JSON.stringify(response.data, null, 2));
+
+      const { authToken, refreshToken } = response.data;
+
+      if (authToken) {
+        await SecureStore.setItemAsync('accessToken', authToken);
+        if (refreshToken) {
+          await SecureStore.setItemAsync('refreshToken', refreshToken);
+        }
       }
-      
-      // Return the full response data structure
-      return responseData;
+
+      // Return shape that OtpLoginScreen expects: { data: { access_token } }
+      return { data: { access_token: authToken }, refreshToken };
     } catch (error) {
       logger.error('❌ OTP Verification Error:', {
         status: error.response?.status,
-        statusText: error.response?.statusText,
         data: error.response?.data,
         message: error.message,
-        request: error.config?.data,
         url: error.config?.url,
-        baseURL: BASE_URL
       });
-      
+
       if (error.response?.data) {
-        const errorMessage = error.response.data.message || 
-                            error.response.data.error || 
-                            'Server error';
+        const data = error.response.data;
+        // Prefer `reason` (e.g. "OTP expired") over the generic `message`
+        const message = data.reason || data.message || data.error || 'Server error';
         throw {
-          message: errorMessage,
+          message,
           response: error.response,
           status: error.response?.status
         };
@@ -188,6 +176,29 @@ export const authService = {
         message: 'Network error. Please check your connection.',
         error: error
       };
+    }
+  },
+
+  // POST /login/refresh — { refreshToken }  → { authToken, refreshToken }
+  refreshToken: async () => {
+    try {
+      const storedRefreshToken = await SecureStore.getItemAsync('refreshToken');
+      if (!storedRefreshToken) throw new Error('No refresh token available');
+
+      const response = await apiClient.post(endpoints.refreshToken, { refreshToken: storedRefreshToken });
+      const { authToken, refreshToken } = response.data;
+
+      if (authToken) {
+        await SecureStore.setItemAsync('accessToken', authToken);
+        if (refreshToken) {
+          await SecureStore.setItemAsync('refreshToken', refreshToken);
+        }
+      }
+
+      return response.data;
+    } catch (error) {
+      logger.error('Token refresh error:', error);
+      throw error;
     }
   },
 };
@@ -1249,7 +1260,9 @@ export const userService = {
 
   Userlogout: async () => {
     try {
-      const response = await apiClient.post(endpoints.logout);
+      const response = await apiClient.delete(endpoints.logout);
+      await SecureStore.deleteItemAsync('accessToken');
+      await SecureStore.deleteItemAsync('refreshToken');
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
