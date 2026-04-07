@@ -144,16 +144,6 @@ const DashboardScreen = ({ eventInfo: propEventInfo, onScanCountUpdate, onEventC
       try {
         setUserProfileLoading(true);
         const profile = await userService.getProfile();
-        // logger.log('User profile:', profile);
-        // logger.log('User profile keys:', Object.keys(profile || {}));
-        // logger.log('User role:', profile?.role);
-        // logger.log('User role type:', typeof profile?.role);
-
-        // logger.log('profile?.user_role :', profile?.user_role);
-        // logger.log('profile?.type:', profile?.type);
-        // logger.log('profile?.permission:', profile?.permission);
-        // logger.log('profile?.user_type:', profile?.user_type);
-
         const role = profile?.role ||
           profile?.user_role ||
           profile?.type ||
@@ -188,7 +178,7 @@ const DashboardScreen = ({ eventInfo: propEventInfo, onScanCountUpdate, onEventC
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        if (eventInfo?.eventUuid) {
+        // if (eventInfo?.eventUuid) {
           setLoading(true);
 
           let salesParam = null;
@@ -200,20 +190,18 @@ const DashboardScreen = ({ eventInfo: propEventInfo, onScanCountUpdate, onEventC
             }
           }
 
-          const stats = await ticketService.fetchDashboardStats(eventInfo.eventUuid, salesParam);
-
-          if (userRole === 'ORGANIZER') {
+          const stats = await ticketService.fetchDashboardStats();
             logger.log('📊 Dashboard Stats for ORGANIZER:', JSON.stringify(stats, null, 2));
-            logger.log('📊 payment_channels location check:');
-            logger.log('  - stats?.data?.payment_channels:', stats?.data?.payment_channels);
-            logger.log('  - stats?.data?.box_office_sales?.payment_channels:', stats?.data?.box_office_sales?.payment_channels);
-            logger.log('  - stats?.data?.box_office_sales?.payment_channel:', stats?.data?.box_office_sales?.payment_channel);
-          }
+
+            
+          // if (userRole === 'ORGANIZER') {
+          //   logger.log('📊 Dashboard Stats for ORGANIZER:', JSON.stringify(stats, null, 2));
+          // }
 
           setDashboardStats(stats);
           setCurrentSalesType(salesParam);
           setError(null);
-        }
+        // }
       } catch (err) {
         logger.error('Error fetching dashboard stats:', err);
         setError(err.message || 'Failed to fetch dashboard stats');
@@ -270,7 +258,6 @@ const DashboardScreen = ({ eventInfo: propEventInfo, onScanCountUpdate, onEventC
     setSelectedAdminOnlineBoxOfficeTab(tab);
   };
 
-  // Function to get tab list based on user role
   const getTabList = () => {
     if (userRole === 'ADMIN') {
       return ["Attendees", "Check-Ins", "Available"];
@@ -1043,7 +1030,7 @@ const DashboardScreen = ({ eventInfo: propEventInfo, onScanCountUpdate, onEventC
   return (
     <View style={styles.mainContainer}>
       <SafeAreaView style={[styles.safeAreaContainer, { paddingTop: topPadding }]}>
-        {/* Brown event info bar */}
+      
         <View style={styles.header}>
           {shouldShowBackButton && (
             <TouchableOpacity onPress={handleBackPress} style={styles.headerBackButton}>
@@ -1197,6 +1184,9 @@ const DashboardScreen = ({ eventInfo: propEventInfo, onScanCountUpdate, onEventC
   );
 };
 
+
+
+export default DashboardScreen;
 const styles = StyleSheet.create({
   mainContainer: { flex: 1 },
   scrollContainer: { paddingBottom: 20, flexGrow: 1 },
@@ -1383,5 +1373,3 @@ const styles = StyleSheet.create({
   availableTicketsTitle: { fontSize: 12, color: color.placeholderTxt_24282C, fontWeight: '400', },
   availableTicketsValue: { fontSize: 14, fontWeight: '500', marginTop: 4, color: color.brown_3C200A, },
 });
-
-export default DashboardScreen;

@@ -18,6 +18,7 @@ import { eventService } from '../../api/apiService';
 import { logger } from '../../utils/logger';
 import SvgIcons from '../../components/SvgIcons';
 import Typography from '../../components/Typography';
+import { useSelector } from 'react-redux';
 
 const { width } = Dimensions.get('window');
 
@@ -235,7 +236,7 @@ const UpcomingEventItem = ({ event, onPress }) => (
 const EventSection = ({ section, onEventPress, onSectionPress }) => {
   const isSingleEvent = section.events.length === 1;
   const isHappeningToday = section.title === 'Happening Today';
-  // When a section is the only visible section, force vertical large card layout
+
   const forceVertical = section.forceVertical === true;
 
   return (
@@ -304,7 +305,7 @@ const EventSection = ({ section, onEventPress, onSectionPress }) => {
 const EventsScreen = ({ eventInfo, onEventChange }) => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-
+  const authUser = useSelector((state) => state.auth.user);
   // Calculate top padding for safe area
   const topPadding = Platform.OS === 'android'
     ? (StatusBar.currentHeight || 0)
@@ -339,7 +340,7 @@ const EventsScreen = ({ eventInfo, onEventChange }) => {
     const fetchEvents = async () => {
       try {
         setLoading(true);
-        const staffEventsData = await eventService.fetchStaffEvents();
+        const staffEventsData = await eventService.fetchStaffEvents(authUser?.identityId);
         const eventsList = staffEventsData?.data || [];
 
         logger.log('Fetched events for EventsScreen:', eventsList);
@@ -611,7 +612,7 @@ const EventsScreen = ({ eventInfo, onEventChange }) => {
         setEventSections(sections);
 
       } catch (error) {
-        logger.error('Error fetching events for EventsScreen:', error);
+        logger.error('Error fetching events for EventsScreen:', error.response.data);
         // Show empty state instead of sample data
         setEventSections([]);
         setUpcomingEvents([]);

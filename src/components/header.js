@@ -150,7 +150,6 @@ const Header = ({ eventInfo, onScanCountUpdate, onTabChange, showBackButton, onB
     }
   };
 
-  // Show back button from prop OR from specific detail screens
   const shouldShowBackButton = () => {
     if (showBackButton) return true;
     const currentRouteName = route.name;

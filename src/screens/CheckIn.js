@@ -49,7 +49,7 @@ const HomeScreen = ({ eventInfo, onScanCountUpdate, activeHeaderTab, onHeaderTab
           profile?.user_type ||
           profile?.data?.role ||
           profile?.user?.role;
-        logger.log('User role in CheckIn:', role);
+
 
       } catch (error) {
         logger.error('Error fetching user role in CheckIn:', error);

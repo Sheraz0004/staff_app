@@ -281,7 +281,8 @@ const WhenFilterBottomSheet = ({
 const TerminalEventsTab = ({ eventInfo, onEventChange }) => {
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
-
+    const authUser = useSelector((state) => state.auth.user);
+    console.log("authUser--->",authUser)
     const topPadding = Platform.OS === 'android'
         ? (StatusBar.currentHeight || 0)
         : insets.top;
@@ -304,7 +305,7 @@ const TerminalEventsTab = ({ eventInfo, onEventChange }) => {
         const fetchEvents = async () => {
             try {
                 setLoading(true);
-                const staffEventsData = await eventService.fetchStaffEvents();
+                const staffEventsData = await eventService.fetchStaffEvents(authUser?.id);
                 const eventsList = staffEventsData?.data || [];
 
                 let events = [];

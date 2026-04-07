@@ -41,7 +41,6 @@ function MyTabs() {
   const [eventInformation, setEventInformation] = useState(initialEventInfo);
   const [isLoadingEventInfo, setIsLoadingEventInfo] = useState(false);
   const authUser = useSelector((state) => state.auth.user);
-  // console.log("authUser-->", authUser);
   const userRole = authUser?.role ?? null;
 
   // Fetch profile if it wasn't loaded yet (e.g. app restored from a stored token)
@@ -111,7 +110,7 @@ function MyTabs() {
           } else {
             // logger.log('No last event UUID found in storage, fetching user events...');
             try {
-              const staffEventsData = await eventService.fetchStaffEvents();
+              const staffEventsData = await eventService.fetchStaffEvents(authUser?.identityId);
               const eventsList = staffEventsData?.data;
 
               if (eventsList && eventsList.length > 0) {
