@@ -11,7 +11,6 @@ const SplashScreenComponent = ({navigation}) => {
 
   const handleGetStarted = () => {
     navigation.navigate("Login");
-    
     // dispatch(setOnBoarding({ isOnboarding: true }));
   };
 

@@ -264,6 +264,8 @@ const LoginScreen = () => {
   );
 };
 
+
+
 const styles = StyleSheet.create({
   centeredContent: {
     width: '100%',
