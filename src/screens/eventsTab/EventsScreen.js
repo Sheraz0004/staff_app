@@ -305,7 +305,7 @@ const EventSection = ({ section, onEventPress, onSectionPress }) => {
 const EventsScreen = ({ eventInfo, onEventChange }) => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const authUser = useSelector((state) => state.auth.user);
+  const authUser = useSelector((state) => state.entities.user.user);
   // Calculate top padding for safe area
   const topPadding = Platform.OS === 'android'
     ? (StatusBar.currentHeight || 0)

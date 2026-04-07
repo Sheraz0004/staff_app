@@ -5,10 +5,7 @@ import { logger } from "../utils/logger";
 import { networkService } from "../utils/network";
 import { offlineStorage } from "../utils/offlineStorage";
 import { offlineQueue } from "../utils/offlineQueue";
-// Lazy getter — avoids circular-dep evaluation at module load time
-// (apiService → store → authSlice → apiService). By the time any
-// request is made, all modules are fully initialised.
-const getStore = () => require("../store").store;
+const getStore = () => require("../redux/store").default;
 
 // Base URL configuration (kept exported for backwards compatibility)
 export const BASE_URL = API_BASE_URL;
@@ -36,7 +33,7 @@ apiClient.interceptors.request.use(
 
     if (!publicEndpoints.some((endpoint) => config.url?.includes(endpoint))) {
       // Primary: read from Redux store (in-memory, synchronous)
-      let token = getStore()?.getState()?.auth?.accessToken;
+      let token = getStore()?.getState()?.entities?.user?.userToken;
 
       // Fallback: SecureStore for the brief window before initializeAuth runs
       if (!token) {
@@ -81,8 +78,8 @@ apiClient.interceptors.response.use(
         logger.error("Error clearing token from SecureStore:", clearError);
       }
       // Clear Redux auth state so the navigator sends user back to Login
-      const { clearAuth } = require("../store/slices/authSlice");
-      getStore()?.dispatch(clearAuth());
+      const { logout } = require("../redux/reducers/userReducer");
+      getStore()?.dispatch(logout());
       logger.log("Token expired or invalid — auth cleared");
     }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   StyleSheet, View, TextInput, TouchableOpacity, Platform, Keyboard,
-  TouchableWithoutFeedback, Text, Animated, useWindowDimensions
+  TouchableWithoutFeedback, Text, Animated, useWindowDimensions, ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -9,28 +9,30 @@ import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { color } from '../color/color';
 import SvgIcons from '../components/SvgIcons';
-import { authService } from '../api/apiService';
-import Typography, { Body1, Caption } from '../components/Typography';
-import { fontSize, fontWeight } from '../constants/typography';
+import Typography, { Caption } from '../components/Typography';
 import MiddleSection from '../components/MiddleSection';
 import CountryCodePicker from '../components/CountryCodePicker';
 import { defaultCountryCode } from '../constants/countryCodes';
 import { getAutoDetectedCountry } from '../utils/countryDetection';
 import { logger } from '../utils/logger';
+import { useApi } from '../services/useApi';
+import { AUTH_SERVICES } from '../services/AuthService';
+import { useToast } from '../components/Toast';
+
 
 const LoginScreen = () => {
   const navigation = useNavigation();
+  const { showErrorToast } = useToast();
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [showError, setShowError] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState(defaultCountryCode);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
-  const [inputType, setInputType] = useState('phone'); // Start with 'phone' as default
+  const [inputType, setInputType] = useState('phone');
   const [fadeAnim] = useState(new Animated.Value(1));
   const [slideAnim] = useState(new Animated.Value(0));
   const [isDetectingCountry, setIsDetectingCountry] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+
+  const { loading, requestCall } = useApi(AUTH_SERVICES.twoFactorInitiate, false, false);
 
   const { height: screenHeight } = useWindowDimensions();
   const isSmallScreen = screenHeight < 700;
@@ -40,7 +42,6 @@ const LoginScreen = () => {
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
       setKeyboardVisible(true);
     });
-
     const keyboardDidHideListener = Platform.OS === 'ios'
       ? Keyboard.addListener('keyboardWillHide', () => setKeyboardVisible(false))
       : Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
@@ -51,10 +52,8 @@ const LoginScreen = () => {
     };
   }, []);
 
-  // Auto-detect country code when component mounts
   useEffect(() => {
     const autoDetectCountry = async () => {
-      // Only auto-detect if we're still using the default country
       if (selectedCountry.code === defaultCountryCode.code) {
         setIsDetectingCountry(true);
         try {
@@ -69,7 +68,6 @@ const LoginScreen = () => {
         }
       }
     };
-
     autoDetectCountry();
   }, []);
 
@@ -80,43 +78,39 @@ const LoginScreen = () => {
       .test('emailOrPhone', 'Invalid email or phone number', (value) => {
         if (!value) return false;
         if (inputType === 'email') {
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          return emailRegex.test(value);
-        } else {
-          const phoneRegex = /^[0-9]{7,15}$/;
-          return phoneRegex.test(value);
+          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
         }
+        return /^[0-9]{7,15}$/.test(value);
       }),
-    password: Yup.string()
-      .min(1, 'Required')
-      .required('Password is required'),
+    password: Yup.string().min(1, 'Required').required('Password is required'),
   });
 
   const handleSignIn = async (values) => {
-    setIsLoading(true);
-    setShowError(false);
-    setErrorMessage('');
     try {
       let identityKey = values.user_identifier.trim();
-
-      // For phone, prepend dial code to form E.164 number (e.g. +923001234567)
       if (inputType === 'phone') {
         identityKey = selectedCountry.dialCode + identityKey;
       }
 
-      // 2FA Step 1: POST /login/2fa/initiate — { key, secret }
-      const response = await authService.twoFactorInitiate({ key: identityKey, secret: values.password });
+      const response = await requestCall({ key: identityKey, secret: values.password });
+      const { traceId, maskedContact } = response?.data || {};
+
       navigation.navigate('OtpLogin', {
-        traceId: response.traceId,
-        maskedContact: response.maskedContact,
+        traceId,
+        maskedContact,
         user_identifier: identityKey,
       });
     } catch (error) {
-      const raw = error?.message || '';
+      const raw = error?.response?.data?.reason
+        || error?.response?.data?.message
+        || error?.response?.data?.error
+        || error?.message
+        || '';
+
       let message = 'Invalid credentials. Please try again.';
       if (raw) {
         const lower = raw.toLowerCase();
-        if (lower.includes('customer') || lower.includes('otp/request') || lower.includes('not_allowed')) {
+        if (lower.includes('customer') || lower.includes('not_allowed')) {
           message = 'This account is not authorized for staff login.';
         } else if (lower.includes('blocked')) {
           message = 'Your account has been blocked. Please contact support.';
@@ -126,51 +120,20 @@ const LoginScreen = () => {
           message = raw;
         }
       }
-      setErrorMessage(message);
-      setShowError(true);
-    } finally {
-      setIsLoading(false);
+      showErrorToast(message);
     }
   };
 
-  const dismissError = () => {
-    setShowError(false);
-    setErrorMessage('');
-  };
-
   const toggleInputType = (setFieldValue) => {
-    // Clear the input field when switching types
     setFieldValue('user_identifier', '');
     const newInputType = inputType === 'phone' ? 'email' : 'phone';
-    
-    // Animate the transition
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: newInputType === 'phone' ? 0 : 1,
-        duration: 150,
-        useNativeDriver: true,
-      }),
+      Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: newInputType === 'phone' ? 0 : 1, duration: 150, useNativeDriver: true }),
     ]).start(() => {
       setInputType(newInputType);
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 150,
-        useNativeDriver: true,
-      }).start();
+      Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();
     });
-  };
-
-  const handleInputChange = (text, setFieldValue) => {
-    setFieldValue('user_identifier', text);
-  };
-
-  const handleCountrySelect = (country) => {
-    setSelectedCountry(country);
   };
 
   return (
@@ -178,7 +141,6 @@ const LoginScreen = () => {
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={{ flex: 1, backgroundColor: 'black' }}>
 
-          {/* Gradient covers full screen as background */}
           {!isKeyboardVisible && (
             <LinearGradient
               colors={["#000000", "#281c10"]}
@@ -186,10 +148,8 @@ const LoginScreen = () => {
             />
           )}
 
-          {/* Top spacer — pushes form down without paddingTop so error won't overlap branding */}
           <View style={{ height: isSmallScreen ? screenHeight * 0.28 : isLargeScreen ? screenHeight * 0.38 : screenHeight * 0.33 }} />
 
-          {/* Form area */}
           <View style={styles.centeredContent}>
             <Formik
               initialValues={{ user_identifier: '', password: '' }}
@@ -198,11 +158,9 @@ const LoginScreen = () => {
             >
               {({ handleChange, handleBlur, handleSubmit, values, errors, touched, setFieldValue }) => (
                 <Animated.View style={{ width: '100%', opacity: fadeAnim }}>
-                  <View style={[
-                    styles.inputRow,
-                    touched.user_identifier && errors.user_identifier ? styles.inputError : null
-                  ]}>
-                    {/* Country Code Picker (only show for phone input) */}
+
+                  {/* Identifier field */}
+                  <View style={[styles.inputRow, touched.user_identifier && errors.user_identifier ? styles.inputError : null]}>
                     {inputType === 'phone' && (
                       <TouchableOpacity
                         style={styles.countryCodeButton}
@@ -210,12 +168,7 @@ const LoginScreen = () => {
                         disabled={isDetectingCountry}
                       >
                         <Text style={styles.flagText}>{selectedCountry.flag}</Text>
-                        <Typography
-                          weight="600"
-                          size={14}
-                          color={isDetectingCountry ? color.grey_87807C : color.grey_DEDCDC}
-                          style={styles.countryCodeText}
-                        >
+                        <Typography weight="600" size={14} color={isDetectingCountry ? color.grey_87807C : color.grey_DEDCDC} style={styles.countryCodeText}>
                           {isDetectingCountry ? '...' : selectedCountry.dialCode}
                         </Typography>
                         {!isDetectingCountry && (
@@ -223,34 +176,29 @@ const LoginScreen = () => {
                         )}
                       </TouchableOpacity>
                     )}
-
                     <TextInput
                       style={[
                         styles.inputField,
                         touched.user_identifier && errors.user_identifier ? styles.inputError : null,
-                        inputType === 'phone' ? styles.inputFieldWithCountryCode : styles.inputFieldWithoutCountryCode
+                        inputType === 'phone' ? styles.inputFieldWithCountryCode : styles.inputFieldWithoutCountryCode,
                       ]}
-                      placeholder={inputType === 'phone' ? "Enter Phone Number" : "Enter Email"}
+                      placeholder={inputType === 'phone' ? 'Enter Phone Number' : 'Enter Email'}
                       placeholderTextColor={color.grey_87807C}
-                      onChangeText={(text) => handleInputChange(text, setFieldValue)}
+                      onChangeText={(text) => setFieldValue('user_identifier', text)}
                       onBlur={handleBlur('user_identifier')}
                       value={values.user_identifier}
-                      keyboardType={inputType === 'phone' ? "numeric" : "email-address"}
+                      keyboardType={inputType === 'phone' ? 'numeric' : 'email-address'}
                       selectionColor={color.selectField_CEBCA0}
                       autoCapitalize="none"
-                      autoComplete={inputType === 'phone' ? "tel" : "email"}
+                      autoComplete={inputType === 'phone' ? 'tel' : 'email'}
                     />
                   </View>
                   {touched.user_identifier && errors.user_identifier && (
                     <Caption color={color.red_FF0000} style={styles.errorText}>{errors.user_identifier}</Caption>
                   )}
 
-                  {/* Password Field */}
-                  <View style={[
-                    styles.inputRow,
-                    touched.password && errors.password ? styles.inputError : null,
-                    { marginTop: 10 }
-                  ]}>
+                  {/* Password field */}
+                  <View style={[styles.inputRow, touched.password && errors.password ? styles.inputError : null, { marginTop: 10 }]}>
                     <TextInput
                       style={[styles.inputField, styles.inputFieldWithoutCountryCode]}
                       placeholder="Enter Password"
@@ -263,10 +211,7 @@ const LoginScreen = () => {
                       autoCapitalize="none"
                       autoComplete="password"
                     />
-                    <TouchableOpacity
-                      style={styles.eyeButton}
-                      onPress={() => setShowPassword((prev) => !prev)}
-                    >
+                    <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword((prev) => !prev)}>
                       {showPassword
                         ? <SvgIcons.eyeOpen width={20} height={20} fill={color.grey_87807C} />
                         : <SvgIcons.eyeClosed width={20} height={20} fill={color.grey_87807C} />
@@ -277,60 +222,41 @@ const LoginScreen = () => {
                     <Caption color={color.red_FF0000} style={styles.errorText}>{errors.password}</Caption>
                   )}
 
-                  {/* Submit Button */}
+                  {/* Submit */}
                   <TouchableOpacity
-                    style={[styles.submitButton, (isLoading || !values.user_identifier.trim() || !values.password.trim()) && styles.submitButtonDisabled]}
+                    style={[styles.submitButton, (loading || !values.user_identifier.trim() || !values.password.trim()) && styles.submitButtonDisabled]}
                     onPress={handleSubmit}
-                    disabled={isLoading || !values.user_identifier.trim() || !values.password.trim()}
+                    disabled={loading || !values.user_identifier.trim() || !values.password.trim()}
                   >
-                    <Typography weight="600" size={15} color={color.white_FFFFFF}>
-                      {isLoading ? 'Please wait...' : 'Sign In'}
-                    </Typography>
+                    {loading
+                      ? <ActivityIndicator size="small" color={color.white_FFFFFF} />
+                      : <Typography weight="600" size={15} color={color.white_FFFFFF}>Sign In</Typography>
+                    }
                   </TouchableOpacity>
 
-                  {/* Toggle Button */}
-                  <TouchableOpacity
-                    style={styles.toggleButton}
-                    onPress={() => toggleInputType(setFieldValue)}
-                  >
-                    <Typography
-                      weight="400"
-                      size={14}
-                      color={color.btnBrown_AE6F28}
-                    >
+                  {/* Toggle phone / email */}
+                  <TouchableOpacity style={styles.toggleButton} onPress={() => toggleInputType(setFieldValue)}>
+                    <Typography weight="400" size={14} color={color.btnBrown_AE6F28}>
                       {inputType === 'phone' ? 'Sign In with Email' : 'Sign In with Phone Number'}
                     </Typography>
                   </TouchableOpacity>
 
-                  {showError && (
-                    <View style={styles.errorContainer}>
-                      <TouchableOpacity onPress={dismissError}>
-                        <SvgIcons.crossIconRed width={20} height={20} fill={color.red_FF3B30} />
-                      </TouchableOpacity>
-                      <Typography weight="400" size={14} color={color.red_EF3E32} style={styles.errorTextCross}>
-                        {errorMessage}
-                      </Typography>
-                    </View>
-                  )}
                 </Animated.View>
               )}
             </Formik>
           </View>
 
-          {/* Flex spacer pushes branding to bottom in normal flow */}
           <View style={{ flex: 0.8 }} />
 
-          {/* Branding at bottom — normal flow, never overlaps form */}
           {!isKeyboardVisible && (
             <MiddleSection showGetStartedButton={false} useFlexLayout />
           )}
         </View>
       </TouchableWithoutFeedback>
 
-      {/* Country Code Picker Modal */}
       <CountryCodePicker
         selectedCountry={selectedCountry}
-        onSelectCountry={handleCountrySelect}
+        onSelectCountry={(country) => setSelectedCountry(country)}
         visible={showCountryPicker}
         onClose={() => setShowCountryPicker(false)}
       />
@@ -341,19 +267,6 @@ const LoginScreen = () => {
 const styles = StyleSheet.create({
   centeredContent: {
     width: '100%',
-  },
-  logoSection: {
-    alignItems: 'center',
-    marginTop: 60,
-    marginBottom: 40,
-    width: '100%',
-  },
-  hexalloText: {
-    marginTop: 18,
-    marginBottom: 8,
-  },
-  tagline: {
-    marginBottom: 0,
   },
   inputRow: {
     paddingLeft: 10,
@@ -366,8 +279,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     marginBottom: 5,
     height: 54,
-    marginHorizontal: 20
-
+    marginHorizontal: 20,
   },
   countryCodeButton: {
     flexDirection: 'row',
@@ -400,15 +312,6 @@ const styles = StyleSheet.create({
   inputFieldWithoutCountryCode: {
     paddingLeft: 20,
   },
-  arrowButton: {
-    backgroundColor: color.btnBrown_AE6F28,
-    height: '100%',
-    width: 72,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderTopRightRadius: 14,
-    borderBottomRightRadius: 14,
-  },
   eyeButton: {
     paddingHorizontal: 14,
     height: '100%',
@@ -432,30 +335,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     width: '100%',
-    marginHorizontal: 20
-  },
-  errorContainer: {
     marginHorizontal: 20,
-    marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: color.white_FFFFFF,
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    gap: 10,
-  },
-  errorIconCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: color.red_FF3B30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  errorTextCross: {
-    flex: 1,
   },
   toggleButton: {
     alignItems: 'center',

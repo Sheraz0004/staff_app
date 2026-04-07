@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useDispatch } from "react-redux";
-import { logoutUser } from "../store/slices/authSlice";
+import { logout } from "../redux/reducers/userReducer";
 import { color } from "../color/color";
 import SvgIcons from "../components/SvgIcons";
 import * as ImagePicker from "expo-image-picker";
@@ -115,7 +115,7 @@ const ProfileScreen = () => {
   };
 
   const handleLogout = () => {
-    dispatch(logoutUser());
+    dispatch(logout());
   };
 
   if (loading) {

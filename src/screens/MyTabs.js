@@ -11,7 +11,7 @@ import DashboardScreen from '../screens/dashboard';
 import ProfileScreen from './ProfileScreen';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchUserProfile } from '../store/slices/authSlice';
+import { getUser } from '../redux/reducers/userReducer';
 import { fetchUpdatedScanCount, updateEventInfoScanCount } from '../utils/scanCountUpdater';
 import { eventService } from '../api/apiService';
 import * as SecureStore from 'expo-secure-store';
@@ -40,15 +40,8 @@ function MyTabs() {
   const initialEventInfo = route?.params?.eventInfo;
   const [eventInformation, setEventInformation] = useState(initialEventInfo);
   const [isLoadingEventInfo, setIsLoadingEventInfo] = useState(false);
-  const authUser = useSelector((state) => state.auth.user);
+  const authUser = useSelector(getUser);
   const userRole = authUser?.role ?? null;
-
-  // Fetch profile if it wasn't loaded yet (e.g. app restored from a stored token)
-  useEffect(() => {
-    if (!authUser) {
-      dispatch(fetchUserProfile());
-    }
-  }, [authUser, dispatch]);
   const [activeHeaderTab, setActiveHeaderTab] = useState('Sell');
 
   // When true, user tapped bottom tab directly (normal mode = show Tickets tab)
