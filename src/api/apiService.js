@@ -5,6 +5,10 @@ import { logger } from '../utils/logger';
 import { networkService } from '../utils/network';
 import { offlineStorage } from '../utils/offlineStorage';
 import { offlineQueue } from '../utils/offlineQueue';
+// Lazy getter — avoids circular-dep evaluation at module load time
+// (apiService → store → authSlice → apiService). By the time any
+// request is made, all modules are fully initialised.
+const getStore = () => require('../store').store;
 
 // Base URL configuration (kept exported for backwards compatibility)
 export const BASE_URL = API_BASE_URL;
@@ -17,28 +21,38 @@ const apiClient = axios.create({
   },
 });
 
-// Request interceptor for adding auth token
+// Request interceptor — attaches Bearer token to every non-public request
 apiClient.interceptors.request.use(
   async (config) => {
-    // Skip auth for public endpoints
-    const publicEndpoints = [endpoints.otpRequest, endpoints.verifyOtp, endpoints.refreshToken];
+    const publicEndpoints = [
+      endpoints.otpRequest,
+      endpoints.verifyOtp,
+      endpoints.refreshToken,
+      endpoints.login,
+      endpoints.organizerSignup,
+    ];
 
     if (!publicEndpoints.some(endpoint => config.url?.includes(endpoint))) {
-      try {
-        const token = await SecureStore.getItemAsync('accessToken');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
+      // Primary: read from Redux store (in-memory, synchronous)
+      let token = getStore()?.getState()?.auth?.accessToken;
+
+      // Fallback: SecureStore for the brief window before initializeAuth runs
+      if (!token) {
+        try {
+          token = await SecureStore.getItemAsync('accessToken');
+        } catch (error) {
+          logger.error('Error getting token from SecureStore:', error);
         }
-      } catch (error) {
-        logger.error('Error getting token from SecureStore:', error);
+      }
+
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
       }
     }
 
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error),
 );
 
 // Response interceptor for handling auth errors and network status
@@ -57,18 +71,17 @@ apiClient.interceptors.response.use(
       networkService.setOnlineStatus(true);
     }
 
-    // If we get a 401 Unauthorized response, the token is invalid/expired
+    // 401 — token expired or invalid: clear everywhere
     if (error.response?.status === 401) {
       try {
-        // Clear the invalid token
         await SecureStore.deleteItemAsync('accessToken');
-        logger.log('Token expired or invalid, cleared from storage');
-
-        // You could also dispatch a logout action here if using Redux
-        // or trigger a navigation to login screen
       } catch (clearError) {
-        logger.error('Error clearing token:', clearError);
+        logger.error('Error clearing token from SecureStore:', clearError);
       }
+      // Clear Redux auth state so the navigator sends user back to Login
+      const { clearAuth } = require('../store/slices/authSlice');
+      getStore()?.dispatch(clearAuth());
+      logger.log('Token expired or invalid — auth cleared');
     }
 
     return Promise.reject(error);
@@ -80,25 +93,27 @@ apiClient.interceptors.response.use(
 const endpoints = {
   otpRequest: '/otp/request',
   verifyOtp: '/otp/verify',
+  login: '/login',
+  organizerSignup: '/identities/organizer/signup',
   refreshToken: '/login/refresh',
-  scanTicket: '/ticket/scan/{event_uuid}/{ticket_code}/',
-  staffEvents: '/organization/staff/events/',
-  eventInfo: '/ticket/event/',
-  updateNote: '/ticket/note/{event_uuid}/{code}/',
-  userTicketOrdersManual: '/ticket/user-ticket/orders/',
-  userTicketOrdersManualDetail: (orderNumber, eventUuid) => `/ticket/user-ticket/?order_number=${orderNumber}&event_uuid=${eventUuid}`,
-  manualDetailChekin: (uuid, code) => `/ticket/scan/${uuid}/${code}/`,
-  ticketStats: '/ticket/',
-  ticketStatslist: '/ticket/user-ticket/',
-  ticketPricingStats: '/ticket/pricing-types/',
-  ticketPricing: '/ticket/pricing/',
-  boxOfficeGetTicket: '/order/box-office/',
-  boxOfficeCheckInAllTicket: (eventUuid, orderNumber) => `/ticket/checkin-all/${eventUuid}/${orderNumber}/`,
-  dashboardStats: '/events/{event_uuid}/sales/',
-  userProfile: '/api/me/',
+  scanTicket: '/api/ticket/scan/{eventId}/{code}/',
+  staffEventAccess: '/api/staff-event-access/staff/',
+  eventInfo: '/api/ticket/event/',
+  updateNote: '/api/ticket/note/{eventId}/{code}/',
+  userTicketOrdersManual: '/api/user-tickets/orders/',
+  userTicketOrdersManualDetail: (orderNumber, eventId) => `/api/user-tickets/?order_number=${orderNumber}&event_id=${eventId}`,
+  manualDetailChekin: (eventId, code) => `/api/ticket/scan/${eventId}/${code}/`,
+  ticketStats: '/api/ticket/',
+  ticketStatslist: '/api/user-tickets/',
+  ticketPricingStats: (eventId) => `/api/ticket/pricing-type/${eventId}/`,
+  ticketPricing: (eventId) => `/api/pricing/by-event/${eventId}/`,
+  boxOfficeGetTicket: '/api/orders/box-office/',
+  boxOfficeCheckInAllTicket: (eventId, orderNumber) => `/api/ticket/check-in-all/${eventId}/${orderNumber}/`,
+  dashboardStats: '/api/event/stats/',
+  userProfile: '/api/users/me',
   logout: '/identities/logout',
-  updateProfile: '/api/profile/',
-  adminDashboardTerminals: '/events/terminals/',
+  updateProfile: '/api/users/profile',
+  adminDashboardTerminals: '/api/event/sales-terminals/',
 };
 
 // API services
@@ -179,6 +194,82 @@ export const authService = {
     }
   },
 
+  // POST /login — { key, secret }  → { authToken, refreshToken }
+  login: async ({ key, secret }) => {
+    try {
+      const response = await apiClient.post(endpoints.login, { key, secret });
+      logger.log('Password Login Response:', response.data);
+
+      const { authToken, refreshToken } = response.data;
+
+      if (authToken) {
+        await SecureStore.setItemAsync('accessToken', authToken);
+        if (refreshToken) {
+          await SecureStore.setItemAsync('refreshToken', refreshToken);
+        }
+      }
+
+      return { data: { access_token: authToken }, refreshToken };
+    } catch (error) {
+      logger.error('Password Login Error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+
+      if (error.response?.data) {
+        const data = error.response.data;
+        throw {
+          message: data.reason || data.message || data.error || 'Invalid credentials',
+          response: error.response,
+          status: error.response?.status,
+        };
+      }
+      throw {
+        message: 'Network error. Please check your connection.',
+        error: error,
+      };
+    }
+  },
+
+  // POST /identities/organizer/signup — { email, password }  → { authToken, refreshToken }
+  organizerSignup: async ({ email, password }) => {
+    try {
+      const response = await apiClient.post(endpoints.organizerSignup, { email, password });
+      logger.log('Organizer Signup Response:', response.data);
+
+      const { authToken, refreshToken } = response.data;
+
+      if (authToken) {
+        await SecureStore.setItemAsync('accessToken', authToken);
+        if (refreshToken) {
+          await SecureStore.setItemAsync('refreshToken', refreshToken);
+        }
+      }
+
+      return { data: { access_token: authToken }, refreshToken };
+    } catch (error) {
+      logger.error('Organizer Signup Error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+
+      if (error.response?.data) {
+        const data = error.response.data;
+        throw {
+          message: data.reason || data.message || data.error || 'Signup failed',
+          response: error.response,
+          status: error.response?.status,
+        };
+      }
+      throw {
+        message: 'Network error. Please check your connection.',
+        error: error,
+      };
+    }
+  },
+
   // POST /login/refresh — { refreshToken }  → { authToken, refreshToken }
   refreshToken: async () => {
     try {
@@ -213,8 +304,8 @@ export const ticketService = {
 
       // Assuming the scanned data is a full URL like:
       // https://dev-api.hexallo.com/ticket/scan/b25e2a8b-ebc4-4872-b7a3-347bef5466a5/R04LERYMWD79R2PI/
-      if (scannedData.startsWith(BASE_URL) && scannedData.includes('/ticket/scan/')) {
-        const parts = scannedData.split('/ticket/scan/')[1].split('/');
+      if (scannedData.includes('/api/ticket/scan/')) {
+        const parts = scannedData.split('/api/ticket/scan/')[1].split('/');
         if (parts.length >= 2) {
           eventUuidFromScan = parts[0];
           ticketCodeFromScan = parts[1];
@@ -305,8 +396,8 @@ export const ticketService = {
 
       // Construct URL using the extracted values
       const requestUrl = endpoints.scanTicket
-        .replace('{event_uuid}', eventUuidFromScan)
-        .replace('{ticket_code}', ticketCodeFromScan);
+        .replace('{eventId}', eventUuidFromScan)
+        .replace('{code}', ticketCodeFromScan);
 
       logger.log('Request Details:', {
         method: 'POST',
@@ -367,7 +458,7 @@ export const ticketService = {
         logger.log('Network error - queueing scan for offline sync');
         
         try {
-          const parts = scannedData.split('/ticket/scan/')[1].split('/');
+          const parts = scannedData.split('/api/ticket/scan/')[1].split('/');
           const eventUuidFromScan = parts[0];
           const ticketCodeFromScan = parts[1];
           
@@ -465,7 +556,7 @@ export const ticketService = {
       }
 
       const requestUrl = endpoints.updateNote
-        .replace('{event_uuid}', eventUuid)
+        .replace('{eventId}', eventUuid)
         .replace('{code}', code);
       logger.log('update note:', requestUrl);
 
@@ -506,7 +597,7 @@ export const ticketService = {
 
   fetchAdminTerminals: async (event_uuid) => {
     try {
-      const response = await apiClient.get(`${endpoints.adminDashboardTerminals}?event=${event_uuid}`); // Include event_uuid as a query parameter
+      const response = await apiClient.get(`${endpoints.adminDashboardTerminals}?event_id=${event_uuid}`); // Include event_uuid as a query parameter
       logger.log('Admin Dashboard Terminals Response:', response.data);
       return response.data;
     } catch (error) {
@@ -542,7 +633,7 @@ export const ticketService = {
         };
       }
 
-      const response = await apiClient.get(`${endpoints.userTicketOrdersManual}?event_uuid=${event_uuid}`); // Include event_uuid as a query parameter
+      const response = await apiClient.get(`${endpoints.userTicketOrdersManual}?event_id=${event_uuid}`); // Include event_uuid as a query parameter
       logger.log('User Ticket Orders Response:', response.data);
       
       // Cache the response for offline use
@@ -802,7 +893,7 @@ export const ticketService = {
     try {
       const isOnline = networkService.isConnected();
       
-      let url = `${endpoints.ticketStatslist}?event_uuid=${event_uuid}&page=${page}&page_size=-1`;
+      let url = `${endpoints.ticketStatslist}?event_id=${event_uuid}&page=${page}&page_size=-1`;
       
       // Add status filter
       if (status) {
@@ -851,9 +942,9 @@ export const ticketService = {
       throw error;
     }
   },
-  fetchTicketPricingStats: async () => {
+  fetchTicketPricingStats: async (eventId) => {
     try {
-      const response = await apiClient.get(endpoints.ticketPricingStats);
+      const response = await apiClient.get(endpoints.ticketPricingStats(eventId));
       logger.log('Ticket Pricing Stats API Response:', response.data);
       return response.data;
     } catch (error) {
@@ -887,7 +978,7 @@ export const ticketService = {
       }
 
       logger.log('Fetching ticket pricing for event:', eventUuid);
-      const response = await apiClient.get(`${endpoints.ticketPricing}?event_uuid=${eventUuid}`);
+      const response = await apiClient.get(endpoints.ticketPricing(eventUuid));
 
       // Log the complete response
       logger.log('Ticket Pricing API Response:', {
@@ -941,20 +1032,20 @@ export const ticketService = {
 
   fetchBoxOfficeGetTicket: async (eventUuid, items, userIdentifier, paymentMethod, transactionId = null, name = null, purchaseCode = null) => {
     try {
-      // Add purchase_code to items if provided
+      // Add purchaseCode to items if provided
       const itemsWithPurchaseCode = items.map(item => ({
         ...item,
-        // Only add purchase_code if it's provided and not empty
-        ...(purchaseCode && purchaseCode.trim() && { purchase_code: purchaseCode.trim() })
+        // Only add purchaseCode if it's provided and not empty
+        ...(purchaseCode && purchaseCode.trim() && { purchaseCode: purchaseCode.trim() })
       }));
 
       const requestBody = {
-        event: eventUuid,
+        eventId: eventUuid,
         items: itemsWithPurchaseCode,
-        user_identifier: userIdentifier,
-        payment_method: paymentMethod,
-        transaction_id: transactionId,
-        name: name
+        userIdentifier: userIdentifier,
+        paymentMethod: paymentMethod,
+        transactionId: transactionId,
+        name: name,
       };
 
       logger.log('BoxOffice get ticket request body:', requestBody);
@@ -989,8 +1080,8 @@ export const ticketService = {
         logger.log('BoxOffice Response:', error.response?.data);
 
         // Handle specific validation errors
-        if (error.response.status === 400 && error.response.data?.data?.purchase_code) {
-          const purchaseCodeErrors = error.response.data.data.purchase_code;
+        if (error.response.status === 400 && error.response.data?.data?.purchaseCode) {
+          const purchaseCodeErrors = error.response.data.data.purchaseCode;
           if (Array.isArray(purchaseCodeErrors) && purchaseCodeErrors.length > 0) {
             logger.error('Purchase code validation failed:', {
               purchaseCode: purchaseCode,
@@ -1019,7 +1110,7 @@ export const ticketService = {
 
   fetchDashboardStats: async (eventUuid, sales = null, ticketType = null, ticketUuid = null, staffUuid = null, paymentChannel = null) => {
     try {
-      let url = endpoints.dashboardStats.replace('{event_uuid}', eventUuid);
+      let url = endpoints.dashboardStats;
 
       const params = new URLSearchParams();
 
@@ -1053,28 +1144,28 @@ export const ticketService = {
       }
 
       // Log the API call details
-      logger.log('================================================');
-      logger.log('📡 API CALL - fetchDashboardStats');
-      logger.log('Base URL:', BASE_URL);
-      logger.log('Endpoint:', url);
-      logger.log('Full URL:', BASE_URL + url);
-      logger.log('HTTP Method: GET');
-      logger.log('Parameters:', {
-        eventUuid,
-        sales,
-        ticketType,
-        ticketUuid,
-        staffUuid,
-        paymentChannel
-      });
-      logger.log('================================================');
+      // logger.log('================================================');
+      // logger.log('📡 API CALL - fetchDashboardStats');
+      // logger.log('Base URL:', BASE_URL);
+      // logger.log('Endpoint:', url);
+      // logger.log('Full URL:', BASE_URL + url);
+      // logger.log('HTTP Method: GET');
+      // logger.log('Parameters:', {
+      //   eventUuid,
+      //   sales,
+      //   ticketType,
+      //   ticketUuid,
+      //   staffUuid,
+      //   paymentChannel
+      // });
+      // logger.log('================================================');
 
-      const response = await apiClient.get(url);
+      // const response = await apiClient.get(url);
 
-      logger.log('✅ API Response received:', {
-        status: response.status,
-        hasData: !!response.data
-      });
+      // logger.log('✅ API Response received:', {
+      //   status: response.status,
+      //   hasData: !!response.data
+      // });
 
       return response.data;
     } catch (error) {
@@ -1102,79 +1193,48 @@ export const eventService = {
 
   fetchStaffEvents: async () => {
     try {
-      // Log request details
-      const token = await SecureStore.getItemAsync('accessToken');
-      logger.log('🔍 Fetching staff events...');
-      logger.log('📡 Request URL:', `${BASE_URL}${endpoints.staffEvents}`);
-      logger.log('🔑 Has token:', !!token);
-      logger.log('🔑 Token preview:', token ? `${token.substring(0, 20)}...` : 'No token');
-      
-      const response = await apiClient.get(endpoints.staffEvents);
-      logger.log('✅ Fetch Staff Events Response Status:', response.status);
-      logger.log('✅ Fetch Staff Events Response Data:', JSON.stringify(response.data, null, 2));
+      // Step 1: get current user profile to extract staffId
+      const profileResponse = await apiClient.get(endpoints.userProfile);
+      // logger.log('fetchStaffEvents /api/me/ response:', JSON.stringify(profileResponse.data, null, 2));
 
-      // Handle the new response structure
-      if (response.data?.success && response.data?.data && response.data.data.length > 0) {
-        // Extract events from the first staff member's events array
-        const staffData = response.data.data[0];
-        if (staffData?.events && staffData.events.length > 0) {
-          // Transform the events to match the expected format
-          const transformedEvents = staffData.events.map(event => ({
-            id: event.uuid,
-            event_title: event.title,
-            uuid: event.uuid,
-            // Add other required fields with default values
-            cityName: 'Accra', // Default location
-            date: '28-12-2024', // Default date
-            time: '7:00 PM', // Default time
-            eventUuid: event.uuid
-          }));
+      const staffId = profileResponse.data?.staffId
+        || profileResponse.data?.data?.staffId
+        || profileResponse.data?.id
+        || profileResponse.data?.data?.id;
 
-          // Return in the expected format
-          return {
-            data: transformedEvents
-          };
-        }
+      if (!staffId) {
+        logger.error('fetchStaffEvents: no staffId in profile response', JSON.stringify(profileResponse.data, null, 2));
+        throw new Error('Could not resolve staffId from user profile');
       }
 
-      // Return empty array if no events found
-      logger.log('No events found in response, returning empty array');
-      return { data: [] };
+      // Step 2: get event access for this staff member
+      const response = await apiClient.get(`${endpoints.staffEventAccess}${staffId}`);
+      // logger.log('fetchStaffEvents /api/staff-event-access response:', JSON.stringify(response.data, null, 2));
+
+      // Response: { staffEventAccess: [{ id, staffId, organizationId, eventIds: [int64] }] }
+      const accessList = response.data?.staffEventAccess || [];
+      const eventIds = accessList.flatMap(entry => entry.eventIds || []);
+
+      if (eventIds.length === 0) {
+        return { data: [] };
+      }
+
+      // Return event IDs as the events list — fetchEventInfo will fetch full details per event
+      const events = eventIds.map(id => ({ id, eventUuid: id }));
+      return { data: events };
     } catch (error) {
-      logger.error('Fetch Staff Events Error:', {
+      logger.error('fetchStaffEvents error:', {
         status: error.response?.status,
-        statusText: error.response?.statusText,
         data: error.response?.data,
         message: error.message,
-        url: error.config?.url,
-        baseURL: BASE_URL,
-        fullURL: `${BASE_URL}${endpoints.staffEvents}`
       });
-
-      // Handle 404 error specifically - endpoint might not exist or user has no events
-      if (error.response?.status === 404) {
-        logger.warn('⚠️ 404 Error - Endpoint not found or no events available');
-        logger.warn('This might be normal if the user has no assigned events');
-        // Return empty array instead of throwing error - allow login to proceed
-        return { data: [] };
-      }
-
-      // Handle 403 Forbidden - might be permission issue
-      if (error.response?.status === 403) {
-        logger.warn('⚠️ 403 Forbidden - User may not have permission to access events');
-        return { data: [] };
-      }
-
-      // For other errors, still return empty array to allow login
-      // But log the error for debugging
-      logger.warn('⚠️ Error fetching staff events, but allowing login to proceed:', error.message);
-      return { data: [] };
+      throw error;
     }
   },
 
-  fetchEventInfo: async (eventUuid) => {
+  fetchEventInfo: async (eventId) => {
     try {
-      const response = await apiClient.get(`${endpoints.eventInfo}${eventUuid}/info/`);
+      const response = await apiClient.get(`${endpoints.eventInfo}${eventId}/info/`);
       logger.log('Fetch Event Info Response:', response.data);
       return response.data;
     } catch (error) {
@@ -1247,9 +1307,7 @@ export const userService = {
   updateProfile: async (formData) => {
     try {
       const response = await apiClient.patch(endpoints.updateProfile, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
       logger.log('image profile:', response.data);
       return response.data;

@@ -11,14 +11,14 @@ import {
   Alert,
   Modal,
   Dimensions,
-  InteractionManager
 } from 'react-native';
 import { Image as ExpoImage, ImageBackground as ExpoImageBackground } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import { color } from '../color/color';
 import SvgIcons from '../components/SvgIcons';
-import { authService, eventService } from '../api/apiService';
-import * as SecureStore from 'expo-secure-store';
+import { authService } from '../api/apiService';
+import { useDispatch } from 'react-redux';
+import { loginSuccess } from '../store/slices/authSlice';
 import { LinearGradient } from 'expo-linear-gradient';
 import Typography, { Body1, Caption } from '../components/Typography';
 import MiddleSection from '../components/MiddleSection';
@@ -41,6 +41,7 @@ function isEmail(identifier) {
 
 const OtpLoginScreen = ({ route }) => {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
   const [otpResendTime, setOtpResendTime] = useState(120); // 2 minutes
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const inputRefs = useRef([]);
@@ -110,82 +111,8 @@ const OtpLoginScreen = ({ route }) => {
         if (accessToken) {
           setShowError(false);
           setErrorMessage('');
-          await SecureStore.setItemAsync('accessToken', accessToken);
-
-          let eventsList = [];
-          let selectedEvent = null;
-
-          try {
-            const staffEventsData = await eventService.fetchStaffEvents();
-            logger.log('fetchStaffEvents response:', JSON.stringify(staffEventsData, null, 2));
-            eventsList = staffEventsData?.data || [];
-            if (eventsList.length > 0) {
-              selectedEvent = eventsList[0];
-            }
-          } catch (eventsError) {
-            logger.error('fetchStaffEvents error:', eventsError);
-            setErrorMessage('Unable to load events. Please try again.');
-            setShowError(true);
-            setLoading(false);
-            return;
-          }
-
-          if (selectedEvent) {
-            const eventUuid = selectedEvent.uuid || selectedEvent.eventUuid;
-            try {
-              const eventInfoData = await eventService.fetchEventInfo(eventUuid);
-              logger.log('fetchEventInfo response:', JSON.stringify(eventInfoData, null, 2));
-              await SecureStore.setItemAsync('lastSelectedEventUuid', eventUuid);
-              setLoading(false);
-              InteractionManager.runAfterInteractions(() => {
-                try {
-                  navigation.reset({
-                    index: 0,
-                    routes: [{
-                      name: 'LoggedIn',
-                      params: {
-                        eventInfo: {
-                          staff_name: eventInfoData?.data?.staff_name,
-                          event_title: eventInfoData?.data?.event_title,
-                          cityName: eventInfoData?.data?.location?.city,
-                          date: eventInfoData?.data?.start_date,
-                          time: eventInfoData?.data?.start_time,
-                          userId: eventInfoData?.data?.staff_id,
-                          scanCount: eventInfoData?.data?.scan_count,
-                          event_uuid: eventInfoData?.data?.location?.uuid,
-                          eventUuid: eventUuid
-                        },
-                      },
-                    }],
-                  });
-                } catch (navError) {
-                  logger.error('Navigation error:', navError);
-                  navigation.replace('LoggedIn', {
-                    eventInfo: {
-                      staff_name: eventInfoData?.data?.staff_name,
-                      event_title: eventInfoData?.data?.event_title,
-                      cityName: eventInfoData?.data?.location?.city,
-                      date: eventInfoData?.data?.start_date,
-                      time: eventInfoData?.data?.start_time,
-                      userId: eventInfoData?.data?.staff_id,
-                      scanCount: eventInfoData?.data?.scan_count,
-                      event_uuid: eventInfoData?.data?.location?.uuid,
-                      eventUuid: eventUuid
-                    },
-                  });
-                }
-              });
-            } catch (eventError) {
-              logger.error('fetchEventInfo error:', eventError);
-              setLoading(false);
-              setErrorMessage('Unable to load event details. Please try again.');
-              setShowError(true);
-            }
-          } else {
-            setErrorMessage('No events found. Please contact your administrator.');
-            setShowError(true);
-            setLoading(false);
-          }
+          setLoading(false);
+          dispatch(loginSuccess({ accessToken }));
         } else {
           logger.error('verifyOtp error: no access token in response', JSON.stringify(response, null, 2));
           setErrorMessage('You have entered an invalid OTP');

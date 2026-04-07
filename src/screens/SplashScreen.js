@@ -8,35 +8,25 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useDispatch } from 'react-redux';
+import { setOnboardingComplete } from '../store/slices/authSlice';
 import { color } from '../color/color';
 import SvgIcons from '../components/SvgIcons';
 import Typography, { Heading3, Body1, ButtonTextDemiBold, Caption } from '../components/Typography';
 import MiddleSection from '../components/MiddleSection';
-import * as SecureStore from 'expo-secure-store';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
 
 const { width, height } = Dimensions.get('window');
 
 const SplashScreenComponent = () => {
-  const navigation = useNavigation();
+  const dispatch = useDispatch();
 
-  const handleGetStarted = async () => {
-    try {
-      // Mark that the user has seen the onboarding
-      await AsyncStorage.setItem('hasSeenOnboarding', 'true');
-
-      // Keep SecureStore in sync (optional; helps with migration/back-compat)
-      await SecureStore.setItemAsync('hasSeenOnboarding', 'true');
-      
-      // After onboarding, go to login
-      navigation.replace('Login');
-    } catch (error) {
+  const handleGetStarted = () => {
+    // Persists the flag and flips auth.hasSeenOnboarding to true.
+    // The navigator sees the change and automatically shows the Login screen.
+    dispatch(setOnboardingComplete()).catch((error) => {
       logger.error('Error saving onboarding status:', error);
-      // On error, still go to login
-      navigation.replace('Login');
-    }
+    });
   };
 
   return (

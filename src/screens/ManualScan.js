@@ -56,7 +56,7 @@ const ManualScan = ({ eventInfo: propEventInfo, onScanCountUpdate, activeHeaderT
       }
     } catch (err) {
       setError(err.message || 'Failed to fetch ticket orders.');
-      logger.error('Error fetching ticket orders:', err);
+      console.error('Error fetching ticket orders:', err);
     } finally {
       setLoading(false);
     }

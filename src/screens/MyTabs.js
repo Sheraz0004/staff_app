@@ -10,8 +10,10 @@ import SvgIcons from '../components/SvgIcons';
 import DashboardScreen from '../screens/dashboard';
 import ProfileScreen from './ProfileScreen';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchUserProfile } from '../store/slices/authSlice';
 import { fetchUpdatedScanCount, updateEventInfoScanCount } from '../utils/scanCountUpdater';
-import { eventService, userService } from '../api/apiService';
+import { eventService } from '../api/apiService';
 import * as SecureStore from 'expo-secure-store';
 import { logger } from '../utils/logger';
 import AdminAllEventsDashboard from './dashboard/AdminAllEventsDashboard/adminAllEventsDashboard';
@@ -34,10 +36,20 @@ function MyTabs() {
   const route = useRoute();
   const rootNavigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const dispatch = useDispatch();
   const initialEventInfo = route?.params?.eventInfo;
   const [eventInformation, setEventInformation] = useState(initialEventInfo);
   const [isLoadingEventInfo, setIsLoadingEventInfo] = useState(false);
-  const [userRole, setUserRole] = useState(null);
+  const authUser = useSelector((state) => state.auth.user);
+  console.log("authUser-->", authUser);
+  const userRole = authUser?.role ?? null;
+
+  // Fetch profile if it wasn't loaded yet (e.g. app restored from a stored token)
+  useEffect(() => {
+    if (!authUser) {
+      dispatch(fetchUserProfile());
+    }
+  }, [authUser, dispatch]);
   const [activeHeaderTab, setActiveHeaderTab] = useState('Sell');
 
   // When true, user tapped bottom tab directly (normal mode = show Tickets tab)
@@ -59,27 +71,6 @@ function MyTabs() {
   // Calculate dynamic tab bar height with safe area insets
   const tabBarHeight = 66 + (Platform.OS === 'android' ? Math.max(0, insets.bottom) : insets.bottom);
 
-  // Fetch user role
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      try {
-        const profile = await userService.getProfile();
-        const role = profile?.role ||
-          profile?.user_role ||
-          profile?.type ||
-          profile?.permission ||
-          profile?.user_type ||
-          profile?.data?.role ||
-          profile?.user?.role;
-        logger.log('User role in MyTabs:', role);
-        setUserRole(role || null);
-      } catch (error) {
-        logger.error('Error fetching user role in MyTabs:', error);
-        setUserRole(null);
-      }
-    };
-    fetchUserRole();
-  }, []);
 
   // Update eventInfo when route params change
   useEffect(() => {
