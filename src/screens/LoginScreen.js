@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   StyleSheet, View, TextInput, TouchableOpacity, Platform, Keyboard,
-  TouchableWithoutFeedback, Text, Dimensions, Animated
+  TouchableWithoutFeedback, Text, Animated, useWindowDimensions
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -29,10 +29,12 @@ const LoginScreen = () => {
   const [fadeAnim] = useState(new Animated.Value(1));
   const [slideAnim] = useState(new Animated.Value(0));
   const [isDetectingCountry, setIsDetectingCountry] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const { height: screenHeight } = Dimensions.get('window');
+  const { height: screenHeight } = useWindowDimensions();
   const isSmallScreen = screenHeight < 700;
-  const isLargeScreen = screenHeight > 800;
+  const isLargeScreen = screenHeight > 900;
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
@@ -85,9 +87,15 @@ const LoginScreen = () => {
           return phoneRegex.test(value);
         }
       }),
+    password: Yup.string()
+      .min(1, 'Required')
+      .required('Password is required'),
   });
 
   const handleSignIn = async (values) => {
+    setIsLoading(true);
+    setShowError(false);
+    setErrorMessage('');
     try {
       let identityKey = values.user_identifier.trim();
 
@@ -96,27 +104,32 @@ const LoginScreen = () => {
         identityKey = selectedCountry.dialCode + identityKey;
       }
 
-      // Swagger: POST /otp/request — { identityKey, channel }
-      const channel = inputType === 'phone' ? 'sms' : 'email';
-      const response = await authService.requestOtp({ identityKey, channel });
-
-      if (response && response.success) {
-        navigation.navigate('OtpLogin', {
-          traceId: response.data.traceId,
-          user_identifier: identityKey,
-        });
-      } else {
-        setShowError(false);
-        setErrorMessage('');
-      }
+      // 2FA Step 1: POST /login/2fa/initiate — { key, secret }
+      const response = await authService.twoFactorInitiate({ key: identityKey, secret: values.password });
+      navigation.navigate('OtpLogin', {
+        traceId: response.traceId,
+        maskedContact: response.maskedContact,
+        user_identifier: identityKey,
+      });
     } catch (error) {
-      if (error.response?.data?.message) {
-        setErrorMessage(`Invalid ${inputType === 'email' ? 'email' : 'phone number'}`);
-        setShowError(true);
-      } else {
-        setErrorMessage('Failed to request OTP. Please try again.');
-        setShowError(true);
+      const raw = error?.message || '';
+      let message = 'Invalid credentials. Please try again.';
+      if (raw) {
+        const lower = raw.toLowerCase();
+        if (lower.includes('customer') || lower.includes('otp/request') || lower.includes('not_allowed')) {
+          message = 'This account is not authorized for staff login.';
+        } else if (lower.includes('blocked')) {
+          message = 'Your account has been blocked. Please contact support.';
+        } else if (lower.includes('invalid') || lower.includes('credentials') || lower.includes('password')) {
+          message = 'Incorrect email/phone or password.';
+        } else {
+          message = raw;
+        }
       }
+      setErrorMessage(message);
+      setShowError(true);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -173,10 +186,13 @@ const LoginScreen = () => {
             />
           )}
 
-          {/* Form area — not flex:1 so it grows freely with content */}
-          <View style={[styles.centeredContent, { paddingTop: screenHeight * 0.36 }]}>
+          {/* Top spacer — pushes form down without paddingTop so error won't overlap branding */}
+          <View style={{ height: isSmallScreen ? screenHeight * 0.28 : isLargeScreen ? screenHeight * 0.38 : screenHeight * 0.33 }} />
+
+          {/* Form area */}
+          <View style={styles.centeredContent}>
             <Formik
-              initialValues={{ user_identifier: '' }}
+              initialValues={{ user_identifier: '', password: '' }}
               validationSchema={validationSchema}
               onSubmit={handleSignIn}
             >
@@ -184,7 +200,7 @@ const LoginScreen = () => {
                 <Animated.View style={{ width: '100%', opacity: fadeAnim }}>
                   <View style={[
                     styles.inputRow,
-                    (touched.user_identifier && errors.user_identifier) || showError ? styles.inputError : null
+                    touched.user_identifier && errors.user_identifier ? styles.inputError : null
                   ]}>
                     {/* Country Code Picker (only show for phone input) */}
                     {inputType === 'phone' && (
@@ -224,17 +240,53 @@ const LoginScreen = () => {
                       autoCapitalize="none"
                       autoComplete={inputType === 'phone' ? "tel" : "email"}
                     />
-                    <TouchableOpacity
-                      style={styles.arrowButton}
-                      onPress={handleSubmit}
-                      disabled={!values.user_identifier.trim()}
-                    >
-                      <SvgIcons.rightArrowWhite width={28} height={28} fill={color.black_544B45} />
-                    </TouchableOpacity>
                   </View>
                   {touched.user_identifier && errors.user_identifier && (
                     <Caption color={color.red_FF0000} style={styles.errorText}>{errors.user_identifier}</Caption>
                   )}
+
+                  {/* Password Field */}
+                  <View style={[
+                    styles.inputRow,
+                    touched.password && errors.password ? styles.inputError : null,
+                    { marginTop: 10 }
+                  ]}>
+                    <TextInput
+                      style={[styles.inputField, styles.inputFieldWithoutCountryCode]}
+                      placeholder="Enter Password"
+                      placeholderTextColor={color.grey_87807C}
+                      onChangeText={handleChange('password')}
+                      onBlur={handleBlur('password')}
+                      value={values.password}
+                      secureTextEntry={!showPassword}
+                      selectionColor={color.selectField_CEBCA0}
+                      autoCapitalize="none"
+                      autoComplete="password"
+                    />
+                    <TouchableOpacity
+                      style={styles.eyeButton}
+                      onPress={() => setShowPassword((prev) => !prev)}
+                    >
+                      {showPassword
+                        ? <SvgIcons.eyeOpen width={20} height={20} fill={color.grey_87807C} />
+                        : <SvgIcons.eyeClosed width={20} height={20} fill={color.grey_87807C} />
+                      }
+                    </TouchableOpacity>
+                  </View>
+                  {touched.password && errors.password && (
+                    <Caption color={color.red_FF0000} style={styles.errorText}>{errors.password}</Caption>
+                  )}
+
+                  {/* Submit Button */}
+                  <TouchableOpacity
+                    style={[styles.submitButton, (isLoading || !values.user_identifier.trim() || !values.password.trim()) && styles.submitButtonDisabled]}
+                    onPress={handleSubmit}
+                    disabled={isLoading || !values.user_identifier.trim() || !values.password.trim()}
+                  >
+                    <Typography weight="600" size={15} color={color.white_FFFFFF}>
+                      {isLoading ? 'Please wait...' : 'Sign In'}
+                    </Typography>
+                  </TouchableOpacity>
 
                   {/* Toggle Button */}
                   <TouchableOpacity
@@ -265,11 +317,12 @@ const LoginScreen = () => {
             </Formik>
           </View>
 
-          {/* Branding pinned to bottom */}
+          {/* Flex spacer pushes branding to bottom in normal flow */}
+          <View style={{ flex: 0.8 }} />
+
+          {/* Branding at bottom — normal flow, never overlaps form */}
           {!isKeyboardVisible && (
-            <View style={styles.brandingContainer}>
-              <MiddleSection showGetStartedButton={false} />
-            </View>
+            <MiddleSection showGetStartedButton={false} useFlexLayout />
           )}
         </View>
       </TouchableWithoutFeedback>
@@ -356,6 +409,24 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 14,
     borderBottomRightRadius: 14,
   },
+  eyeButton: {
+    paddingHorizontal: 14,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  submitButton: {
+    backgroundColor: color.btnBrown_AE6F28,
+    marginHorizontal: 20,
+    marginTop: 16,
+    height: 54,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  submitButtonDisabled: {
+    opacity: 0.5,
+  },
   inputError: {
     borderColor: color.red_FF0000,
   },
@@ -390,12 +461,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
     paddingVertical: 6,
-  },
-  brandingContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
   },
 });
 

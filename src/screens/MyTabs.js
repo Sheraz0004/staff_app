@@ -41,7 +41,7 @@ function MyTabs() {
   const [eventInformation, setEventInformation] = useState(initialEventInfo);
   const [isLoadingEventInfo, setIsLoadingEventInfo] = useState(false);
   const authUser = useSelector((state) => state.auth.user);
-  console.log("authUser-->", authUser);
+  // console.log("authUser-->", authUser);
   const userRole = authUser?.role ?? null;
 
   // Fetch profile if it wasn't loaded yet (e.g. app restored from a stored token)
@@ -85,13 +85,13 @@ function MyTabs() {
       if (!eventInformation?.eventUuid) {
         try {
           setIsLoadingEventInfo(true);
-          logger.log('No eventInfo found, fetching from backend...');
+          // logger.log('No eventInfo found, fetching from backend...');
 
           const lastEventUuid = await SecureStore.getItemAsync('lastSelectedEventUuid');
-          logger.log('Retrieved stored UUID:', lastEventUuid);
+          // logger.log('Retrieved stored UUID:', lastEventUuid);
 
           if (lastEventUuid) {
-            logger.log('Found last event UUID in storage:', lastEventUuid);
+            // logger.log('Found last event UUID in storage:', lastEventUuid);
             const eventInfoData = await eventService.fetchEventInfo(lastEventUuid);
 
             const transformedEventInfo = {
@@ -106,10 +106,10 @@ function MyTabs() {
               eventUuid: lastEventUuid
             };
 
-            logger.log('Fetched event info from backend:', transformedEventInfo);
+            // logger.log('Fetched event info from backend:', transformedEventInfo);
             setEventInformation(transformedEventInfo);
           } else {
-            logger.log('No last event UUID found in storage, fetching user events...');
+            // logger.log('No last event UUID found in storage, fetching user events...');
             try {
               const staffEventsData = await eventService.fetchStaffEvents();
               const eventsList = staffEventsData?.data;

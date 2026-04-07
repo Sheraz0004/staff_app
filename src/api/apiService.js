@@ -27,6 +27,8 @@ apiClient.interceptors.request.use(
     const publicEndpoints = [
       endpoints.otpRequest,
       endpoints.verifyOtp,
+      endpoints.twoFactorInitiate,
+      endpoints.twoFactorVerify,
       endpoints.refreshToken,
       endpoints.login,
       endpoints.organizerSignup,
@@ -93,6 +95,8 @@ apiClient.interceptors.response.use(
 const endpoints = {
   otpRequest: '/otp/request',
   verifyOtp: '/otp/verify',
+  twoFactorInitiate: '/login/2fa/initiate',
+  twoFactorVerify: '/login/2fa/verify',
   login: '/login',
   organizerSignup: '/identities/organizer/signup',
   refreshToken: '/login/refresh',
@@ -267,6 +271,73 @@ export const authService = {
         message: 'Network error. Please check your connection.',
         error: error,
       };
+    }
+  },
+
+  // POST /login/2fa/initiate — { key, secret, role? }  → { traceId, maskedContact }
+  twoFactorInitiate: async ({ key, secret, role }) => {
+    try {
+      const body = { key, secret };
+      if (role) body.role = role;
+      const response = await apiClient.post(endpoints.twoFactorInitiate, body);
+      logger.log('2FA Initiate Response:', response.data);
+
+      const { traceId, maskedContact } = response.data;
+      return { traceId, maskedContact };
+    } catch (error) {
+      logger.error('2FA Initiate Error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+
+      if (error.response?.data) {
+        const data = error.response.data;
+        const code = data.code || data.error;
+        if (code === 'ACCOUNT_BLOCKED') {
+          throw { message: 'Account blocked due to too many failed attempts.', code, response: error.response };
+        }
+        throw {
+          message: data.reason || data.message || data.error || 'Invalid credentials',
+          code,
+          response: error.response,
+          status: error.response?.status,
+        };
+      }
+      throw { message: 'Network error. Please check your connection.', error };
+    }
+  },
+
+  // POST /login/2fa/verify — { traceId, otp }  → { authToken, refreshToken }
+  twoFactorVerify: async ({ traceId, otp }) => {
+    try {
+      const response = await apiClient.post(endpoints.twoFactorVerify, { traceId, otp });
+      logger.log('2FA Verify Response:', JSON.stringify(response.data, null, 2));
+
+      const { authToken, refreshToken } = response.data;
+
+      if (authToken) {
+        await SecureStore.setItemAsync('accessToken', authToken);
+        if (refreshToken) {
+          await SecureStore.setItemAsync('refreshToken', refreshToken);
+        }
+      }
+
+      // Return shape consistent with existing OtpLoginScreen expectations
+      return { data: { access_token: authToken }, refreshToken };
+    } catch (error) {
+      logger.error('2FA Verify Error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+
+      if (error.response?.data) {
+        const data = error.response.data;
+        const message = data.reason || data.message || data.error || 'Invalid or expired OTP';
+        throw { message, response: error.response, status: error.response?.status };
+      }
+      throw { message: 'Network error. Please check your connection.', error };
     }
   },
 

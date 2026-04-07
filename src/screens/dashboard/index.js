@@ -144,15 +144,15 @@ const DashboardScreen = ({ eventInfo: propEventInfo, onScanCountUpdate, onEventC
       try {
         setUserProfileLoading(true);
         const profile = await userService.getProfile();
-        logger.log('User profile:', profile);
-        logger.log('User profile keys:', Object.keys(profile || {}));
-        logger.log('User role:', profile?.role);
-        logger.log('User role type:', typeof profile?.role);
+        // logger.log('User profile:', profile);
+        // logger.log('User profile keys:', Object.keys(profile || {}));
+        // logger.log('User role:', profile?.role);
+        // logger.log('User role type:', typeof profile?.role);
 
-        logger.log('profile?.user_role :', profile?.user_role);
-        logger.log('profile?.type:', profile?.type);
-        logger.log('profile?.permission:', profile?.permission);
-        logger.log('profile?.user_type:', profile?.user_type);
+        // logger.log('profile?.user_role :', profile?.user_role);
+        // logger.log('profile?.type:', profile?.type);
+        // logger.log('profile?.permission:', profile?.permission);
+        // logger.log('profile?.user_type:', profile?.user_type);
 
         const role = profile?.role ||
           profile?.user_role ||

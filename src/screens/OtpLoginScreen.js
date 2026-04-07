@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
-  Text,
   View,
   TextInput,
   TouchableOpacity,
@@ -9,10 +8,8 @@ import {
   TouchableWithoutFeedback,
   Platform,
   Alert,
-  Modal,
   Dimensions,
 } from 'react-native';
-import { Image as ExpoImage, ImageBackground as ExpoImageBackground } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import { color } from '../color/color';
 import SvgIcons from '../components/SvgIcons';
@@ -20,10 +17,8 @@ import { authService } from '../api/apiService';
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '../store/slices/authSlice';
 import { LinearGradient } from 'expo-linear-gradient';
-import Typography, { Body1, Caption } from '../components/Typography';
+import Typography from '../components/Typography';
 import MiddleSection from '../components/MiddleSection';
-import OtpSuccessPopup from '../constants/OtpSuccessPopup';
-import OtpErrorPopup from '../constants/OtpErrorPopup';
 import { logger } from '../utils/logger';
 
 // Helper function to format seconds as mm:ss
@@ -33,11 +28,6 @@ function formatTime(seconds) {
   return `${m}:${s}`;
 }
 
-// Helper function to detect if user identifier is email or phone
-function isEmail(identifier) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(identifier);
-}
 
 const OtpLoginScreen = ({ route }) => {
   const navigation = useNavigation();
@@ -48,13 +38,10 @@ const OtpLoginScreen = ({ route }) => {
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const traceId = route?.params?.traceId;
   const userIdentifier = route?.params?.user_identifier;
+  const maskedContact = route?.params?.maskedContact;
   const [errorMessage, setErrorMessage] = useState('');
   const [showError, setShowError] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
-  const [showErrorPopup, setShowErrorPopup] = useState(false);
-  const [showOtpSourceModal, setShowOtpSourceModal] = useState(false);
-  const [selectedOtpSource, setSelectedOtpSource] = useState('WHATSAPP');
 
   const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
   const isSmallScreen = screenHeight < 700;
@@ -92,19 +79,14 @@ const OtpLoginScreen = ({ route }) => {
     };
   }, []);
 
-  const gotologinscreen = () => {
-    navigation.navigate('Login');
-  }
-
   const handleSignIn = async (otpArray) => {
     const enteredOtp = otpArray.join('');
     if (enteredOtp.length === 6) {
       setLoading(true);
       try {
-        const payload = { traceId, otp: enteredOtp, role: 'CUSTOMER' };
-        logger.log('verifyOtp body:', payload);
-        const response = await authService.verifyOtp(payload);
-        logger.log('verifyOtp response:', JSON.stringify(response, null, 2));
+        logger.log('twoFactorVerify body:', { traceId, otp: enteredOtp });
+        const response = await authService.twoFactorVerify({ traceId, otp: enteredOtp });
+        logger.log('twoFactorVerify response:', JSON.stringify(response, null, 2));
 
         const accessToken = response?.data?.access_token || response?.access_token;
 
@@ -114,13 +96,13 @@ const OtpLoginScreen = ({ route }) => {
           setLoading(false);
           dispatch(loginSuccess({ accessToken }));
         } else {
-          logger.error('verifyOtp error: no access token in response', JSON.stringify(response, null, 2));
+          logger.error('twoFactorVerify error: no access token in response', JSON.stringify(response, null, 2));
           setErrorMessage('You have entered an invalid OTP');
           setShowError(true);
           setLoading(false);
         }
       } catch (error) {
-        logger.error('verifyOtp error:', { message: error?.message, response: error?.response?.data, status: error?.response?.status });
+        logger.error('twoFactorVerify error:', { message: error?.message, response: error?.response?.data, status: error?.response?.status });
         setErrorMessage(error?.message || 'You have entered an invalid OTP');
         setShowError(true);
         setLoading(false);
@@ -128,43 +110,10 @@ const OtpLoginScreen = ({ route }) => {
     }
   };
 
-  const handleResendOtp = async () => {
-    setShowError(false);
-    setErrorMessage('');
-    setShowErrorPopup(false);
-    setShowOtpSourceModal(true);
+  const handleResendOtp = () => {
+    // 2FA requires re-entering credentials to re-initiate — go back to login
+    navigation.navigate('Login');
   };
-
-  const handleOtpSourceSelect = async (otpSource) => {
-    setSelectedOtpSource(otpSource);
-    setShowOtpSourceModal(false);
-
-    try {
-      const channelMap = { WHATSAPP: 'whatsapp', SMS: 'sms', EMAIL: 'email' };
-      const payload = { identityKey: userIdentifier, channel: channelMap[otpSource] || 'sms' };
-      logger.log('requestOtp body:', payload);
-      const response = await authService.requestOtp(payload);
-      logger.log('requestOtp response:', JSON.stringify(response, null, 2));
-      if (response && response.success) {
-        setOtp(['', '', '', '', '', '']);
-        setOtpResendTime(120);
-        setShowSuccessPopup(true);
-      } else {
-        setShowErrorPopup(true);
-      }
-    } catch (error) {
-      logger.error('requestOtp error:', error);
-      setShowErrorPopup(true);
-    }
-  };
-
-  const handleCloseSuccessPopup = useCallback(() => {
-    setShowSuccessPopup(false);
-  }, []);
-
-  const handleCloseErrorPopup = useCallback(() => {
-    setShowErrorPopup(false);
-  }, []);
 
   useEffect(() => {
     if (otpResendTime > 0) {
@@ -200,213 +149,96 @@ const OtpLoginScreen = ({ route }) => {
     setErrorMessage('');
   };
   return (
-
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={{ flex: 1 }}>
-          {/* <ExpoImageBackground
-            source={require('../../assets/images/bg-img-signup.png')}
-            contentFit="cover"
-            style={styles.background}
-          > */}
-          {/* <View style={styles.topSection}>
-              <SvgIcons.hexalloSvg width={36} height={40} fill="transparent" />
-              <Text style={styles.topText}>HEXALLO</Text>
-            </View>
+          {/* Full-screen gradient background */}
+          <LinearGradient colors={["#000000", "#281c10"]} style={StyleSheet.absoluteFillObject} />
 
-            <Text style={styles.additionalText}>Get Started{'\n'}to do more!</Text> */}
-
-          <View style={styles.container}>
-            <Typography
-              weight="700"
-              size={20}
-              color={color.grey_DEDCDC}
-              style={styles.appName}
-            >
-              Enter OTP
-            </Typography>
-            <View style={styles.otpContainer}>
-              {otp.map((digit, index) => (
-                <TextInput
-                  key={index}
-                  style={[
-                    styles.otpInput,
-                    showError ? styles.otpInputError : null
-                  ]}
-                  value={digit}
-                  placeholder=""
-                  placeholderTextColor={color.white_FFFFFF}
-                  maxLength={1}
-                  keyboardType="numeric"
-                  onChangeText={(value) => handleOtpChange(value, index)}
-                  onKeyPress={(event) => handleKeyPress(event, index)}
-                  ref={(ref) => (inputRefs.current[index] = ref)}
-                  selectionColor={color.selectField_CEBCA0}
-                  editable={!loading}
-                />
-              ))}
-            </View>
-
-            {/* Remove the 'Didn't receive OTP?' label for a cleaner look */}
-            <OtpSuccessPopup
-              visible={showSuccessPopup}
-              onClose={handleCloseSuccessPopup}
-              title="OTP Sent Successfully"
-              subtitle={
-                selectedOtpSource === 'WHATSAPP' 
-                  ? "We've sent a one-time password to your WhatsApp"
-                  : selectedOtpSource === 'SMS'
-                  ? "We've sent a one-time password via SMS"
-                  : "We've sent a one-time password to your email"
-              }
-            />
-            <OtpErrorPopup
-              visible={showErrorPopup}
-              onClose={handleCloseErrorPopup}
-              title="Sending Failed"
-              subtitle="We couldn't send the OTP. Please try again shortly."
-              showResendButton={true}
-              onResend={handleResendOtp}
-            />
-
-            {/* OTP Source Selection Modal */}
-            <Modal
-              visible={showOtpSourceModal}
-              transparent={true}
-              animationType="fade"
-              onRequestClose={() => setShowOtpSourceModal(false)}
-            >
-              <TouchableOpacity
-                style={styles.modalOverlay}
-                activeOpacity={1}
-                onPress={() => setShowOtpSourceModal(false)}
+          {/* OTP form — flex: 1 centers it vertically */}
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <View style={styles.container}>
+              <Typography
+                weight="700"
+                size={20}
+                color={color.grey_DEDCDC}
+                style={styles.appName}
               >
-                <View style={styles.modalContainer}>
-                  {/* Close Button 
-                  <TouchableOpacity
-                    style={styles.closeButton}
-                    onPress={() => setShowOtpSourceModal(false)}
-                  >
-                    <SvgIcons.CrossIconBrownbg width={24} height={24} />
-                  </TouchableOpacity>*/}
+                Enter OTP
+              </Typography>
 
-                  <Typography
-                    weight="500"
-                    size={18}
-                    color={color.grey_DEDCDC}
-                    style={styles.modalTitle}
-                  >
-                    Get another Code
-                  </Typography>
+              {maskedContact ? (
+                <Typography
+                  weight="400"
+                  size={13}
+                  color={color.grey_87807C}
+                  style={styles.maskedContactText}
+                >
+                  Code sent to {maskedContact}
+                </Typography>
+              ) : null}
 
-                  <TouchableOpacity
-                    style={styles.modalOption}
-                    onPress={() => handleOtpSourceSelect('WHATSAPP')}
-                  >
-                    <View style={styles.optionContent}>
-                      <SvgIcons.whatsappIcon width={24} height={24} />
-                      <Typography
-                        weight="400"
-                        size={14}
-                        color={color.grey_DEDCDC}
-                        style={styles.optionText}
-                      >
-                        Send code by whatsapp
-                      </Typography>
-                    </View>
+              <View style={styles.otpContainer}>
+                {otp.map((digit, index) => (
+                  <TextInput
+                    key={index}
+                    style={[
+                      styles.otpInput,
+                      showError ? styles.otpInputError : null
+                    ]}
+                    value={digit}
+                    placeholder=""
+                    placeholderTextColor={color.white_FFFFFF}
+                    maxLength={1}
+                    keyboardType="numeric"
+                    onChangeText={(value) => handleOtpChange(value, index)}
+                    onKeyPress={(event) => handleKeyPress(event, index)}
+                    ref={(ref) => (inputRefs.current[index] = ref)}
+                    selectionColor={color.selectField_CEBCA0}
+                    editable={!loading}
+                  />
+                ))}
+              </View>
+
+              <View style={styles.rowContainer}>
+                {otpResendTime > 0 ? (
+                  <View style={styles.timerRow}>
+                    <Typography weight="400" size={14} color={color.grey_E0E0E0}>
+                      Request code again in {' '}
+                    </Typography>
+                    <Typography weight="400" size={14} color={color.btnBrown_AE6F28}>
+                      {formatTime(otpResendTime)}
+                    </Typography>
+                  </View>
+                ) : (
+                  <TouchableOpacity style={styles.resendOtpButton} onPress={handleResendOtp}>
+                    <Typography weight="400" size={14} color={color.btnBrown_AE6F28}>
+                      Back to Login
+                    </Typography>
                   </TouchableOpacity>
+                )}
+              </View>
 
-                  <TouchableOpacity
-                    style={styles.modalOption}
-                    onPress={() => handleOtpSourceSelect('SMS')}
-                  >
-                    <View style={styles.optionContent}>
-                      <SvgIcons.smsIcon width={24} height={24} />
-                      <Typography
-                        weight="400"
-                        size={14}
-                        color={color.grey_DEDCDC}
-                        style={styles.optionText}
-                      >
-                        Send code by text message (sms)
-                      </Typography>
-                    </View>
+              {showError && (
+                <View style={styles.errorContainer}>
+                  <TouchableOpacity onPress={dismissError}>
+                    <SvgIcons.crossIconRed width={20} height={20} fill={color.red_FF3B30} />
                   </TouchableOpacity>
-
-                  {/* Show "Send code by email" option only for phone numbers */}
-                  {!isEmail(userIdentifier) && (
-                    <TouchableOpacity
-                      style={styles.modalOption}
-                      onPress={() => handleOtpSourceSelect('EMAIL')}
-                    >
-                      <View style={styles.optionContent}>
-                        <SvgIcons.emailIcon width={24} height={24} />
-                        <Typography
-                          weight="400"
-                          size={14}
-                          color={color.grey_DEDCDC}
-                          style={styles.optionText}
-                        >
-                          Send code by email
-                        </Typography>
-                      </View>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </TouchableOpacity>
-            </Modal>
-            <View style={styles.rowContainer}>
-              {otpResendTime > 0 ? (
-                <View style={styles.timerRow}>
-                  <Typography
-                    weight="400"
-                    size={14}
-                    color={color.grey_E0E0E0}
-                  >
-                    Request code again in {' '}
-                  </Typography>
-                  <Typography
-                    weight="400"
-                    size={14}
-                    color={color.btnBrown_AE6F28}
-                  >
-                    {formatTime(otpResendTime)}
+                  <Typography weight="400" size={14} color={color.red_EF3E32} style={styles.errorText}>
+                    {errorMessage}
                   </Typography>
                 </View>
-              ) : (
-                <TouchableOpacity style={styles.resendOtpButton} onPress={handleResendOtp}>
-                  <Typography
-                    weight="400"
-                    size={14}
-                    color={color.btnBrown_AE6F28}
-                  >
-                    Resend Otp
-                  </Typography>
-                </TouchableOpacity>
               )}
             </View>
-
-            {showError && (
-              <View style={styles.errorContainer}>
-                <TouchableOpacity onPress={dismissError}>
-                  <SvgIcons.crossIconRed width={20} height={20} fill={color.red_FF3B30} />
-                </TouchableOpacity>
-                <Typography weight="400" size={14} color={color.red_EF3E32} style={styles.errorText}>
-                  {errorMessage}
-                </Typography>
-              </View>
-            )}
           </View>
 
+          {/* Branding at bottom — normal flow, never overlaps form */}
           {!isKeyboardVisible && (
-            <LinearGradient colors={["#000000", "#281c10"]} style={styles.bottomGradient}>
-              <MiddleSection showGetStartedButton={false} />
-            </LinearGradient>
+            <MiddleSection showGetStartedButton={false} useFlexLayout />
           )}
         </View>
       </TouchableWithoutFeedback>
     </View>
-
   );
 
 };
@@ -439,10 +271,13 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 230
   },
   appName: {
+    marginBottom: 8,
+  },
+  maskedContactText: {
     marginBottom: 20,
+    textAlign: 'center',
   },
   labelText: {
     fontSize: 14,
@@ -616,14 +451,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 8,
     paddingHorizontal: 20,
-  },
-  bottomGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    top: 0,
-    zIndex: -1,
   },
 });
 
