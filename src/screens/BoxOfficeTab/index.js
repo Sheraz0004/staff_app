@@ -7,15 +7,19 @@ import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import SvgIcons from '../../components/SvgIcons';
-import { ticketService } from '../../api/apiService';
 import { formatDateOnly, formatDateWithMonthName } from '../../constants/dateAndTime';
 import ErrorPopup from '../../constants/ErrorPopup';
 import { logger } from '../../utils/logger';
+import { useApi } from '../../services/useApi';
+import { CHECK_IN_SERVICES } from '../../services/CheckInService';
 
 const BoxOfficeTab = ({ eventInfo, onScanCountUpdate, selectedTab }) => {
   const navigation = useNavigation();
   const route = useRoute();
   const ticketUuid = route.params?.ticketUuid;
+  const { requestCall: requestFetchStats } = useApi(CHECK_IN_SERVICES.fetchTicketPricingStats, false, false);
+  const { requestCall: requestFetchPricing } = useApi(CHECK_IN_SERVICES.fetchTicketPricing, false, false);
+  const { requestCall: doBoxOfficeGetTicket } = useApi(CHECK_IN_SERVICES.boxOfficeGetTicket, false, false);
   const [selectedTabState, setSelectedTabState] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -128,7 +132,8 @@ const BoxOfficeTab = ({ eventInfo, onScanCountUpdate, selectedTab }) => {
       }
 
       // Fetch pricing categories
-      const pricingStatsResponse = await ticketService.fetchTicketPricingStats();
+      const statsRes = await requestFetchStats();
+      const pricingStatsResponse = statsRes?.data;
       if (pricingStatsResponse?.data) {
         const categories = pricingStatsResponse.data.map(item => item.alias);
         setPricingCategories(categories);
@@ -148,7 +153,8 @@ const BoxOfficeTab = ({ eventInfo, onScanCountUpdate, selectedTab }) => {
       }
 
       // Fetch ticket pricing
-      const pricingData = await ticketService.fetchTicketPricing(eventInfo?.eventUuid);
+      const pricingRes = await requestFetchPricing(eventInfo?.eventUuid);
+      const pricingData = pricingRes?.data;
 
       if (!pricingData) {
         return;
@@ -395,15 +401,16 @@ const BoxOfficeTab = ({ eventInfo, onScanCountUpdate, selectedTab }) => {
             ? cashOtp.trim()
             : `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-      const response = await ticketService.fetchBoxOfficeGetTicket(
+      const boxRes = await doBoxOfficeGetTicket(
         eventInfo.eventUuid,
         items,
         email,
         paymentOption.toUpperCase(),
         transactionId,
         name.trim(),
-        selectedTabState === 'Members' ? purchaseCode : undefined
+        selectedTabState === 'Members' ? purchaseCode : undefined,
       );
+      const response = boxRes?.data;
 
       // Extract order number from response
       const orderNumber = response?.data?.order_number;
@@ -477,15 +484,16 @@ const BoxOfficeTab = ({ eventInfo, onScanCountUpdate, selectedTab }) => {
         return;
       }
 
-      const response = await ticketService.fetchBoxOfficeGetTicket(
+      const posRes = await doBoxOfficeGetTicket(
         eventInfo.eventUuid,
         items,
         email,
         'POS',
         transactionNumber.trim(),
         name.trim(),
-        selectedTabState === 'Members' ? purchaseCode : undefined
+        selectedTabState === 'Members' ? purchaseCode : undefined,
       );
+      const response = posRes?.data;
 
       // Extract order number from response
       const orderNumber = response?.data?.order_number;
@@ -1144,15 +1152,16 @@ const BoxOfficeTab = ({ eventInfo, onScanCountUpdate, selectedTab }) => {
                     // Generate transaction ID for non-POS payments
                     const transactionId = paymentOption === 'P.O.S' ? null : `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-                    const response = await ticketService.fetchBoxOfficeGetTicket(
+                    const codeRes = await doBoxOfficeGetTicket(
                       eventInfo.eventUuid,
                       items,
                       email,
                       paymentOption.toUpperCase(),
                       transactionId,
                       name.trim(),
-                      purchaseCodeModal.trim() // Use the purchase code from modal
+                      purchaseCodeModal.trim(),
                     );
+                    const response = codeRes?.data;
 
                     // If successful, set the purchase code and proceed
                     setPurchaseCode(purchaseCodeModal);

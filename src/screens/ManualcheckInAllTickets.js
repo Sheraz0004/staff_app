@@ -4,7 +4,6 @@ import Header from '../components/header';
 import { color } from '../color/color';
 import SvgIcons from '../components/SvgIcons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ticketService } from '../api/apiService'; // Import your ticket service
 import CheckInAllPopup from '../constants/checkInAllPopupticketList'; // Correct import path
 import SuccessPopup from '../constants/SuccessPopup';
 import ErrorPopup from '../constants/ErrorPopup';
@@ -17,16 +16,19 @@ import { networkService } from '../utils/network';
 import { syncService } from '../utils/syncService';
 import { offlineStorage } from '../utils/offlineStorage';
 import OfflineIndicator from '../components/OfflineIndicator';
+import { useApi } from '../services/useApi';
+import { CHECK_IN_SERVICES } from '../services/CheckInService';
 
 const ManualCheckInAllTickets = () => {
     const route = useRoute();
     const { orderNumber, eventUuid, total, eventInfo } = route.params;
     const navigation = useNavigation();
+    const { requestCall: fetchDetails } = useApi(CHECK_IN_SERVICES.fetchTicketOrderDetails, false, false);
+    const { loading: isCheckingIn, requestCall: doCheckin } = useApi(CHECK_IN_SERVICES.manualCheckin, false, false);
     const [ticketDetails, setTicketDetails] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [userDetails, setUserDetails] = useState(null);
-    const [isCheckingIn, setIsCheckingIn] = useState(false); // State for loading during check-in
     const [checkInSuccess, setCheckInSuccess] = useState(false); // State to show success
     const [showSuccessPopup, setShowSuccessPopup] = useState(false); // State to control success popup
     const [showErrorPopup, setShowErrorPopup] = useState(false); // State to control error popup
@@ -39,7 +41,8 @@ const ManualCheckInAllTickets = () => {
             setLoading(true);
             setError(null);
             try {
-                const response = await ticketService.fetchUserTicketOrdersDetail(orderNumber, eventUuid);
+                const res = await fetchDetails(orderNumber, eventUuid);
+                const response = res?.data;
                 logger.log('Ticket Details Response:', JSON.stringify(response, null, 2));
             
             // Check if response is from offline cache
@@ -144,12 +147,12 @@ const ManualCheckInAllTickets = () => {
 
     const handleSingleCheckIn = async () => {
         if (total === 1 && ticketDetails.length === 1) {
-            setIsCheckingIn(true);
             setError(null);
             const ticket = ticketDetails[0];
             logger.log('Attempting to check-in ticket with UUID:', eventInfo.eventUuid, 'and Code:', ticket.code);
             try {
-                const response = await ticketService.manualDetailCheckin(eventInfo.eventUuid, ticket.code);
+                const checkinRes = await doCheckin(eventInfo.eventUuid, ticket.code);
+                const response = checkinRes?.data;
                 logger.log('Full Single Ticket Check-in Response:', JSON.stringify(response, null, 2)); // Log the entire response
 
                 // Check if check-in was queued (offline mode)
@@ -287,18 +290,15 @@ const ManualCheckInAllTickets = () => {
                         route.params.onScanCountUpdate();
                     }
 
-                    // Refetch ticket details to get updated server data (this will also update cache)
+                    // Silently refetch to get the latest server state (no loading UI)
                     try {
-                        const updatedResponse = await ticketService.fetchUserTicketOrdersDetail(orderNumber, eventUuid);
+                        const refetchRes = await fetchDetails(orderNumber, eventUuid);
+                        const updatedResponse = refetchRes?.data;
                         if (updatedResponse?.data && Array.isArray(updatedResponse.data) && updatedResponse.data.length > 0) {
                             logger.log(' Refetched ticket data after check-in:', updatedResponse.data[0]);
                             setTicketDetails(updatedResponse.data);
-                            
-                            // Update check-in success state based on fresh data
                             const isScanned = updatedResponse.data.some(ticket => ticket.checkin_status === 'SCANNED');
                             setCheckInSuccess(isScanned);
-                            
-                            // Update user details with fresh scanned_by info
                             if (updatedResponse.data[0]?.scanned_by) {
                                 setUserDetails(prev => ({
                                     ...prev,
@@ -310,7 +310,6 @@ const ManualCheckInAllTickets = () => {
                         }
                     } catch (refetchError) {
                         logger.warn('Could not refetch ticket details:', refetchError);
-                        // Continue anyway, as we already have the updated data from check-in response
                     }
                 } else {
                     logger.log('Check-in failed according to response. Status:', response?.data?.status);
@@ -318,10 +317,7 @@ const ManualCheckInAllTickets = () => {
                 }
             } catch (err) {
                 logger.error('Single Ticket Check-in Error:', err);
-                //setError(err.message || 'Failed to check in ticket.');
                 setShowErrorPopup(true);
-            } finally {
-                setIsCheckingIn(false);
             }
         }
     };

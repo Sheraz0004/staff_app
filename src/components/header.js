@@ -74,7 +74,7 @@ const Header = ({ eventInfo, onScanCountUpdate, onTabChange, showBackButton, onB
     if (isInDetailScreen) {
       // ── From a detail screen ──
       if (tab === 'Auto') {
-        navigation.navigate('LoggedIn', { screen: 'Check In', eventInfo });
+        navigation.navigate('Home', { screen: 'Check In', params: { eventInfo } });
       } else if (tab === 'Manual') {
         if (userRole === 'ADMIN') {
           if (currentRouteName === 'ManualScanDetail') return;
@@ -85,13 +85,9 @@ const Header = ({ eventInfo, onScanCountUpdate, onTabChange, showBackButton, onB
       } else if (tab === 'Sell') {
         if (userRole === 'ADMIN') {
           if (currentRouteName === 'TicketsDetail') return;
-          navigation.navigate('LoggedIn', { screen: 'Tickets', eventInfo });
+          navigation.navigate('Home', { screen: 'Tickets', params: { eventInfo } });
         } else {
-          navigation.navigate('LoggedIn', {
-            screen: 'Tickets',
-            params: { screen: 'BoxOfficeTab' },
-            eventInfo,
-          });
+          navigation.navigate('Home', { screen: 'Tickets', params: { eventInfo } });
         }
       }
     } else {
@@ -131,12 +127,12 @@ const Header = ({ eventInfo, onScanCountUpdate, onTabChange, showBackButton, onB
         });
       }
     } else {
-      navigation.navigate('LoggedIn', {
-        eventInfo: eventInfo,
+      navigation.navigate('Home', {
         screen: 'Tickets',
         params: {
           initialTab: 'Scanned',
           fromHeader: true,
+          eventInfo,
         },
       });
     }

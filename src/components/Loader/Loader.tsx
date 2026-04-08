@@ -10,7 +10,7 @@ interface LoaderProps {
 }
 
 const Loader: React.FC<LoaderProps> = React.memo(
-  ({ isLoading, type = 'wave', indicatorColor = Colors.dark.background }) => {
+  ({ isLoading, type = 'wave', indicatorColor = '#AE6F28' }) => {
     return (
       <Spinner
         animation="none"

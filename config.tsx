@@ -12,6 +12,29 @@ const API_CONFIG = {
     userProfile: "/api/users/me",
     logout: "/identities/logout",
   },
+  EVENTS: {
+    staffEventAccess: (staffId: string) =>
+      `/api/staff-event-access/staff/${staffId}/`,
+    eventInfo: (eventId: string) => `/api/ticket/event/${eventId}/info/`,
+  },
+  CHECK_IN: {
+    scanTicket: (eventId: string, code: string) =>
+      `/api/ticket/scan/${eventId}/${code}/`,
+    updateTicketNote: (eventId: string, code: string) =>
+      `/api/ticket/note/${eventId}/${code}/`,
+    fetchTicketOrders: (eventId: string) =>
+      `/api/user-tickets/orders/?event_id=${eventId}`,
+    fetchTicketOrderDetails: (orderNumber: string, eventId: string) =>
+      `/api/user-tickets/?order_number=${orderNumber}&event_id=${eventId}`,
+    manualCheckin: (eventId: string, code: string) =>
+      `/api/ticket/scan/${eventId}/${code}/`,
+    fetchTicketPricingStats: `/api/ticket/pricing-type/`,
+    fetchTicketPricing: (eventId: string) =>
+      `/api/pricing/by-event/${eventId}/`,
+    boxOfficeGetTicket: `/api/orders/box-office/`,
+    boxOfficeCheckinAll: (eventId: string, orderNumber: string) =>
+      `/api/ticket/check-in-all/${eventId}/${orderNumber}/`,
+  },
 };
 
 export default API_CONFIG;

@@ -13,7 +13,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { color } from "../color/color";
 import { useDispatch } from "react-redux";
-import { loginSuccess } from "../redux/reducers/userReducer";
+import { loginSuccess, setUser } from "../redux/reducers/userReducer";
 import { LinearGradient } from "expo-linear-gradient";
 import Typography from "../components/Typography";
 import MiddleSection from "../components/MiddleSection";
@@ -92,9 +92,11 @@ const OtpLoginScreen = ({ route }) => {
       if (refreshToken) {
         await SecureStore.setItemAsync("refreshToken", refreshToken);
       }
+      const profileResponse = await AUTH_SERVICES.fetchUserProfile();
+      const userData = profileResponse?.data;
 
-      // Update Redux — navigation will switch to the LoggedIn stack automatically
-      dispatch(loginSuccess({ token: authToken }));
+      dispatch(setUser({ user: userData }));
+      dispatch(loginSuccess({ token: authToken, user: userData }));
     } catch (error) {
       const message =
         error?.response?.data?.reason ||

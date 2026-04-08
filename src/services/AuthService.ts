@@ -12,30 +12,18 @@ interface TWO_FACTOR_VERIFY {
 }
 
 export const AUTH_SERVICES = {
-  /**
-   * POST /login/2fa/initiate — { key, secret }
-   * Response: { traceId, maskedContact }
-   */
   twoFactorInitiate: (payload: TWO_FACTOR_INITIATE) =>
     HTTP_CLIENT.post(API_CONFIG.AUTH.twoFactorInitiate, payload),
 
-  /**
-   * POST /login/2fa/verify — { traceId, otp }
-   * Response: { authToken, refreshToken }
-   */
   twoFactorVerify: (payload: TWO_FACTOR_VERIFY) =>
     HTTP_CLIENT.post(API_CONFIG.AUTH.twoFactorVerify, payload),
 
-  /**
-   * GET /api/users/me
-   * Response: user profile object
-   */
-  fetchUserProfile: () =>
-    HTTP_CLIENT.get(API_CONFIG.AUTH.userProfile),
+  fetchUserProfile: () => HTTP_CLIENT.get(API_CONFIG.AUTH.userProfile),
 
-  /**
-   * POST /identities/logout
-   */
-  logout: () =>
-    HTTP_CLIENT.post(API_CONFIG.AUTH.logout),
+  updateProfile: (formData: FormData) =>
+    HTTP_CLIENT.patch("/api/users/profile", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+
+  logout: () => HTTP_CLIENT.post(API_CONFIG.AUTH.logout),
 };

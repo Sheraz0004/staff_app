@@ -20,6 +20,7 @@ import { eventService } from '../../api/apiService';
 import { logger } from '../../utils/logger';
 import SvgIcons from '../../components/SvgIcons';
 import Typography from '../../components/Typography';
+import { useSelector } from 'react-redux';
 
 const { width, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -283,6 +284,8 @@ const EventsTicketsTab = ({ eventInfo, onEventChange }) => {
   const [loading, setLoading] = useState(true);
   const [allEvents, setAllEvents] = useState([]);
   const [filteredEvents, setFilteredEvents] = useState([]);
+  const authUser = useSelector((state) => state.entities.user.user);
+
 
   // Filter state
   const [filterVisible, setFilterVisible] = useState(false);
@@ -295,7 +298,7 @@ const EventsTicketsTab = ({ eventInfo, onEventChange }) => {
     const fetchEvents = async () => {
       try {
         setLoading(true);
-        const staffEventsData = await eventService.fetchStaffEvents();
+        const staffEventsData = await eventService.fetchStaffEvents(authUser.id);
         const eventsList = staffEventsData?.data || [];
 
         let events = [];
@@ -329,7 +332,7 @@ const EventsTicketsTab = ({ eventInfo, onEventChange }) => {
         setAllEvents(transformedEvents);
         setFilteredEvents(transformedEvents);
       } catch (error) {
-        logger.error('Error fetching events for Tickets tab:', error);
+        logger.error('Error fetching events for Tickets tab:', error.response);
         setAllEvents([]);
         setFilteredEvents([]);
       } finally {
