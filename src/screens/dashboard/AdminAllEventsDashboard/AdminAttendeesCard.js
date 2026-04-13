@@ -1,10 +1,27 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { useDispatch, useSelector } from 'react-redux';
 import SvgIcons from '../../../components/SvgIcons';
 import { color } from '../../../color/color';
 import Typography from '../../../components/Typography';
 import BottomSheetRadioPicker from '../../../constants/bottomSheetRadioPicker';
+import { DASHBOARD_SERVICES } from '../../../services/DashboardService';
+import {
+  selectEvents,
+  selectEventsPage,
+  selectEventsTotalPages,
+  selectEventsLoadingMore,
+  selectSelectedEventFilterValue,
+  setEvents,
+  appendEvents,
+  setEventsLoading,
+  setEventsError,
+  setEventsPage,
+  setEventsTotalPages,
+  setEventsLoadingMore,
+  setSelectedEventFilterValue,
+} from '../../../redux/reducers/dashboardReducer';
 
 const { width } = Dimensions.get('window');
 
@@ -154,16 +171,61 @@ const AttendeesChart = () => {
 };
 
 const AdminAttendeesCard = () => {
+  const dispatch = useDispatch();
   const [showFilterPicker, setShowFilterPicker] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState('All');
+
+  const events = useSelector(selectEvents);
+  const eventsPage = useSelector(selectEventsPage);
+  const eventsTotalPages = useSelector(selectEventsTotalPages);
+  const eventsLoadingMore = useSelector(selectEventsLoadingMore);
+  const selectedEventFilterValue = useSelector(selectSelectedEventFilterValue);
 
   const filterOptions = [
-    { label: 'All', value: 'All' },
-    { label: 'Standard', value: 'Standard' },
-    { label: 'Recurring', value: 'Recurring' },
-    { label: 'Multi Day Same Venue', value: 'Multi Day Same Venue' },
-    { label: 'Multi Day Multi Venue', value: 'Multi Day Multi Venue' },
+    { label: 'All', value: 'all' },
+    ...events.map((e) => ({ label: e.title, value: String(e.id) })),
   ];
+
+  const selectedFilter =
+    filterOptions.find((o) => o.value === selectedEventFilterValue)?.label ?? 'All';
+
+  useEffect(() => {
+    if (events.length === 0) fetchEvents(0);
+  }, []);
+
+  const fetchEvents = async (page = 0) => {
+    if (page === 0) {
+      dispatch(setEventsLoading(true));
+      dispatch(setEventsError(null));
+    } else {
+      dispatch(setEventsLoadingMore(true));
+    }
+    try {
+      const response = await DASHBOARD_SERVICES.fetchEvents(page);
+      const { data, totalPages, currentPage } = response.data;
+      if (page === 0) {
+        dispatch(setEvents(data));
+      } else {
+        dispatch(appendEvents(data));
+      }
+      dispatch(setEventsPage(currentPage));
+      dispatch(setEventsTotalPages(totalPages));
+    } catch (error) {
+      dispatch(setEventsError(error?.message ?? 'Failed to fetch events'));
+    } finally {
+      if (page === 0) {
+        dispatch(setEventsLoading(false));
+      } else {
+        dispatch(setEventsLoadingMore(false));
+      }
+    }
+  };
+
+  const loadMoreEvents = () => {
+    const nextPage = eventsPage + 1;
+    if (nextPage < eventsTotalPages && !eventsLoadingMore) {
+      fetchEvents(nextPage);
+    }
+  };
 
   return (
     <View style={styles.card}>
@@ -211,8 +273,11 @@ const AdminAttendeesCard = () => {
         onClose={() => setShowFilterPicker(false)}
         title="Filter by Event"
         options={filterOptions}
-        selectedValue={selectedFilter}
-        onSelect={(option) => setSelectedFilter(option.value)}
+        selectedValue={selectedEventFilterValue}
+        onSelect={(option) => dispatch(setSelectedEventFilterValue(option.value))}
+        hasMore={eventsPage + 1 < eventsTotalPages}
+        isLoadingMore={eventsLoadingMore}
+        onLoadMore={loadMoreEvents}
       />
     </View>
   );

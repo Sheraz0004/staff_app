@@ -2,16 +2,27 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     StyleSheet,
-    ScrollView,
+    FlatList,
     TouchableOpacity,
     Modal,
     Animated,
     PanResponder,
+    ActivityIndicator,
 } from 'react-native';
 import { color } from '../color/color';
 import Typography from '../components/Typography';
 
-const BottomSheetRadioPicker = ({ visible, onClose, title, options, selectedValue, onSelect }) => {
+const BottomSheetRadioPicker = ({
+    visible,
+    onClose,
+    title,
+    options,
+    selectedValue,
+    onSelect,
+    onLoadMore,
+    hasMore,
+    isLoadingMore,
+}) => {
     const translateY = useRef(new Animated.Value(600)).current;
     const overlayOpacity = useRef(new Animated.Value(0)).current;
     const [modalVisible, setModalVisible] = useState(false);
@@ -90,6 +101,44 @@ const BottomSheetRadioPicker = ({ visible, onClose, title, options, selectedValu
         handleClose();
     };
 
+    const renderItem = ({ item: option }) => {
+        const isSelected = option.value === selectedValue;
+        return (
+            <TouchableOpacity
+                style={styles.radioOptionRow}
+                onPress={() => handleSelect(option)}
+                activeOpacity={0.7}
+            >
+                <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
+                    {isSelected && <View style={styles.radioInner} />}
+                </View>
+                <Typography
+                    weight="400"
+                    size={16}
+                    color={color.black_544B45}
+                    style={styles.radioLabel}
+                >
+                    {option.label}
+                </Typography>
+            </TouchableOpacity>
+        );
+    };
+
+    const renderFooter = () => {
+        if (!isLoadingMore) return null;
+        return (
+            <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color={color.btnBrown_AE6F28} />
+            </View>
+        );
+    };
+
+    const handleEndReached = () => {
+        if (hasMore && !isLoadingMore && onLoadMore) {
+            onLoadMore();
+        }
+    };
+
     return (
         <Modal visible={modalVisible} animationType="none" transparent>
             <View style={styles.overlayWrapper}>
@@ -110,31 +159,17 @@ const BottomSheetRadioPicker = ({ visible, onClose, title, options, selectedValu
                         {title}
                     </Typography>
 
-                    <ScrollView style={styles.optionsList} showsVerticalScrollIndicator={false}>
-                        {options.map((option, index) => {
-                            const isSelected = option.value === selectedValue;
-                            return (
-                                <TouchableOpacity
-                                    key={option.value || index}
-                                    style={styles.radioOptionRow}
-                                    onPress={() => handleSelect(option)}
-                                    activeOpacity={0.7}
-                                >
-                                    <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
-                                        {isSelected && <View style={styles.radioInner} />}
-                                    </View>
-                                    <Typography
-                                        weight="400"
-                                        size={16}
-                                        color={color.black_544B45}
-                                        style={styles.radioLabel}
-                                    >
-                                        {option.label}
-                                    </Typography>
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </ScrollView>
+                    <FlatList
+                        data={options}
+                        keyExtractor={(item, index) => String(item.value ?? index)}
+                        renderItem={renderItem}
+                        style={styles.optionsList}
+                        showsVerticalScrollIndicator={false}
+                        onEndReached={handleEndReached}
+                        onEndReachedThreshold={0.3}
+                        ListFooterComponent={renderFooter}
+                        nestedScrollEnabled
+                    />
                 </Animated.View>
             </View>
         </Modal>
@@ -199,6 +234,10 @@ const styles = StyleSheet.create({
     },
     radioLabel: {
         flex: 1,
+    },
+    footerLoader: {
+        paddingVertical: 16,
+        alignItems: 'center',
     },
 });
 

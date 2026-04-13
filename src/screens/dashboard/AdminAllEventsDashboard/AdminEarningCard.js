@@ -1,10 +1,20 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
+import { useDispatch, useSelector } from 'react-redux';
 import SvgIcons from '../../../components/SvgIcons';
 import { color } from '../../../color/color';
 import Typography from '../../../components/Typography';
 import PopoverDropdown from '../../../constants/popOverDropdown';
+import { DASHBOARD_SERVICES } from '../../../services/DashboardService';
+import {
+  selectCurrencies,
+  selectSelectedCurrencyValue,
+  setCurrencies,
+  setCurrenciesLoading,
+  setCurrenciesError,
+  setSelectedCurrencyValue,
+} from '../../../redux/reducers/dashboardReducer';
 
 const EarningsChart = () => {
     const data = [
@@ -112,19 +122,37 @@ const DropdownEarningFilter = ({ value, onPress }) => (
 );
 
 const AdminEarningCard = () => {
+    const dispatch = useDispatch();
     const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
-    const [selectedCurrency, setSelectedCurrency] = useState('GHS');
     const currencyRef = useRef(null);
 
-    const currencyOptions = [
-        { label: 'USD', value: 'USD' },
-        { label: 'Pounds', value: 'Pounds' },
-        { label: 'EUR', value: 'EUR' },
-        { label: 'AED', value: 'AED' },
-        { label: 'QAR', value: 'QAR' },
-        { label: 'GHS', value: 'GHS' },
-        { label: 'PKR', value: 'PKR' },
-    ];
+    const currencies = useSelector(selectCurrencies);
+    const selectedCurrencyValue = useSelector(selectSelectedCurrencyValue);
+
+    const currencyOptions = currencies.map((c) => ({
+        label: c.threeLetter,
+        value: c.threeLetter,
+    }));
+
+    const selectedCurrency =
+        currencyOptions.find((o) => o.value === selectedCurrencyValue)?.label ?? 'GHS';
+
+    useEffect(() => {
+        if (currencies.length === 0) fetchCurrencies();
+    }, []);
+
+    const fetchCurrencies = async () => {
+        dispatch(setCurrenciesLoading(true));
+        dispatch(setCurrenciesError(null));
+        try {
+            const response = await DASHBOARD_SERVICES.fetchCurrencies();
+            dispatch(setCurrencies(response.data.data));
+        } catch (error) {
+            dispatch(setCurrenciesError(error?.message ?? 'Failed to fetch currencies'));
+        } finally {
+            dispatch(setCurrenciesLoading(false));
+        }
+    };
 
     return (
         <View style={styles.card}>
@@ -171,8 +199,8 @@ const AdminEarningCard = () => {
                 visible={showCurrencyDropdown}
                 onClose={() => setShowCurrencyDropdown(false)}
                 options={currencyOptions}
-                selectedValue={selectedCurrency}
-                onSelect={(option) => setSelectedCurrency(option.value)}
+                selectedValue={selectedCurrencyValue}
+                onSelect={(option) => dispatch(setSelectedCurrencyValue(option.value))}
                 anchorRef={currencyRef}
             />
         </View>

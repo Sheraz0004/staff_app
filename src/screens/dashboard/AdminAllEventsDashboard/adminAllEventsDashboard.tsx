@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, ScrollView, TouchableOpacity } from "react-native";
+import { useDispatch, useSelector } from "react-redux";
 import SvgIcons from "../../../components/SvgIcons";
 import { color } from "../../../color/color";
 import Typography from "../../../components/Typography";
@@ -12,6 +13,39 @@ import AdminCouponsCard from "./AdminCouponsCard";
 import Dropdown from "./components/Dropdown";
 import DateRangePicker from "./components/DateRangePicker";
 import { styles } from "./adminAllEventsDashboard.styles";
+import { DASHBOARD_SERVICES } from "../../../services/DashboardService";
+import type {
+  EventType,
+  TicketingType,
+  Organization,
+} from "../../../redux/reducers/dashboardReducer";
+import {
+  selectEventTypes,
+  selectTicketingTypes,
+  selectOrganizations,
+  selectOrganizationsPage,
+  selectOrganizationsTotalPages,
+  selectOrganizationsLoadingMore,
+  selectSelectedEventTypeValue,
+  selectSelectedTicketingTypeValue,
+  selectSelectedOrganizationValue,
+  setEventTypes,
+  setEventTypesLoading,
+  setEventTypesError,
+  setTicketingTypes,
+  setTicketingTypesLoading,
+  setTicketingTypesError,
+  setOrganizations,
+  appendOrganizations,
+  setOrganizationsLoading,
+  setOrganizationsError,
+  setOrganizationsPage,
+  setOrganizationsTotalPages,
+  setOrganizationsLoadingMore,
+  setSelectedEventTypeValue,
+  setSelectedTicketingTypeValue,
+  setSelectedOrganizationValue,
+} from "../../../redux/reducers/dashboardReducer";
 
 interface RadioOption {
   label: string;
@@ -24,47 +58,121 @@ interface DateRange {
 }
 
 const AdminAllEventsDashboard: React.FC = () => {
+  const dispatch = useDispatch();
+
+  const eventTypes = useSelector(selectEventTypes);
+  const ticketingTypes = useSelector(selectTicketingTypes);
+  const organizations = useSelector(selectOrganizations);
+  const organizationsPage = useSelector(selectOrganizationsPage);
+  const organizationsTotalPages = useSelector(selectOrganizationsTotalPages);
+  const organizationsLoadingMore = useSelector(selectOrganizationsLoadingMore);
+  const selectedEventTypeValue = useSelector(selectSelectedEventTypeValue);
+  const selectedTicketingTypeValue = useSelector(selectSelectedTicketingTypeValue);
+  const selectedOrganizationValue = useSelector(selectSelectedOrganizationValue);
+
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState("Jan 23, 2026");
-
   const [showEventTypePicker, setShowEventTypePicker] = useState(false);
   const [showTicketingTypePicker, setShowTicketingTypePicker] = useState(false);
-
-  const [selectedEventType, setSelectedEventType] = useState("All");
-  const [selectedTicketingType, setSelectedTicketingType] = useState("All");
+  const [showOrganizationPicker, setShowOrganizationPicker] = useState(false);
 
   const eventTypeOptions: RadioOption[] = [
-    { label: "All", value: "All" },
-    { label: "Standard", value: "Standard" },
-    { label: "Recurring", value: "Recurring" },
-    { label: "Multi Day Same Venue", value: "Multi Day Same Venue" },
-    { label: "Multi Day Multi Venue", value: "Multi Day Multi Venue" },
+    { label: "All", value: "all" },
+    ...eventTypes.map((t: EventType) => ({ label: t.title, value: String(t.id) })),
   ];
 
   const ticketingTypeOptions: RadioOption[] = [
-    { label: "All", value: "All" },
-    { label: "Standard", value: "Standard" },
-    { label: "Members", value: "Members" },
-    { label: "Early Bird", value: "Early Bird" },
-    { label: "Packages", value: "Packages" },
+    { label: "All", value: "all" },
+    ...ticketingTypes.map((t: TicketingType) => ({ label: t.title, value: String(t.id) })),
   ];
+
+  const organizationOptions: RadioOption[] = [
+    { label: "All", value: "all" },
+    ...organizations.map((o: Organization) => ({
+      label: o.name ?? o.organizationNumber,
+      value: String(o.id),
+    })),
+  ];
+
+  const selectedEventTypeLabel =
+    eventTypeOptions.find((o) => o.value === selectedEventTypeValue)?.label ?? "All";
+
+  const selectedTicketingTypeLabel =
+    ticketingTypeOptions.find((o) => o.value === selectedTicketingTypeValue)?.label ?? "All";
+
+  const selectedOrganizationLabel =
+    organizationOptions.find((o) => o.value === selectedOrganizationValue)?.label ?? "Organization";
+
+  useEffect(() => {
+    if (eventTypes.length === 0) fetchEventTypes();
+    if (ticketingTypes.length === 0) fetchTicketingTypes();
+    if (organizations.length === 0) fetchOrganizations();
+  }, []);
+
+  const fetchEventTypes = async () => {
+    dispatch(setEventTypesLoading(true));
+    dispatch(setEventTypesError(null));
+    try {
+      const response = await DASHBOARD_SERVICES.fetchEventTypes();
+      dispatch(setEventTypes(response.data.data));
+    } catch (error: any) {
+      dispatch(setEventTypesError(error?.message ?? "Failed to fetch event types"));
+    } finally {
+      dispatch(setEventTypesLoading(false));
+    }
+  };
+
+  const fetchTicketingTypes = async () => {
+    dispatch(setTicketingTypesLoading(true));
+    dispatch(setTicketingTypesError(null));
+    try {
+      const response = await DASHBOARD_SERVICES.fetchTicketingTypes();
+      dispatch(setTicketingTypes(response.data.data));
+    } catch (error: any) {
+      dispatch(setTicketingTypesError(error?.message ?? "Failed to fetch ticketing types"));
+    } finally {
+      dispatch(setTicketingTypesLoading(false));
+    }
+  };
+
+  const fetchOrganizations = async (page: number = 0) => {
+    if (page === 0) {
+      dispatch(setOrganizationsLoading(true));
+      dispatch(setOrganizationsError(null));
+    } else {
+      dispatch(setOrganizationsLoadingMore(true));
+    }
+    try {
+      const response = await DASHBOARD_SERVICES.fetchOrganizations(page);
+      const { data, totalPages, currentPage } = response.data;
+      if (page === 0) {
+        dispatch(setOrganizations(data));
+      } else {
+        dispatch(appendOrganizations(data));
+      }
+      dispatch(setOrganizationsPage(currentPage));
+      dispatch(setOrganizationsTotalPages(totalPages));
+    } catch (error: any) {
+      dispatch(setOrganizationsError(error?.message ?? "Failed to fetch organizations"));
+    } finally {
+      if (page === 0) {
+        dispatch(setOrganizationsLoading(false));
+      } else {
+        dispatch(setOrganizationsLoadingMore(false));
+      }
+    }
+  };
+
+  const loadMoreOrganizations = () => {
+    const nextPage = organizationsPage + 1;
+    if (nextPage < organizationsTotalPages && !organizationsLoadingMore) {
+      fetchOrganizations(nextPage);
+    }
+  };
 
   const handleDateRangeSelect = ({ startDate, endDate }: DateRange) => {
     const formatDate = (date: Date) => {
-      const months = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ];
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
     };
 
@@ -105,33 +213,42 @@ const AdminAllEventsDashboard: React.FC = () => {
         <View style={styles.filters}>
           <View style={styles.dropdownWrapper}>
             <Dropdown
-              value={selectedEventType}
+              value={selectedEventTypeLabel}
               onPress={() => setShowEventTypePicker(true)}
             />
           </View>
           <View style={styles.dropdownWrapper}>
             <Dropdown
-              value={selectedTicketingType}
+              value={selectedTicketingTypeLabel}
               onPress={() => setShowTicketingTypePicker(true)}
             />
           </View>
         </View>
 
-        <TouchableOpacity
-          style={styles.dateSelector}
-          onPress={() => setShowDatePicker(true)}
-        >
-          <SvgIcons.calendarIcon />
-          <Typography
-            style={styles.dateSelectorText}
-            weight="400"
-            size={14}
-            color={color.brown_766F6A}
+        <View style={styles.filtersRow2}>
+          <View style={styles.dropdownWrapper}>
+            <Dropdown
+              value={selectedOrganizationLabel}
+              onPress={() => setShowOrganizationPicker(true)}
+            />
+          </View>
+          <TouchableOpacity
+            style={styles.dateSelectorInRow}
+            onPress={() => setShowDatePicker(true)}
           >
-            {selectedDate}
-          </Typography>
-          <SvgIcons.downArrow />
-        </TouchableOpacity>
+            <SvgIcons.calendarIcon />
+            <Typography
+              style={styles.dateSelectorText}
+              weight="400"
+              size={14}
+              color={color.brown_766F6A}
+              numberOfLines={1}
+            >
+              {selectedDate}
+            </Typography>
+            <SvgIcons.downArrow />
+          </TouchableOpacity>
+        </View>
 
         <AdminEarningCard />
         <AdminAttendeesCard />
@@ -151,8 +268,10 @@ const AdminAllEventsDashboard: React.FC = () => {
         onClose={() => setShowEventTypePicker(false)}
         title="Event Type"
         options={eventTypeOptions}
-        selectedValue={selectedEventType}
-        onSelect={(option: RadioOption) => setSelectedEventType(option.value)}
+        selectedValue={selectedEventTypeValue}
+        onSelect={(option: RadioOption) =>
+          dispatch(setSelectedEventTypeValue(option.value))
+        }
       />
 
       <BottomSheetRadioPicker
@@ -160,10 +279,24 @@ const AdminAllEventsDashboard: React.FC = () => {
         onClose={() => setShowTicketingTypePicker(false)}
         title="Ticketing Type"
         options={ticketingTypeOptions}
-        selectedValue={selectedTicketingType}
+        selectedValue={selectedTicketingTypeValue}
         onSelect={(option: RadioOption) =>
-          setSelectedTicketingType(option.value)
+          dispatch(setSelectedTicketingTypeValue(option.value))
         }
+      />
+
+      <BottomSheetRadioPicker
+        visible={showOrganizationPicker}
+        onClose={() => setShowOrganizationPicker(false)}
+        title="Organization"
+        options={organizationOptions}
+        selectedValue={selectedOrganizationValue}
+        onSelect={(option: RadioOption) =>
+          dispatch(setSelectedOrganizationValue(option.value))
+        }
+        hasMore={organizationsPage + 1 < organizationsTotalPages}
+        isLoadingMore={organizationsLoadingMore}
+        onLoadMore={loadMoreOrganizations}
       />
     </View>
   );

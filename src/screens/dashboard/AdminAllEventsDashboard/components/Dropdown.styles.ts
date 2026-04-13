@@ -13,7 +13,7 @@ export const styles = StyleSheet.create({
         borderWidth: 0.1,
         borderColor: color.grey_DADADA,
         justifyContent: 'space-between',
-        minWidth: 80,
+        width: '100%',
     },
     dropdownValue: {
         fontSize: 14,

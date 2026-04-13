@@ -17,6 +17,15 @@ const API_CONFIG = {
       `/api/staff-event-access/staff/${staffId}/`,
     eventInfo: (eventId: string) => `/api/ticket/event/${eventId}/info/`,
   },
+  DASHBOARD: {
+    eventTypes: "/api/event/types/?page_size=-1",
+    ticketingTypes: "/api/ticket/ticketing-types/?page_size=-1",
+    organizations: (page: number = 0, pageSize: number = 20) =>
+      `/api/organization/individual/?page_size=${pageSize}&page=${page}`,
+    currencies: "/api/currency/?page_size=-1",
+    events: (page: number = 0, pageSize: number = 20) =>
+      `/api/event/?page_size=${pageSize}&page=${page}`,
+  },
   CHECK_IN: {
     scanTicket: (eventId: string, code: string) =>
       `/api/ticket/scan/${eventId}/${code}/`,
