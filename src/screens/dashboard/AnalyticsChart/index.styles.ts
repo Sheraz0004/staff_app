@@ -1,0 +1,140 @@
+import { StyleSheet } from 'react-native';
+import { color } from '../../../color/color';
+
+const DOT_SIZE = 2;
+const BAR_WIDTH = 10;
+const CHART_HEIGHT = 140;
+
+export const styles = StyleSheet.create({
+    wrapper: {
+        backgroundColor: "#fff",
+        borderRadius: 16,
+        margin: 0,
+        padding: 0,
+        paddingTop: 18,
+        paddingBottom: 10,
+        paddingHorizontal: 18,
+        shadowColor: '#000',
+        shadowOpacity: 0.03,
+        shadowRadius: 2,
+        shadowOffset: { width: 0, height: 1 },
+        marginHorizontal: 16,
+        marginVertical: 8,
+    },
+    title: {
+        fontSize: 15,
+        fontWeight: "500",
+        color: color.placeholderTxt_24282C,
+        marginBottom: 8,
+        textAlign: 'left',
+    },
+    chartRow: {
+        flexDirection: "row",
+        alignItems: "flex-end",
+        marginTop: 30
+    },
+    chartArea: {
+        flex: 1,
+        height: CHART_HEIGHT + 24,
+        position: "relative",
+        overflow: "visible",
+        justifyContent: "flex-end",
+        marginLeft: 40,
+    },
+    gridLine: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        height: 1,
+        zIndex: 0,
+    },
+    dottedLineContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        height: 1,
+    },
+    dot: {
+        width: DOT_SIZE,
+        height: DOT_SIZE,
+        borderRadius: DOT_SIZE / 2,
+        backgroundColor: '#ECECEC',
+    },
+    yAxisLabel: {
+        fontSize: 13,
+        color: color.brown_3C200A,
+        fontWeight: "400",
+        opacity: 0.7,
+        fontFamily: 'System',
+        textAlign: 'right',
+    },
+    bar: {
+        backgroundColor: "#F7E4B6",
+        borderRadius: 5,
+        width: BAR_WIDTH,
+    },
+    highlightedBar: {
+        backgroundColor: color.btnBrown_AE6F28,
+    },
+    timeLabel: {
+        marginTop: 6,
+        fontSize: 14,
+        color: color.brown_3C200A,
+        opacity: 0.7,
+        fontWeight: "400",
+        textAlign: "center",
+        fontFamily: 'System',
+    },
+    timeLabelHighlight: {
+        color: color.drak_black_000000,
+        fontWeight: "700",
+    },
+    tooltipContainer: {
+        position: "absolute",
+        bottom: "70%",
+        left: "50%",
+        transform: [{ translateX: -70 }],
+        zIndex: 10,
+        width: 140,
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    tooltip: {
+        backgroundColor: "#2F251D",
+        paddingVertical: 8,
+        paddingHorizontal: 1,
+        borderRadius: 10,
+        alignItems: "center",
+        justifyContent: "center",
+        width: 140,
+    },
+    tooltipArrow: {
+        position: "absolute",
+        bottom: -8,
+        left: "50%",
+        marginLeft: -8,
+        width: 0,
+        height: 0,
+        borderLeftWidth: 8,
+        borderRightWidth: 8,
+        borderTopWidth: 8,
+        borderStyle: "solid",
+        borderLeftColor: "transparent",
+        borderRightColor: "transparent",
+        borderTopColor: "#2F251D",
+    },
+    tooltipTime: {
+        color: "#fff",
+        fontSize: 16,
+        fontWeight: "600",
+        textAlign: "center",
+        fontFamily: 'System',
+    },
+    tooltipValue: {
+        color: "#fff",
+        fontSize: 15,
+        fontWeight: "400",
+        textAlign: "center",
+        fontFamily: 'System',
+        marginTop: 2,
+    },
+});

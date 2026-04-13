@@ -1,1 +1,0 @@
-export const adminonlineboxofficetab = ["All", "Online", "Box Office"];

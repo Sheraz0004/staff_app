@@ -1,1 +1,0 @@
-export const admindashboardterminaltab = ["Dashboard", "Terminals"];
