@@ -19,7 +19,8 @@
       "bundleIdentifier": "com.asadahmad.staffapp",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app uses location to automatically detect your country code for phone number input.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses location to automatically detect your country code for phone number input."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses location to automatically detect your country code for phone number input.",
+        "UIViewControllerBasedStatusBarAppearance": true
       },
       "newArchEnabled": true
     },

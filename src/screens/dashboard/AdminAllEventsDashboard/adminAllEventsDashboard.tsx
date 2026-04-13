@@ -4,7 +4,6 @@ import { useDispatch, useSelector } from "react-redux";
 import SvgIcons from "../../../components/SvgIcons";
 import { color } from "../../../color/color";
 import Typography from "../../../components/Typography";
-import Loader from "../../../components/Loader/Loader";
 import BottomSheetRadioPicker from "../../../constants/bottomSheetRadioPicker";
 import AdminEarningCard from "./AdminEarningCard";
 import AdminAttendeesCard from "./AdminAttendeesCard";
@@ -53,6 +52,7 @@ import {
   setDashboardDataLoading,
   setDashboardDataError,
 } from "../../../redux/reducers/dashboardReducer";
+import Loader from "@components/Loader/Loader";
 
 interface RadioOption {
   label: string;
