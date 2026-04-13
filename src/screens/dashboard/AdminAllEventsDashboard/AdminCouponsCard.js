@@ -1,79 +1,79 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
+import { useSelector } from 'react-redux';
 import SvgIcons from '../../../components/SvgIcons';
 import { color } from '../../../color/color';
 import Typography from '../../../components/Typography';
 import { TicketStatBox, MiniStatCard } from '../../../constants/ticketStatBox';
+import { selectDashboardData } from '../../../redux/reducers/dashboardReducer';
+
+const safeFormatAmount = (currency, value) => {
+  const num = typeof value === 'number' && isFinite(value) ? value : 0;
+  const formatted = num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `${currency ?? 'GHS'} ${formatted}`;
+};
 
 const AdminCouponsCard = () => {
-    return (
-        <View style={styles.card}>
-            <Typography
-                style={styles.cardTitle}
-                weight="700"
-                size={13}
-                color={color.placeholderTxt_24282C}
-            >
-                Coupons
-            </Typography>
+  const dashboardData = useSelector(selectDashboardData);
 
-            <TicketStatBox
-                icon={<SvgIcons.couponIcon width={32} height={32} />}
-                label="Total Issued"
-                count="102"
-                grossAmount="GHS 100,000.00"
-                netAmount="GHS 95,000.00"
-            />
+  const currency = dashboardData?.currency ?? 'GHS';
+  const sold = dashboardData?.coupons?.sold ?? { count: 0, value: 0 };
+  const refunded = dashboardData?.coupons?.refunded ?? { count: 0, value: 0 };
+  const cancelled = dashboardData?.coupons?.cancelled ?? { count: 0, value: 0 };
 
-            <View style={styles.statRow}>
-                <MiniStatCard
-                    icon={<SvgIcons.totalActiveCoupon width={32} height={32} />}
-                    label="Total Active"
-                    count="05"
-                    amount="GHS 50,000.00"
-                />
-                <MiniStatCard
-                    icon={<SvgIcons.totalUsedCoupon width={32} height={32} />}
-                    label="Total Used"
-                    count="10"
-                    amount="GHS 20,000.00"
-                />
-            </View>
+  return (
+    <View style={styles.card}>
+      <Typography
+        style={styles.cardTitle}
+        weight="700"
+        size={13}
+        color={color.placeholderTxt_24282C}
+      >
+        Coupons
+      </Typography>
 
-            <View style={styles.statRow}>
-                <MiniStatCard
-                    icon={<SvgIcons.totalUnusedCoupon width={32} height={32} />}
-                    label="Total Unused"
-                    count="10"
-                    amount="GHS 20,000.00"
-                />
-                <MiniStatCard
-                    icon={<SvgIcons.ticketCanceled width={32} height={32} />}
-                    label="Total Canceled"
-                    count="102"
-                    amount="GHS 20,000.00"
-                />
-            </View>
-        </View>
-    );
+      <TicketStatBox
+        icon={<SvgIcons.couponIcon width={32} height={32} />}
+        label="Coupons Sold"
+        count={String(sold?.count ?? 0)}
+        grossAmount={safeFormatAmount(currency, sold?.value)}
+        netAmount="—"
+      />
+
+      <View style={styles.statRow}>
+        <MiniStatCard
+          icon={<SvgIcons.totalActiveCoupon width={32} height={32} />}
+          label="Coupons Refunded"
+          count={String(refunded?.count ?? 0)}
+          amount={safeFormatAmount(currency, refunded?.value)}
+        />
+        <MiniStatCard
+          icon={<SvgIcons.ticketCanceled width={32} height={32} />}
+          label="Coupons Canceled"
+          count={String(cancelled?.count ?? 0)}
+          amount={safeFormatAmount(currency, cancelled?.value)}
+        />
+      </View>
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
-    card: {
-        backgroundColor: color.white_FFFFFF,
-        borderRadius: 20,
-        padding: 20,
-        marginHorizontal: 20,
-        marginBottom: 40,
-        overflow: 'visible',
-    },
-    cardTitle: {
-        marginBottom: 16,
-    },
-    statRow: {
-        flexDirection: 'row',
-        gap: 12,
-    },
+  card: {
+    backgroundColor: color.white_FFFFFF,
+    borderRadius: 20,
+    padding: 20,
+    marginHorizontal: 20,
+    marginBottom: 40,
+    overflow: 'visible',
+  },
+  cardTitle: {
+    marginBottom: 16,
+  },
+  statRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
 });
 
 export default AdminCouponsCard;

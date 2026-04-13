@@ -25,6 +25,32 @@ const API_CONFIG = {
     currencies: "/api/currency/?page_size=-1",
     events: (page: number = 0, pageSize: number = 20) =>
       `/api/event/?page_size=${pageSize}&page=${page}`,
+    dashboardStats: (params?: {
+      organization_uuid?: string;
+      ticketing_type?: string;
+      event_type?: string;
+      currency?: string;
+      event_id?: string;
+      year?: number;
+    }) => {
+      const base = "/api/organization/dashboard/";
+      const queryParams: string[] = [];
+      if (params?.organization_uuid)
+        queryParams.push(`organization_uuid=${params.organization_uuid}`);
+      if (params?.ticketing_type)
+        queryParams.push(`ticketing_type=${params.ticketing_type}`);
+      if (params?.event_type)
+        queryParams.push(`event_type=${params.event_type}`);
+      if (params?.currency)
+        queryParams.push(`currency=${params.currency}`);
+      if (params?.event_id)
+        queryParams.push(`event_id=${params.event_id}`);
+      if (params?.year)
+        queryParams.push(`year=${params.year}`);
+      return queryParams.length > 0
+        ? `${base}?${queryParams.join("&")}`
+        : base;
+    },
   },
   CHECK_IN: {
     scanTicket: (eventId: string, code: string) =>

@@ -25,6 +25,45 @@ export interface Organization {
   status: string;
 }
 
+export interface EarningChartItem {
+  month: string;
+  gross: number;
+  net: number;
+}
+
+export interface AttendeeChartItem {
+  month: string;
+  count: number;
+}
+
+export interface DashboardData {
+  currency: string;
+  earned: {
+    totalEarned: number;
+    chartData: EarningChartItem[];
+  };
+  attendees: {
+    total: number;
+    chartData: AttendeeChartItem[];
+  };
+  events: {
+    total: number;
+    active: number;
+    upcoming: number;
+    past: number;
+  };
+  tickets: {
+    sold: { count: number; grossValue: number; netValue: number };
+    refunded: { count: number; value: number };
+    cancelled: { count: number; value: number };
+  };
+  coupons: {
+    sold: { count: number; value: number };
+    refunded: { count: number; value: number };
+    cancelled: { count: number; value: number };
+  };
+}
+
 export interface Currency {
   id: number;
   currency: string;
@@ -70,6 +109,11 @@ interface State {
   eventsTotalPages: number;
   eventsLoadingMore: boolean;
   selectedEventFilterValue: string;
+
+  dashboardData: DashboardData | null;
+  dashboardDataLoading: boolean;
+  dashboardDataError: string | null;
+  earningsLoading: boolean;
 }
 
 const initialState: State = {
@@ -104,6 +148,11 @@ const initialState: State = {
   eventsTotalPages: 1,
   eventsLoadingMore: false,
   selectedEventFilterValue: "all",
+
+  dashboardData: null,
+  dashboardDataLoading: false,
+  dashboardDataError: null,
+  earningsLoading: false,
 };
 
 export const dashboardReducer = createSlice({
@@ -199,6 +248,19 @@ export const dashboardReducer = createSlice({
     setSelectedEventFilterValue: (state, action: PayloadAction<string>) => {
       state.selectedEventFilterValue = action.payload;
     },
+
+    setDashboardData: (state, action: PayloadAction<DashboardData>) => {
+      state.dashboardData = action.payload;
+    },
+    setDashboardDataLoading: (state, action: PayloadAction<boolean>) => {
+      state.dashboardDataLoading = action.payload;
+    },
+    setDashboardDataError: (state, action: PayloadAction<string | null>) => {
+      state.dashboardDataError = action.payload;
+    },
+    setEarningsLoading: (state, action: PayloadAction<boolean>) => {
+      state.earningsLoading = action.payload;
+    },
   },
 });
 
@@ -260,6 +322,16 @@ export const selectEventsLoadingMore = (state: any): boolean =>
 export const selectSelectedEventFilterValue = (state: any): string =>
   state.entities.dashboard.selectedEventFilterValue ?? "all";
 
+export const selectDashboardData = (state: any): DashboardData | null =>
+  state.entities.dashboard.dashboardData ?? null;
+export const selectDashboardDataLoading = (state: any): boolean =>
+  state.entities.dashboard.dashboardDataLoading ?? false;
+export const selectDashboardDataError = (state: any): string | null =>
+  state.entities.dashboard.dashboardDataError ?? null;
+
+export const selectEarningsLoading = (state: any): boolean =>
+  state.entities.dashboard.earningsLoading ?? false;
+
 export const {
   setEventTypes,
   setEventTypesLoading,
@@ -289,6 +361,10 @@ export const {
   setEventsTotalPages,
   setEventsLoadingMore,
   setSelectedEventFilterValue,
+  setDashboardData,
+  setDashboardDataLoading,
+  setDashboardDataError,
+  setEarningsLoading,
 } = dashboardReducer.actions;
 
 export default dashboardReducer.reducer;

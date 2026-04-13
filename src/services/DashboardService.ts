@@ -9,4 +9,12 @@ export const DASHBOARD_SERVICES = {
   fetchCurrencies: () => HTTP_CLIENT.get(API_CONFIG.DASHBOARD.currencies),
   fetchEvents: (page: number = 0, pageSize: number = 20) =>
     HTTP_CLIENT.get(API_CONFIG.DASHBOARD.events(page, pageSize)),
+  fetchDashboardStats: (params?: {
+    organization_uuid?: string;
+    ticketing_type?: string;
+    event_type?: string;
+    currency?: string;
+    event_id?: string;
+    year?: number;
+  }) => HTTP_CLIENT.get(API_CONFIG.DASHBOARD.dashboardStats(params)),
 };

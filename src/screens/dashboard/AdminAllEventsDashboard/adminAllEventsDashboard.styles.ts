@@ -37,7 +37,7 @@ export const styles = StyleSheet.create({
     marginBottom: 16,
     width: "100%",
   },
-  dropdownWrapper: { flex: 1 },
+  dropdownWrapper: { flex: 1.22 },
   dateSelectorInRow: {
     flex: 1,
     flexDirection: "row",

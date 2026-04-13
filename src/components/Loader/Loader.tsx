@@ -17,7 +17,7 @@ const Loader: React.FC<LoaderProps> = React.memo(
         size="large"
         color={'transparent'}
         visible={isLoading}
-        overlayColor="rgba(77, 77, 77,0.70)"
+        overlayColor="rgba(77, 77, 77,0.40)"
         customIndicator={
           isLoading ? (
             <DotIndicator

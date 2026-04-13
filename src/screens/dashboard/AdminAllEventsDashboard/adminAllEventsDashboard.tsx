@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import SvgIcons from "../../../components/SvgIcons";
 import { color } from "../../../color/color";
 import Typography from "../../../components/Typography";
+import Loader from "../../../components/Loader/Loader";
 import BottomSheetRadioPicker from "../../../constants/bottomSheetRadioPicker";
 import AdminEarningCard from "./AdminEarningCard";
 import AdminAttendeesCard from "./AdminAttendeesCard";
@@ -29,6 +30,9 @@ import {
   selectSelectedEventTypeValue,
   selectSelectedTicketingTypeValue,
   selectSelectedOrganizationValue,
+  selectSelectedCurrencyValue,
+  selectSelectedEventFilterValue,
+  selectDashboardDataLoading,
   setEventTypes,
   setEventTypesLoading,
   setEventTypesError,
@@ -45,6 +49,9 @@ import {
   setSelectedEventTypeValue,
   setSelectedTicketingTypeValue,
   setSelectedOrganizationValue,
+  setDashboardData,
+  setDashboardDataLoading,
+  setDashboardDataError,
 } from "../../../redux/reducers/dashboardReducer";
 
 interface RadioOption {
@@ -55,42 +62,53 @@ interface RadioOption {
 interface DateRange {
   startDate: Date;
   endDate: Date;
+  year?: number;
 }
 
 const AdminAllEventsDashboard: React.FC = () => {
   const dispatch = useDispatch();
 
-  const eventTypes = useSelector(selectEventTypes);
-  const ticketingTypes = useSelector(selectTicketingTypes);
-  const organizations = useSelector(selectOrganizations);
-  const organizationsPage = useSelector(selectOrganizationsPage);
-  const organizationsTotalPages = useSelector(selectOrganizationsTotalPages);
-  const organizationsLoadingMore = useSelector(selectOrganizationsLoadingMore);
-  const selectedEventTypeValue = useSelector(selectSelectedEventTypeValue);
-  const selectedTicketingTypeValue = useSelector(selectSelectedTicketingTypeValue);
-  const selectedOrganizationValue = useSelector(selectSelectedOrganizationValue);
+  const eventTypes = useSelector(selectEventTypes) ?? [];
+  const ticketingTypes = useSelector(selectTicketingTypes) ?? [];
+  const organizations = useSelector(selectOrganizations) ?? [];
+  const organizationsPage = useSelector(selectOrganizationsPage) ?? 0;
+  const organizationsTotalPages = useSelector(selectOrganizationsTotalPages) ?? 1;
+  const organizationsLoadingMore = useSelector(selectOrganizationsLoadingMore) ?? false;
+  const selectedEventTypeValue = useSelector(selectSelectedEventTypeValue) ?? "all";
+  const selectedTicketingTypeValue = useSelector(selectSelectedTicketingTypeValue) ?? "all";
+  const selectedOrganizationValue = useSelector(selectSelectedOrganizationValue) ?? "all";
+  const selectedCurrencyValue = useSelector(selectSelectedCurrencyValue) ?? "all";
+  const selectedEventFilterValue = useSelector(selectSelectedEventFilterValue) ?? "all";
+  const dashboardDataLoading = useSelector(selectDashboardDataLoading) ?? false;
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState("Jan 23, 2026");
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [showEventTypePicker, setShowEventTypePicker] = useState(false);
   const [showTicketingTypePicker, setShowTicketingTypePicker] = useState(false);
   const [showOrganizationPicker, setShowOrganizationPicker] = useState(false);
 
   const eventTypeOptions: RadioOption[] = [
     { label: "All", value: "all" },
-    ...eventTypes.map((t: EventType) => ({ label: t.title, value: String(t.id) })),
+    ...(eventTypes ?? []).map((t: EventType) => ({
+      label: t?.title ?? "",
+      value: String(t?.id ?? ""),
+    })),
   ];
 
   const ticketingTypeOptions: RadioOption[] = [
     { label: "All", value: "all" },
-    ...ticketingTypes.map((t: TicketingType) => ({ label: t.title, value: String(t.id) })),
+    ...(ticketingTypes ?? []).map((t: TicketingType) => ({
+      label: t?.title ?? "",
+      value: String(t?.id ?? ""),
+    })),
   ];
 
   const organizationOptions: RadioOption[] = [
     { label: "All", value: "all" },
-    ...organizations.map((o: Organization) => ({
-      label: o.name ?? o.organizationNumber,
-      value: String(o.id),
+    ...(organizations ?? []).map((o: Organization) => ({
+      label: o?.name ?? o?.organizationNumber ?? "",
+      value: String(o?.id ?? ""),
     })),
   ];
 
@@ -104,17 +122,58 @@ const AdminAllEventsDashboard: React.FC = () => {
     organizationOptions.find((o) => o.value === selectedOrganizationValue)?.label ?? "Organization";
 
   useEffect(() => {
-    if (eventTypes.length === 0) fetchEventTypes();
-    if (ticketingTypes.length === 0) fetchTicketingTypes();
-    if (organizations.length === 0) fetchOrganizations();
+    if ((eventTypes ?? []).length === 0) fetchEventTypes();
+    if ((ticketingTypes ?? []).length === 0) fetchTicketingTypes();
+    if ((organizations ?? []).length === 0) fetchOrganizations();
   }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [selectedOrganizationValue, selectedTicketingTypeValue, selectedEventTypeValue, selectedCurrencyValue, selectedEventFilterValue, selectedYear]);
+
+  const buildParams = () => {
+    const params: {
+      organization_uuid?: string;
+      ticketing_type?: string;
+      event_type?: string;
+      currency?: string;
+      event_id?: string;
+      year?: number;
+    } = {};
+    if (selectedOrganizationValue && selectedOrganizationValue !== "all")
+      params.organization_uuid = selectedOrganizationValue;
+    if (selectedTicketingTypeValue && selectedTicketingTypeValue !== "all")
+      params.ticketing_type = selectedTicketingTypeValue;
+    if (selectedEventTypeValue && selectedEventTypeValue !== "all")
+      params.event_type = selectedEventTypeValue;
+    if (selectedCurrencyValue && selectedCurrencyValue !== "all")
+      params.currency = selectedCurrencyValue;
+    if (selectedEventFilterValue && selectedEventFilterValue !== "all")
+      params.event_id = selectedEventFilterValue;
+    if (selectedYear)
+      params.year = selectedYear;
+    return params;
+  };
+
+  const fetchDashboardData = async () => {
+    dispatch(setDashboardDataLoading(true));
+    dispatch(setDashboardDataError(null));
+    try {
+      const response = await DASHBOARD_SERVICES.fetchDashboardStats(buildParams());
+      dispatch(setDashboardData(response?.data ?? {}));
+    } catch (error: any) {
+      dispatch(setDashboardDataError(error?.message ?? "Failed to fetch dashboard data"));
+    } finally {
+      dispatch(setDashboardDataLoading(false));
+    }
+  };
 
   const fetchEventTypes = async () => {
     dispatch(setEventTypesLoading(true));
     dispatch(setEventTypesError(null));
     try {
       const response = await DASHBOARD_SERVICES.fetchEventTypes();
-      dispatch(setEventTypes(response.data.data));
+      dispatch(setEventTypes(response?.data?.data ?? []));
     } catch (error: any) {
       dispatch(setEventTypesError(error?.message ?? "Failed to fetch event types"));
     } finally {
@@ -127,7 +186,7 @@ const AdminAllEventsDashboard: React.FC = () => {
     dispatch(setTicketingTypesError(null));
     try {
       const response = await DASHBOARD_SERVICES.fetchTicketingTypes();
-      dispatch(setTicketingTypes(response.data.data));
+      dispatch(setTicketingTypes(response?.data?.data ?? []));
     } catch (error: any) {
       dispatch(setTicketingTypesError(error?.message ?? "Failed to fetch ticketing types"));
     } finally {
@@ -144,7 +203,9 @@ const AdminAllEventsDashboard: React.FC = () => {
     }
     try {
       const response = await DASHBOARD_SERVICES.fetchOrganizations(page);
-      const { data, totalPages, currentPage } = response.data;
+      const data = response?.data?.data ?? [];
+      const totalPages = response?.data?.totalPages ?? 1;
+      const currentPage = response?.data?.currentPage ?? page;
       if (page === 0) {
         dispatch(setOrganizations(data));
       } else {
@@ -164,14 +225,23 @@ const AdminAllEventsDashboard: React.FC = () => {
   };
 
   const loadMoreOrganizations = () => {
-    const nextPage = organizationsPage + 1;
-    if (nextPage < organizationsTotalPages && !organizationsLoadingMore) {
+    const nextPage = (organizationsPage ?? 0) + 1;
+    if (nextPage < (organizationsTotalPages ?? 1) && !organizationsLoadingMore) {
       fetchOrganizations(nextPage);
     }
   };
 
-  const handleDateRangeSelect = ({ startDate, endDate }: DateRange) => {
+  const handleDateRangeSelect = ({ startDate, endDate, year }: DateRange) => {
+    if (year) {
+      setSelectedYear(year);
+      setSelectedDate(String(year));
+      return;
+    }
+
+    setSelectedYear(null);
+
     const formatDate = (date: Date) => {
+      if (!date) return "";
       const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
     };
@@ -189,6 +259,8 @@ const AdminAllEventsDashboard: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      <Loader isLoading={dashboardDataLoading} />
+
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <TouchableOpacity>
@@ -270,7 +342,7 @@ const AdminAllEventsDashboard: React.FC = () => {
         options={eventTypeOptions}
         selectedValue={selectedEventTypeValue}
         onSelect={(option: RadioOption) =>
-          dispatch(setSelectedEventTypeValue(option.value))
+          dispatch(setSelectedEventTypeValue(option?.value ?? "all"))
         }
       />
 
@@ -281,7 +353,7 @@ const AdminAllEventsDashboard: React.FC = () => {
         options={ticketingTypeOptions}
         selectedValue={selectedTicketingTypeValue}
         onSelect={(option: RadioOption) =>
-          dispatch(setSelectedTicketingTypeValue(option.value))
+          dispatch(setSelectedTicketingTypeValue(option?.value ?? "all"))
         }
       />
 
@@ -292,9 +364,9 @@ const AdminAllEventsDashboard: React.FC = () => {
         options={organizationOptions}
         selectedValue={selectedOrganizationValue}
         onSelect={(option: RadioOption) =>
-          dispatch(setSelectedOrganizationValue(option.value))
+          dispatch(setSelectedOrganizationValue(option?.value ?? "all"))
         }
-        hasMore={organizationsPage + 1 < organizationsTotalPages}
+        hasMore={(organizationsPage ?? 0) + 1 < (organizationsTotalPages ?? 1)}
         isLoadingMore={organizationsLoadingMore}
         onLoadMore={loadMoreOrganizations}
       />

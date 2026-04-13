@@ -18,6 +18,7 @@ import { styles } from './DateRangePicker.styles';
 interface DateRange {
     startDate: Date;
     endDate: Date;
+    year?: number;
 }
 
 interface DateRangePickerProps {
@@ -362,7 +363,8 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ visible, onClose, onD
     };
 
     const handleApply = () => {
-        if (startDate && endDate && onDateRangeSelect) onDateRangeSelect({ startDate, endDate });
+        if (startDate && endDate && onDateRangeSelect)
+            onDateRangeSelect({ startDate, endDate, year: selectedYear ?? undefined });
         onClose();
     };
 

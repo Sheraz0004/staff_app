@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
-import Svg, { Path, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, TouchableOpacity, Dimensions, ScrollView } from 'react-native';
+import Svg, { Path, Circle, Rect, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useDispatch, useSelector } from 'react-redux';
 import SvgIcons from '../../../components/SvgIcons';
 import { color } from '../../../color/color';
@@ -13,6 +13,7 @@ import {
   selectEventsTotalPages,
   selectEventsLoadingMore,
   selectSelectedEventFilterValue,
+  selectDashboardData,
   setEvents,
   appendEvents,
   setEventsLoading,
@@ -21,49 +22,71 @@ import {
   setEventsTotalPages,
   setEventsLoadingMore,
   setSelectedEventFilterValue,
+  setDashboardDataLoading,
 } from '../../../redux/reducers/dashboardReducer';
 
 const { width } = Dimensions.get('window');
 
+const TOOLTIP_WIDTH = 140;
+const TOOLTIP_HEIGHT = 62;
+const CHART_PADDING_TOP = 16; // small top padding only — tooltip is an absolute overlay
+const CHART_HEIGHT = 180;
+const POINT_SPACING = 52;
+
 const DropdownAttendeesFilter = ({ value, onPress }) => (
   <TouchableOpacity style={styles.dropdownFilter} onPress={onPress}>
     <Typography
+    numberOfLines={1}
       style={styles.dropdownValue}
       weight="400"
       size={14}
       color={color.brown_766F6A}
-      numberOfLines={1}
     >
-      {value}
+      {value ?? ''}
     </Typography>
     <SvgIcons.downArrow />
   </TouchableOpacity>
 );
 
-const AttendeesChart = () => {
-  const [selectedIndex, setSelectedIndex] = useState(2);
-  const displayData = [23000, 25000, 45000, 27000, 29000, 30000, 35000];
-  const months = ['Jan', 'Mar', 'May', 'Jul', 'Sep', 'Oct', 'Dec'];
+const AttendeesChart = ({ chartData }) => {
+  const safeData = Array.isArray(chartData) ? chartData : [];
+  const counts = safeData.map((d) => (typeof d?.count === 'number' ? d.count : 0));
+  const months = safeData.map((d) => d?.month ?? '');
 
-  const maxDataValue = Math.max(...displayData);
-  const maxValue = Math.ceil(maxDataValue / 10000) * 10000;
+  const [selectedIndex, setSelectedIndex] = useState(null);
+  const [tooltipVisible, setTooltipVisible] = useState(false);
+
+  useEffect(() => {
+    if (months.length === 0) return;
+    const currentAbbr = new Date().toLocaleString('en-US', { month: 'short' });
+    const idx = months.findIndex((m) => m === currentAbbr);
+    setSelectedIndex(idx !== -1 ? idx : months.length - 1);
+    setTooltipVisible(false);
+  }, [chartData]);
+
+  if (safeData.length === 0) return null;
+
+  const dataLen = counts.length;
+  const maxDataValue = Math.max(...counts, 1);
+  const maxValue = Math.ceil(maxDataValue / 10) * 10 || 10;
 
   const yAxisSteps = 5;
   const stepValue = maxValue / yAxisSteps;
   const yAxisLabels = [];
   for (let i = yAxisSteps; i >= 0; i--) {
-    const value = stepValue * i;
-    yAxisLabels.push(value >= 1000 ? `${value / 1000}k` : value.toString());
+    const val = stepValue * i;
+    yAxisLabels.push(val >= 1000 ? `${Math.round(val / 1000)}k` : String(val));
   }
 
-  const chartWidth = width - 100;
-  const chartHeight = 200;
-  const chartPaddingTop = 25;
-  const chartPaddingLeft = 2;
+  // Chart is scrollable — use at least POINT_SPACING per month, min screen width
+  const minChartWidth = width - 90;
+  const chartWidth = Math.max(dataLen * POINT_SPACING, minChartWidth);
 
-  const points = displayData.map((val, i) => ({
-    x: (i / (displayData.length - 1)) * (chartWidth - 20) + chartPaddingLeft,
-    y: chartHeight - (val / maxValue) * chartHeight + chartPaddingTop,
+  // Distribute points evenly so each aligns with its x-axis label slot
+  const actualSpacing = chartWidth / dataLen;
+  const points = counts.map((val, i) => ({
+    x: i * actualSpacing + actualSpacing / 2,
+    y: CHART_HEIGHT - (val / maxValue) * CHART_HEIGHT + CHART_PADDING_TOP,
   }));
 
   const pathD = points.reduce((acc, point, i) => {
@@ -75,96 +98,150 @@ const AttendeesChart = () => {
   }, '');
 
   const gridLines = yAxisLabels.map((_, i) => {
-    return chartPaddingTop + (i * chartHeight) / (yAxisLabels.length - 1);
+    return CHART_PADDING_TOP + (i * CHART_HEIGHT) / Math.max(yAxisLabels.length - 1, 1);
   });
+
+  const lastPoint = points[points.length - 1];
+  const firstPoint = points[0];
+
+  const selectedPoint = selectedIndex !== null ? points[selectedIndex] : null;
+  const selectedData = selectedIndex !== null ? safeData[selectedIndex] : null;
+
+  // Clamp tooltip so it stays within chart bounds
+  const tooltipLeft = selectedPoint
+    ? Math.max(0, Math.min(selectedPoint.x - TOOLTIP_WIDTH / 2, chartWidth - TOOLTIP_WIDTH - 4))
+    : 0;
 
   return (
     <View style={styles.chartOuterContainer}>
       <View style={styles.chartWrapper}>
+        {/* Fixed y-axis — each label absolutely centered on its grid line */}
         <View style={styles.yAxisLabels}>
-          {yAxisLabels.map((val, index) => (
-            <Typography
-              key={`${val}-${index}`}
-              style={styles.axisLabel}
-              weight="400"
-              size={12}
-              color={color.grey_87807C}
-            >
-              {val}
-            </Typography>
-          ))}
-        </View>
-
-        <View style={styles.chartArea}>
-          <Svg width={chartWidth} height={chartHeight + chartPaddingTop + 30}>
-            <Defs>
-              <LinearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                <Stop offset="0%" stopColor={color.brown_D58E00} stopOpacity={0.15} />
-                <Stop offset="100%" stopColor={color.brown_D58E00} stopOpacity={0.02} />
-              </LinearGradient>
-            </Defs>
-
-            {gridLines.map((y, i) => (
-              <Path
-                key={i}
-                d={`M ${chartPaddingLeft} ${y} L ${chartWidth - 10} ${y}`}
-                stroke={color.grey_E5E7EB}
-                strokeWidth={1}
-                strokeDasharray="0"
-              />
-            ))}
-
-            <Path
-              d={`${pathD} L ${points[points.length - 1].x} ${chartHeight + chartPaddingTop} L ${points[0].x} ${chartHeight + chartPaddingTop} Z`}
-              fill="url(#areaGradient)"
-            />
-
-            <Path d={pathD} stroke={color.btnBrown_AE6F28} strokeWidth={2.5} fill="none" />
-
-            {selectedIndex !== null && (
-              <>
-                <Defs>
-                  <LinearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <Stop offset="0%" stopColor={color.btnBrown_AE6F28} stopOpacity={1} />
-                    <Stop offset="85%" stopColor={color.btnBrown_AE6F28} stopOpacity={0.3} />
-                    <Stop offset="100%" stopColor={color.btnBrown_AE6F28} stopOpacity={0.05} />
-                  </LinearGradient>
-                </Defs>
-                <Path
-                  d={`M ${points[selectedIndex].x} ${chartPaddingTop - 15} L ${points[selectedIndex].x} ${points[selectedIndex].y + 5}`}
-                  stroke="url(#lineGradient)"
-                  strokeWidth={2}
-                />
-                <Circle
-                  cx={points[selectedIndex].x}
-                  cy={chartPaddingTop - 15}
-                  r={8}
-                  fill="#F3F3F3"
-                />
-                <Circle
-                  cx={points[selectedIndex].x}
-                  cy={chartPaddingTop - 15}
-                  r={5}
-                  fill={color.btnBrown_AE6F28}
-                />
-              </>
-            )}
-          </Svg>
-
-          <View style={styles.xAxisLabels}>
-            {months.map((month, index) => (
-              <TouchableOpacity
-                key={month}
-                onPress={() => setSelectedIndex(index)}
-                style={styles.xAxisLabelTouch}
+          {yAxisLabels.map((val, index) => {
+            const lineY =
+              CHART_PADDING_TOP +
+              (index * CHART_HEIGHT) / (yAxisLabels.length - 1);
+            return (
+              <Typography
+                key={`y-${index}`}
+                style={[styles.axisLabel, { position: 'absolute', top: lineY - 8, right: 15 }]}
+                weight="400"
+                size={12}
+                color={color.grey_87807C}
               >
-                <Typography weight="400" size={12} color={color.grey_87807C}>
-                  {month}
-                </Typography>
-              </TouchableOpacity>
-            ))}
-          </View>
+                {val}
+              </Typography>
+            );
+          })}
         </View>
+
+        {/* Scrollable chart area */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chartScroll}>
+          <View style={styles.chartContent}>
+            <Svg width={chartWidth} height={CHART_HEIGHT + CHART_PADDING_TOP + 30}>
+              <Defs>
+                <LinearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <Stop offset="0%" stopColor={color.brown_D58E00} stopOpacity={0.15} />
+                  <Stop offset="100%" stopColor={color.brown_D58E00} stopOpacity={0.02} />
+                </LinearGradient>
+                <LinearGradient id="indicatorLine" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <Stop offset="0%" stopColor={color.btnBrown_AE6F28} stopOpacity={0.8} />
+                  <Stop offset="100%" stopColor={color.btnBrown_AE6F28} stopOpacity={0.1} />
+                </LinearGradient>
+              </Defs>
+
+              {gridLines.map((y, i) => (
+                <Path
+                  key={`grid-${i}`}
+                  d={`M 0 ${y} L ${chartWidth} ${y}`}
+                  stroke={color.grey_E5E7EB}
+                  strokeWidth={1}
+                />
+              ))}
+
+              {lastPoint && firstPoint && (
+                <Path
+                  d={`${pathD} L ${lastPoint.x} ${CHART_HEIGHT + CHART_PADDING_TOP} L ${firstPoint.x} ${CHART_HEIGHT + CHART_PADDING_TOP} Z`}
+                  fill="url(#areaGradient)"
+                />
+              )}
+
+              <Path d={pathD} stroke={color.btnBrown_AE6F28} strokeWidth={2.5} fill="none" />
+
+              {/* Invisible column tap areas — one per month, full SVG height */}
+              {points.map((_, i) => (
+                <Rect
+                  key={`tap-${i}`}
+                  x={i * actualSpacing}
+                  y={0}
+                  width={actualSpacing}
+                  height={CHART_HEIGHT + CHART_PADDING_TOP + 30}
+                  fill="transparent"
+                  onPress={() => {
+                    setSelectedIndex(i);
+                    setTooltipVisible(false);
+                  }}
+                />
+              ))}
+
+              {selectedPoint && (
+                <>
+                  {/* Vertical indicator line from data point down to x-axis */}
+                  <Path
+                    d={`M ${selectedPoint.x} ${selectedPoint.y} L ${selectedPoint.x} ${CHART_HEIGHT + CHART_PADDING_TOP}`}
+                    stroke="url(#indicatorLine)"
+                    strokeWidth={1.5}
+                  />
+                  {/* Outer glow circle — tappable to show/hide tooltip */}
+                  <Circle
+                    cx={selectedPoint.x}
+                    cy={selectedPoint.y}
+                    r={8}
+                    fill="#F3F3F3"
+                    onPress={() => setTooltipVisible(v => !v)}
+                  />
+                  {/* Inner filled circle */}
+                  <Circle
+                    cx={selectedPoint.x}
+                    cy={selectedPoint.y}
+                    r={5}
+                    fill={color.btnBrown_AE6F28}
+                    onPress={() => setTooltipVisible(v => !v)}
+                  />
+                </>
+              )}
+            </Svg>
+
+            {/* Tooltip — visible only after tapping the circle */}
+            {tooltipVisible && selectedPoint && selectedData && (
+              <View style={[styles.tooltip, { left: tooltipLeft, top: Math.max(4, selectedPoint.y - TOOLTIP_HEIGHT - 14) }]}>
+                <Typography weight="600" size={11} color={color.grey_87807C}>
+                  {selectedData.month ?? ''}
+                </Typography>
+                <View style={styles.tooltipRow}>
+                  <View style={styles.tooltipDot} />
+                  <Typography weight="400" size={11} color={color.grey_87807C} style={styles.tooltipLabel}>
+                    attendees
+                  </Typography>
+                  <Typography weight="700" size={12} color={color.black_2F251D}>
+                    {(selectedData.count ?? 0).toLocaleString()}
+                  </Typography>
+                </View>
+              </View>
+            )}
+
+            {/* X-axis labels aligned with each data point — display only, taps handled by SVG Rects */}
+            <View style={styles.xAxisLabels}>
+              {months.map((month, index) => (
+                <View key={`m-${index}`} style={[styles.xAxisLabelTouch, { width: actualSpacing }]}>
+                  <Typography weight="400" size={12} color={color.grey_87807C}>
+                    {month}
+                  </Typography>
+                </View>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
       </View>
     </View>
   );
@@ -174,23 +251,26 @@ const AdminAttendeesCard = () => {
   const dispatch = useDispatch();
   const [showFilterPicker, setShowFilterPicker] = useState(false);
 
-  const events = useSelector(selectEvents);
-  const eventsPage = useSelector(selectEventsPage);
-  const eventsTotalPages = useSelector(selectEventsTotalPages);
-  const eventsLoadingMore = useSelector(selectEventsLoadingMore);
-  const selectedEventFilterValue = useSelector(selectSelectedEventFilterValue);
+  const events = useSelector(selectEvents) ?? [];
+  const eventsPage = useSelector(selectEventsPage) ?? 0;
+  const eventsTotalPages = useSelector(selectEventsTotalPages) ?? 1;
+  const eventsLoadingMore = useSelector(selectEventsLoadingMore) ?? false;
+  const selectedEventFilterValue = useSelector(selectSelectedEventFilterValue) ?? 'all';
+  const dashboardData = useSelector(selectDashboardData);
+
+  const totalAttendees = dashboardData?.attendees?.total ?? 0;
+  const chartData = dashboardData?.attendees?.chartData ?? [];
 
   const filterOptions = [
     { label: 'All', value: 'all' },
-    ...events.map((e) => ({ label: e.title, value: String(e.id) })),
+    ...(events ?? []).map((e) => ({
+      label: e?.title ?? '',
+      value: String(e?.id ?? ''),
+    })),
   ];
 
   const selectedFilter =
     filterOptions.find((o) => o.value === selectedEventFilterValue)?.label ?? 'All';
-
-  useEffect(() => {
-    if (events.length === 0) fetchEvents(0);
-  }, []);
 
   const fetchEvents = async (page = 0) => {
     if (page === 0) {
@@ -201,7 +281,9 @@ const AdminAttendeesCard = () => {
     }
     try {
       const response = await DASHBOARD_SERVICES.fetchEvents(page);
-      const { data, totalPages, currentPage } = response.data;
+      const data = response?.data?.data ?? [];
+      const totalPages = response?.data?.totalPages ?? 1;
+      const currentPage = response?.data?.currentPage ?? page;
       if (page === 0) {
         dispatch(setEvents(data));
       } else {
@@ -221,8 +303,8 @@ const AdminAttendeesCard = () => {
   };
 
   const loadMoreEvents = () => {
-    const nextPage = eventsPage + 1;
-    if (nextPage < eventsTotalPages && !eventsLoadingMore) {
+    const nextPage = (eventsPage ?? 0) + 1;
+    if (nextPage < (eventsTotalPages ?? 1) && !eventsLoadingMore) {
       fetchEvents(nextPage);
     }
   };
@@ -247,7 +329,7 @@ const AdminAttendeesCard = () => {
               Attendees:
             </Typography>
             <Typography weight="700" size={18} color={color.black_2F251D}>
-              25,000
+              {(totalAttendees ?? 0).toLocaleString()}
             </Typography>
           </View>
         </View>
@@ -262,11 +344,15 @@ const AdminAttendeesCard = () => {
           </Typography>
           <DropdownAttendeesFilter
             value={selectedFilter}
-            onPress={() => setShowFilterPicker(true)}
+            onPress={() => {
+              if ((events ?? []).length === 0) fetchEvents(0);
+              setShowFilterPicker(true);
+            }}
           />
         </View>
       </View>
-      <AttendeesChart />
+
+      <AttendeesChart chartData={chartData} />
 
       <BottomSheetRadioPicker
         visible={showFilterPicker}
@@ -274,8 +360,14 @@ const AdminAttendeesCard = () => {
         title="Filter by Event"
         options={filterOptions}
         selectedValue={selectedEventFilterValue}
-        onSelect={(option) => dispatch(setSelectedEventFilterValue(option.value))}
-        hasMore={eventsPage + 1 < eventsTotalPages}
+        onSelect={(option) => {
+          const newValue = option?.value ?? 'all';
+          if (newValue !== selectedEventFilterValue) {
+            dispatch(setDashboardDataLoading(true));
+          }
+          dispatch(setSelectedEventFilterValue(newValue));
+        }}
+        hasMore={(eventsPage ?? 0) + 1 < (eventsTotalPages ?? 1)}
         isLoadingMore={eventsLoadingMore}
         onLoadMore={loadMoreEvents}
       />
@@ -298,14 +390,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+  
   },
   attendeesInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    marginBottom: 16,
   },
   attendeesLeftSection: {
     flexDirection: 'row',
@@ -316,11 +407,10 @@ const styles = StyleSheet.create({
   filterContainer: {
     alignItems: 'flex-end',
     flex: 0,
-    minWidth: 100,
-    maxWidth: 150,
+    maxWidth: 190,
   },
   filterLabel: {
-    marginBottom: 4,
+    marginBottom: 7,
   },
   dropdownFilter: {
     flexDirection: 'row',
@@ -330,46 +420,72 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
     gap: 8,
-    borderWidth: 0.1,
+    borderWidth: 1,
     borderColor: color.grey_DADADA,
-    justifyContent: 'space-between',
-    minWidth: 75,
-    maxWidth: 120,
+    alignSelf: 'flex-start',
   },
   dropdownValue: {
-    fontSize: 14,
+    fontSize: 12.5,
     color: color.brown_766F6A,
-    flex: 1,
+    flexShrink: 1,
   },
   chartOuterContainer: {
-    marginTop: 8,
+    marginTop: 15,
   },
   chartWrapper: {
     flexDirection: 'row',
   },
   yAxisLabels: {
     width: 40,
-    justifyContent: 'space-between',
-    height: 200,
-    paddingTop: 15,
+    height: CHART_HEIGHT + CHART_PADDING_TOP + 30,
+    position: 'relative',
   },
   axisLabel: {
     fontSize: 12,
     color: color.grey_87807C,
   },
-  chartArea: {
+  chartScroll: {
     flex: 1,
+  },
+  chartContent: {
     position: 'relative',
+  },
+  tooltip: {
+    position: 'absolute',
+    width: TOOLTIP_WIDTH,
+    backgroundColor: color.white_FFFFFF,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+    zIndex: 10,
+  },
+  tooltipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
+    gap: 5,
+  },
+  tooltipDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: color.btnBrown_AE6F28,
+  },
+  tooltipLabel: {
+    flex: 1,
   },
   xAxisLabels: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingLeft: 30,
-    paddingRight: 10,
     marginTop: -22,
   },
   xAxisLabelTouch: {
-    padding: 4,
+    alignItems: 'center',
+    paddingVertical: 4,
   },
 });
 
