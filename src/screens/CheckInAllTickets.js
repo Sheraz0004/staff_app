@@ -4,7 +4,8 @@ import Header from '../components/header';
 import { color } from '../color/color';
 import CheckInAllPopUp from '../constants/checkInAllPopupticketList';
 import SvgIcons from '../components/SvgIcons';
-import { ticketService, eventService } from '../api/apiService';
+import { useApi } from '../services/useApi';
+import { CHECK_IN_SERVICES } from '../services/CheckInService';
 import { useNavigation } from '@react-navigation/native';
 import SuccessPopup from '../constants/SuccessPopup';
 import ErrorPopup from '../constants/ErrorPopup';
@@ -25,6 +26,8 @@ const CheckInAllTickets = ({ route }) => {
     const [showErrorPopup, setShowErrorPopup] = useState(false);
     const [fallbackStaffName, setFallbackStaffName] = useState(null);
     const [fallbackStaffId, setFallbackStaffId] = useState(null);
+    const { requestCall: doSingleCheckin } = useApi(CHECK_IN_SERVICES.manualCheckin, false, false);
+    const { requestCall: doCheckinAll } = useApi(CHECK_IN_SERVICES.boxOfficeCheckinAll, false, false);
     const extractResponse = tickets[0];
     const code = extractResponse?.code;
     const eventUuid = extractResponse?.event;
@@ -37,7 +40,8 @@ const CheckInAllTickets = ({ route }) => {
             setIsCheckingIn(true);
             setError(null);
             try {
-                const response = await ticketService.manualDetailCheckin(eventUuid, code);
+                const res = await doSingleCheckin(eventUuid, code);
+                const response = res?.data;
                 logger.log('Single Ticket Check-in Response:', response);
 
                 if (response?.data?.status === 'SCANNED') {
@@ -96,10 +100,11 @@ const CheckInAllTickets = ({ route }) => {
             setIsCheckingIn(true);
             setError(null);
             try {
-                const response = await ticketService.boxOfficeDetailCheckinAll(eventUuid, orderNumber);
+                const res = await doCheckinAll(eventUuid, orderNumber);
+                const response = res?.data;
                 logger.log('Check-in All Response:', response);
 
-                if (response?.success && response?.status === 200) {
+                if (res?.status === 200) {
                     setCheckInSuccess(true);
                     setShowSuccessPopup(true);
                     

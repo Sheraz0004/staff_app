@@ -125,7 +125,6 @@ const HomeScreen = ({
     try {
       const note = notes[data] || "";
       const res = await requestScan(data, note);
-      console.log("res--->",res?.data)
       const scanData = res?.data;
       setScanResponse(scanData?.data);
 
@@ -203,7 +202,7 @@ const HomeScreen = ({
 
     const parts = scannedData.split("/");
     const ticketCode = parts[parts.length - 2];
-    const currentEventUuid = "YOUR_EVENT_UUID_HERE";
+    const currentEventUuid = eventInfo?.eventUuid;
 
     try {
       if (newNote.trim().length > 0) {

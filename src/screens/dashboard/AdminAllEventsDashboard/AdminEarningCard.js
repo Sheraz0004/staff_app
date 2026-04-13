@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, TouchableWithoutFeedback } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import SvgIcons from '../../../components/SvgIcons';
 import { color } from '../../../color/color';
@@ -78,25 +78,36 @@ const EarningsChart = ({ chartData, currency }) => {
   const tooltipTop = Math.max(0, E_CHART_HEIGHT - grossBarH - EARNING_TOOLTIP_HEIGHT - 6);
 
   return (
-    <TouchableWithoutFeedback onPress={() => setTooltipVisible(false)}>
-      <View>
-      <View style={styles.yAxisLabels}>
-        {yLabels.map((val, idx) => (
-          <Typography
-            key={`y-${idx}`}
-            style={styles.axisLabel}
-            weight="400"
-            size={10}
-            color={color.grey_87807C}
-          >
-            {val >= 1000 ? `${(val / 1000).toFixed(val % 1000 === 0 ? 0 : 1)}k` : String(val)}
-          </Typography>
-        ))}
-      </View>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chartScroll}>
+    <View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        nestedScrollEnabled={true}
+        onScrollBeginDrag={() => setTooltipVisible(false)}
+      >
+        <View style={styles.chartRow}>
+          <View style={styles.yAxisLabels}>
+            {yLabels.map((val, idx) => (
+              <Typography
+                key={`y-${idx}`}
+                style={styles.axisLabel}
+                weight="400"
+                size={10}
+                color={color.grey_87807C}
+              >
+                {val >= 1000 ? `${(val / 1000).toFixed(val % 1000 === 0 ? 0 : 1)}k` : String(val)}
+              </Typography>
+            ))}
+          </View>
         {/* position: relative wrapper so tooltip can be absolutely placed */}
         <View style={styles.chartContent}>
+          {tooltipVisible && (
+            <TouchableOpacity
+              style={StyleSheet.absoluteFillObject}
+              activeOpacity={1}
+              onPress={() => setTooltipVisible(false)}
+            />
+          )}
           <View style={styles.chartContainer}>
             {safeData.map((item, index) => {
               const gross = typeof item?.gross === 'number' ? item.gross : 0;
@@ -112,7 +123,7 @@ const EarningsChart = ({ chartData, currency }) => {
                       setTooltipVisible((v) => !v);
                     } else {
                       setSelectedIndex(index);
-                      setTooltipVisible(false);
+                      setTooltipVisible(true);
                     }
                   }}
                 >
@@ -194,6 +205,7 @@ const EarningsChart = ({ chartData, currency }) => {
             </View>
           )}
         </View>
+        </View>
       </ScrollView>
 
       <View style={styles.divider} />
@@ -211,8 +223,7 @@ const EarningsChart = ({ chartData, currency }) => {
           </Typography>
         </View>
       </View>
-      </View>
-    </TouchableWithoutFeedback>
+    </View>
   );
 };
 
@@ -310,13 +321,13 @@ const AdminEarningCard = () => {
         </View>
       </View>
 
-      {dashboardDataLoading ? (
+      {/* {dashboardDataLoading ? (
         <View style={styles.chartLoader}>
           <ActivityIndicator size="small" color={color.btnBrown_AE6F28} />
         </View>
-      ) : (
+      ) : ( */}
         <EarningsChart chartData={chartData} currency={selectedCurrency} />
-      )}
+      {/* )} */}
 
       <PopoverDropdown
         visible={showCurrencyDropdown}
@@ -387,20 +398,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  chartRow: {
+    flexDirection: 'row',
+  },
   yAxisLabels: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    height: E_CHART_HEIGHT,
+    width: 30,
+    height: 180,
+    paddingTop: 20,
+    paddingBottom: 21,
     justifyContent: 'space-between',
   },
   axisLabel: {
     fontSize: 10,
     color: color.grey_87807C,
   },
-  chartScroll: {
-    marginLeft: 30,
-  },
+  chartScroll: {},
   chartContent: {
     position: 'relative',
   },

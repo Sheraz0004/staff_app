@@ -25,8 +25,8 @@ export const CHECK_IN_SERVICES = {
     HTTP_CLIENT.post(API_CONFIG.CHECK_IN.manualCheckin(eventUuid, code)),
 
   // ─── Sell (Box Office) ───────────────────────────────────────────────────────
-  fetchTicketPricingStats: () =>
-    HTTP_CLIENT.get(API_CONFIG.CHECK_IN.fetchTicketPricingStats),
+  fetchTicketPricingStats: (eventId: string) =>
+    HTTP_CLIENT.get(API_CONFIG.CHECK_IN.fetchTicketPricingStats(eventId)),
 
   fetchTicketPricing: (eventUuid: string) =>
     HTTP_CLIENT.get(API_CONFIG.CHECK_IN.fetchTicketPricing(eventUuid)),

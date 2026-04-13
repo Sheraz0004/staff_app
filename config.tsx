@@ -63,7 +63,8 @@ const API_CONFIG = {
       `/api/user-tickets/?order_number=${orderNumber}&event_id=${eventId}`,
     manualCheckin: (eventId: string, code: string) =>
       `/api/ticket/scan/${eventId}/${code}/`,
-    fetchTicketPricingStats: `/api/ticket/pricing-type/`,
+    fetchTicketPricingStats: (eventId: string) =>
+      `/api/ticket/pricing-type/${eventId}/`,
     fetchTicketPricing: (eventId: string) =>
       `/api/pricing/by-event/${eventId}/`,
     boxOfficeGetTicket: `/api/orders/box-office/`,

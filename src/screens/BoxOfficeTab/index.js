@@ -132,7 +132,7 @@ const BoxOfficeTab = ({ eventInfo, onScanCountUpdate, selectedTab }) => {
       }
 
       // Fetch pricing categories
-      const statsRes = await requestFetchStats();
+      const statsRes = await requestFetchStats(eventInfo.eventUuid);
       const pricingStatsResponse = statsRes?.data;
       if (pricingStatsResponse?.data) {
         const categories = pricingStatsResponse.data.map(item => item.alias);
