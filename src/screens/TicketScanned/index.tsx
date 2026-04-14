@@ -1,13 +1,13 @@
 import React from 'react';
 import { Text, View, SafeAreaView } from 'react-native';
-import { color } from '../color/color';
-import Header from '../components/header';
-import SvgIcons from '../components/SvgIcons';
+import { color } from '../../color/color';
+import Header from '../../components/header';
+import SvgIcons from '../../components/SvgIcons';
 import { useNavigation } from '@react-navigation/native';
-import { formatDateTime } from '../constants/dateAndTime';
-import Typography from '../components/Typography';
-import { truncateStaffName } from '../utils/stringUtils';
-import { styles } from './TicketScanned.styles';
+import { formatDateTime } from '../../constants/dateAndTime';
+import Typography from '../../components/Typography';
+import { truncateStaffName } from '../../utils/stringUtils';
+import { styles } from './index.styles';
 
 interface TicketScannedProps {
   route: any;

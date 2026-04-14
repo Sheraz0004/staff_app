@@ -7,18 +7,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
-import { color } from '../color/color';
-import SvgIcons from '../components/SvgIcons';
-import Typography, { Caption } from '../components/Typography';
-import MiddleSection from '../components/MiddleSection';
-import CountryCodePicker from '../components/CountryCodePicker';
-import { defaultCountryCode, CountryCode } from '../constants/countryCodes';
-import { getAutoDetectedCountry } from '../utils/countryDetection';
-import { logger } from '../utils/logger';
-import { useApi } from '../services/useApi';
-import { AUTH_SERVICES } from '../services/AuthService';
-import { useToast } from '../components/Toast';
-import { styles } from './LoginScreen.styles';
+import { color } from '../../color/color';
+import SvgIcons from '../../components/SvgIcons';
+import Typography, { Caption } from '../../components/Typography';
+import MiddleSection from '../../components/MiddleSection';
+import CountryCodePicker from '../../components/CountryCodePicker';
+import { defaultCountryCode, CountryCode } from '../../constants/countryCodes';
+import { getAutoDetectedCountry } from '../../utils/countryDetection';
+import { logger } from '../../utils/logger';
+import { useApi } from '../../services/useApi';
+import { AUTH_SERVICES } from '../../services/AuthService';
+import { useToast } from '../../components/Toast';
+import { styles } from './index.styles';
 
 
 const LoginScreen: React.FC = () => {

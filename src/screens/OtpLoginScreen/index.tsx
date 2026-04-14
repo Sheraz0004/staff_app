@@ -11,18 +11,18 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { color } from '../color/color';
+import { color } from '../../color/color';
 import { useDispatch } from 'react-redux';
-import { loginSuccess, setUser } from '../redux/reducers/userReducer';
+import { loginSuccess, setUser } from '../../redux/reducers/userReducer';
 import { LinearGradient } from 'expo-linear-gradient';
-import Typography from '../components/Typography';
-import MiddleSection from '../components/MiddleSection';
-import { logger } from '../utils/logger';
-import { useApi } from '../services/useApi';
-import { AUTH_SERVICES } from '../services/AuthService';
-import { useToast } from '../components/Toast';
+import Typography from '../../components/Typography';
+import MiddleSection from '../../components/MiddleSection';
+import { logger } from '../../utils/logger';
+import { useApi } from '../../services/useApi';
+import { AUTH_SERVICES } from '../../services/AuthService';
+import { useToast } from '../../components/Toast';
 import * as SecureStore from 'expo-secure-store';
-import { styles } from './OtpLoginScreen.styles';
+import { styles } from './index.styles';
 
 interface OtpLoginScreenProps {
   route: any;

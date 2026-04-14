@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Platform } from 'react-native';
-import { color } from '../../color/color';
-import SvgIcons from '../../components/SvgIcons';
-import { styles } from './tabHelpers.styles';
+import { color } from '../../../color/color';
+import SvgIcons from '../../../components/SvgIcons';
+import { styles } from './index.styles';
 
 export const ServicesScreen: React.FC = () => (
   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F7F5' }}>

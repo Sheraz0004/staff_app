@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import Header from '../components/header';
-import TicketsTab from './TicketsTab';
-import BoxOfficeTab from '../screens/BoxOfficeTab';
-import SvgIcons from '../components/SvgIcons';
-import { styles } from './Tickets.styles';
+import Header from '../../components/header';
+import TicketsTab from '../TicketsTab';
+import BoxOfficeTab from '../BoxOfficeTab';
+import SvgIcons from '../../components/SvgIcons';
+import { styles } from './index.styles';
 
 interface SettingsScreenProps {
   navigation?: any;

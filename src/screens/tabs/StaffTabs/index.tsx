@@ -1,11 +1,11 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import DashboardScreen from '../dashboard';
-import Tickets from '../Tickets';
-import HomeScreen from '../CheckIn';
-import ManualScan from '../ManualScan';
-import ProfileScreen from '../ProfileScreen';
-import { buildScreenOptions, commonTabOptions } from './tabHelpers';
+import DashboardScreen from '../../dashboard';
+import Tickets from '../../Tickets';
+import HomeScreen from '../../CheckIn';
+import ManualScan from '../../ManualScan';
+import ProfileScreen from '../../ProfileScreen';
+import { buildScreenOptions, commonTabOptions } from '../tabHelpers';
 
 const Tab = createBottomTabNavigator();
 

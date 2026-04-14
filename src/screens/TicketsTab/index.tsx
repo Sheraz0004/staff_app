@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
-import { color } from '../color/color';
+import { color } from '../../color/color';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
-import SvgIcons from '../components/SvgIcons';
-import { ticketService, BASE_URL } from '../api/apiService';
+import SvgIcons from '../../components/SvgIcons';
+import { ticketService, BASE_URL } from '../../api/apiService';
 import QRCode from 'react-native-qrcode-svg';
-import NoResults from '../components/NoResults';
-import { logger } from '../utils/logger';
-import { useOfflineSync } from '../hooks/useOfflineSync';
-import { syncService } from '../utils/syncService';
+import NoResults from '../../components/NoResults';
+import { logger } from '../../utils/logger';
+import { useOfflineSync } from '../../hooks/useOfflineSync';
+import { syncService } from '../../utils/syncService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import OfflineIndicator from '../components/OfflineIndicator';
-import { styles } from './TicketsTab.styles';
+import OfflineIndicator from '../../components/OfflineIndicator';
+import { styles } from './index.styles';
 
 interface TicketsTabProps {
     eventInfo: any;

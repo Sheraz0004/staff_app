@@ -14,13 +14,13 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { color } from '../../color/color';
-import { eventService } from '../../api/apiService';
-import { logger } from '../../utils/logger';
-import SvgIcons from '../../components/SvgIcons';
-import Typography from '../../components/Typography';
+import { color } from '../../../color/color';
+import { eventService } from '../../../api/apiService';
+import { logger } from '../../../utils/logger';
+import SvgIcons from '../../../components/SvgIcons';
+import Typography from '../../../components/Typography';
 import { useSelector } from 'react-redux';
-import { styles } from './EventsTicketsTab.styles';
+import { styles } from './index.styles';
 
 const { width, height: SCREEN_HEIGHT } = Dimensions.get('window');
 

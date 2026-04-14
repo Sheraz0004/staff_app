@@ -7,18 +7,18 @@ import {
   Dimensions,
   Animated,
 } from 'react-native';
-import CameraOverlay from '../components/CameraOverlay';
-import Header from '../components/header';
-import { color } from '../color/color';
+import CameraOverlay from '../../components/CameraOverlay';
+import Header from '../../components/header';
+import { color } from '../../color/color';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { getFormatDate } from '../constants/currentdateandtime';
-import NoteModal from '../constants/noteModal';
+import { getFormatDate } from '../../constants/currentdateandtime';
+import NoteModal from '../../constants/noteModal';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { logger } from '../utils/logger';
-import { useOfflineSync } from '../hooks/useOfflineSync';
-import { useApi } from '../services/useApi';
-import { CHECK_IN_SERVICES } from '../services/CheckInService';
-import { styles } from './CheckIn.styles';
+import { logger } from '../../utils/logger';
+import { useOfflineSync } from '../../hooks/useOfflineSync';
+import { useApi } from '../../services/useApi';
+import { CHECK_IN_SERVICES } from '../../services/CheckInService';
+import { styles } from './index.styles';
 
 const { width } = Dimensions.get('window');
 

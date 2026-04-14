@@ -1,24 +1,24 @@
 import { View, Text, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
 import React, { useState, useEffect } from 'react';
-import Header from '../components/header';
-import { color } from '../color/color';
-import SvgIcons from '../components/SvgIcons';
+import Header from '../../components/header';
+import { color } from '../../color/color';
+import SvgIcons from '../../components/SvgIcons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import CheckInAllPopup from '../constants/checkInAllPopupticketList'; // Correct import path
-import SuccessPopup from '../constants/SuccessPopup';
-import ErrorPopup from '../constants/ErrorPopup';
-import Typography from '../components/Typography';
-import { formatDateTime } from '../constants/dateAndTime';
-import { truncateStaffName } from '../utils/stringUtils';
-import { logger } from '../utils/logger';
-import { useOfflineSync } from '../hooks/useOfflineSync';
-import { networkService } from '../utils/network';
-import { syncService } from '../utils/syncService';
-import { offlineStorage } from '../utils/offlineStorage';
-import OfflineIndicator from '../components/OfflineIndicator';
-import { useApi } from '../services/useApi';
-import { CHECK_IN_SERVICES } from '../services/CheckInService';
-import { styles } from './ManualcheckInAllTickets.styles';
+import CheckInAllPopup from '../../constants/checkInAllPopupticketList'; // Correct import path
+import SuccessPopup from '../../constants/SuccessPopup';
+import ErrorPopup from '../../constants/ErrorPopup';
+import Typography from '../../components/Typography';
+import { formatDateTime } from '../../constants/dateAndTime';
+import { truncateStaffName } from '../../utils/stringUtils';
+import { logger } from '../../utils/logger';
+import { useOfflineSync } from '../../hooks/useOfflineSync';
+import { networkService } from '../../utils/network';
+import { syncService } from '../../utils/syncService';
+import { offlineStorage } from '../../utils/offlineStorage';
+import OfflineIndicator from '../../components/OfflineIndicator';
+import { useApi } from '../../services/useApi';
+import { CHECK_IN_SERVICES } from '../../services/CheckInService';
+import { styles } from './index.styles';
 
 const ManualCheckInAllTickets: React.FC = () => {
     const route = useRoute<any>();

@@ -3,12 +3,12 @@ import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
-import { getUser } from '../redux/reducers/userReducer';
-import { useEventInfo } from '../hooks/useEventInfo';
+import { getUser } from '../../redux/reducers/userReducer';
+import { useEventInfo } from '../../hooks/useEventInfo';
 
-import AdminTabs from './tabs/AdminTabs';
-import AgentTabs from './tabs/AgentTabs';
-import StaffTabs from './tabs/StaffTabs';
+import AdminTabs from '../tabs/AdminTabs';
+import AgentTabs from '../tabs/AgentTabs';
+import StaffTabs from '../tabs/StaffTabs';
 
 export interface TabProps {
   eventInformation: any;

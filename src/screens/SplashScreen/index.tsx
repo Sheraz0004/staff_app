@@ -2,9 +2,9 @@ import React from 'react';
 import { SafeAreaView, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useDispatch } from 'react-redux';
-import MiddleSection from '../components/MiddleSection';
-import SvgIcons from '../components/SvgIcons';
-import { styles } from './SplashScreen.styles';
+import MiddleSection from '../../components/MiddleSection';
+import SvgIcons from '../../components/SvgIcons';
+import { styles } from './index.styles';
 
 interface Props {
   navigation: any;

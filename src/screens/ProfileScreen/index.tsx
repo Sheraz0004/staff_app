@@ -9,15 +9,15 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
-import { logout } from '../redux/reducers/userReducer';
-import { color } from '../color/color';
-import SvgIcons from '../components/SvgIcons';
+import { logout } from '../../redux/reducers/userReducer';
+import { color } from '../../color/color';
+import SvgIcons from '../../components/SvgIcons';
 import * as ImagePicker from 'expo-image-picker';
-import { AUTH_SERVICES } from '../services/AuthService';
-import { useApi } from '../services/useApi';
-import Loader from '../components/Loader/Loader';
-import { showSuccessToast, showErrorToast } from '../components/Toast';
-import { styles } from './ProfileScreen.styles';
+import { AUTH_SERVICES } from '../../services/AuthService';
+import { useApi } from '../../services/useApi';
+import Loader from '../../components/Loader/Loader';
+import { showSuccessToast, showErrorToast } from '../../components/Toast';
+import { styles } from './index.styles';
 
 interface ProfileImage {
   uri: string;

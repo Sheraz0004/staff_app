@@ -1,11 +1,11 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
-import DashboardScreen from '../dashboard';
-import EventsScreen from '../eventsTab/EventsScreen';
-import HomeScreen from '../CheckIn';
-import EventsTicketsTab from '../eventsTicketsTab/EventsTicketsTab';
-import { buildScreenOptions, commonTabOptions, ServicesScreen } from './tabHelpers';
+import DashboardScreen from '../../dashboard';
+import EventsScreen from '../../eventsTab/EventsScreen';
+import HomeScreen from '../../CheckIn';
+import EventsTicketsTab from '../../eventsTicketsTab/EventsTicketsTab';
+import { buildScreenOptions, commonTabOptions, ServicesScreen } from '../tabHelpers';
 
 const Tab = createBottomTabNavigator();
 

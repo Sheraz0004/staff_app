@@ -10,11 +10,11 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { color } from '../../color/color';
-import { logger } from '../../utils/logger';
-import SvgIcons from '../../components/SvgIcons';
-import Typography from '../../components/Typography';
-import { styles } from './ExploreDetailScreenTicketsTab.styles';
+import { color } from '../../../color/color';
+import { logger } from '../../../utils/logger';
+import SvgIcons from '../../../components/SvgIcons';
+import Typography from '../../../components/Typography';
+import { styles } from './index.styles';
 
 const { width } = Dimensions.get('window');
 

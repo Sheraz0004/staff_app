@@ -3,10 +3,10 @@ import { View, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { color } from '../color/color';
-import { eventService } from '../api/apiService';
-import { logger } from '../utils/logger';
-import { styles } from './InitialScreen.styles';
+import { color } from '../../color/color';
+import { eventService } from '../../api/apiService';
+import { logger } from '../../utils/logger';
+import { styles } from './index.styles';
 
 /**
  * InitialScreen - Handles app launch routing logic

@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, ListRenderItemInfo } from 'react-native';
-import Header from '../components/header';
-import { color } from '../color/color';
+import Header from '../../components/header';
+import { color } from '../../color/color';
 import { useNavigation, useIsFocused, useRoute } from '@react-navigation/native';
-import SvgIcons from '../components/SvgIcons';
-import NoResults from '../components/NoResults';
-import { useOfflineSync } from '../hooks/useOfflineSync';
-import { useApi } from '../services/useApi';
-import Loader from '../components/Loader/Loader';
-import { CHECK_IN_SERVICES } from '../services/CheckInService';
-import { styles } from './ManualScan.styles';
+import SvgIcons from '../../components/SvgIcons';
+import NoResults from '../../components/NoResults';
+import { useOfflineSync } from '../../hooks/useOfflineSync';
+import { useApi } from '../../services/useApi';
+import Loader from '../../components/Loader/Loader';
+import { CHECK_IN_SERVICES } from '../../services/CheckInService';
+import { styles } from './index.styles';
 
 interface ManualScanProps {
   eventInfo?: any;

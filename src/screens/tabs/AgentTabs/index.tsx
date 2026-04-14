@@ -1,9 +1,9 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
-import DashboardScreen from '../dashboard';
-import TerminalEventsTab from '../dashboard/TerminalDashboardPortal/TerminalEventsTab';
-import { buildScreenOptions, commonTabOptions, ServicesScreen } from './tabHelpers';
+import DashboardScreen from '../../dashboard';
+import TerminalEventsTab from '../../dashboard/TerminalDashboardPortal/TerminalEventsTab';
+import { buildScreenOptions, commonTabOptions, ServicesScreen } from '../tabHelpers';
 
 const Tab = createBottomTabNavigator();
 

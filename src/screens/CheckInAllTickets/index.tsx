@@ -1,19 +1,19 @@
 import { View, Text, TouchableOpacity, SafeAreaView } from 'react-native';
 import React, { useState } from 'react';
-import Header from '../components/header';
-import { color } from '../color/color';
-import CheckInAllPopUp from '../constants/checkInAllPopupticketList';
-import SvgIcons from '../components/SvgIcons';
-import { useApi } from '../services/useApi';
-import { CHECK_IN_SERVICES } from '../services/CheckInService';
+import Header from '../../components/header';
+import { color } from '../../color/color';
+import CheckInAllPopUp from '../../constants/checkInAllPopupticketList';
+import SvgIcons from '../../components/SvgIcons';
+import { useApi } from '../../services/useApi';
+import { CHECK_IN_SERVICES } from '../../services/CheckInService';
 import { useNavigation } from '@react-navigation/native';
-import SuccessPopup from '../constants/SuccessPopup';
-import ErrorPopup from '../constants/ErrorPopup';
-import Typography from '../components/Typography';
-import { formatDateTime } from '../constants/dateAndTime';
-import { truncateStaffName } from '../utils/stringUtils';
-import { logger } from '../utils/logger';
-import { styles } from './CheckInAllTickets.styles';
+import SuccessPopup from '../../constants/SuccessPopup';
+import ErrorPopup from '../../constants/ErrorPopup';
+import Typography from '../../components/Typography';
+import { formatDateTime } from '../../constants/dateAndTime';
+import { truncateStaffName } from '../../utils/stringUtils';
+import { logger } from '../../utils/logger';
+import { styles } from './index.styles';
 
 interface CheckInAllTicketsProps {
     route: any;

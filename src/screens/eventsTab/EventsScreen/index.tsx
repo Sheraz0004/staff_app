@@ -11,15 +11,15 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { color } from '../../color/color';
-import { logger } from '../../utils/logger';
-import SvgIcons from '../../components/SvgIcons';
-import Typography from '../../components/Typography';
+import { color } from '../../../color/color';
+import { logger } from '../../../utils/logger';
+import SvgIcons from '../../../components/SvgIcons';
+import Typography from '../../../components/Typography';
 import { useSelector } from 'react-redux';
-import { useApi } from '../../services/useApi';
-import { EVENT_SERVICES } from '../../services/EventService';
-import { styles } from './EventsScreen.styles';
-import Loader from '../../components/Loader/Loader';
+import { useApi } from '../../../services/useApi';
+import { EVENT_SERVICES } from '../../../services/EventService';
+import { styles } from './index.styles';
+import Loader from '../../../components/Loader/Loader';
 
 interface CountdownTimerProps {
   days: number;
