@@ -16,15 +16,21 @@ const API_CONFIG = {
     staffEventAccess: (staffId: string) =>
       `/api/staff-event-access/staff/${staffId}/`,
     eventInfo: (eventId: string) => `/api/ticket/event/${eventId}/info/`,
+    eventStats: (page: number = 1, pageSize: number = 10, eventClass: string = '') =>
+      `/api/event/stats/?page=${page}&page_size=${pageSize}&event_class=${eventClass}`,
   },
   DASHBOARD: {
     eventTypes: "/api/event/types/?page_size=-1",
     ticketingTypes: "/api/ticket/ticketing-types/?page_size=-1",
-    organizations: (page: number = 0, pageSize: number = 20) =>
-      `/api/organization/individual/?page_size=${pageSize}&page=${page}`,
+    organizations: (page?: number) =>
+      page == null
+        ? `/api/organization/individual/?page_size=-1`
+        : `/api/organization/individual/?page_size=20&page=${page}`,
     currencies: "/api/currency/?page_size=-1",
-    events: (page: number = 0, pageSize: number = 20) =>
-      `/api/event/?page_size=${pageSize}&page=${page}`,
+    events: (page?: number) =>
+      page == null
+        ? `/api/event/?page_size=-1`
+        : `/api/event/?page_size=20&page=${page}`,
     dashboardStats: (params?: {
       organization_uuid?: string;
       ticketing_type?: string;

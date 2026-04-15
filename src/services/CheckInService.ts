@@ -4,12 +4,15 @@ import HTTP_CLIENT from "../utils/config";
 export const CHECK_IN_SERVICES = {
 
   scanTicket: (scannedData: string, note?: string) => {
+    // console.log("scannedData<----", scannedData)
     const parts = scannedData.includes("/api/ticket/scan/")
       ? scannedData.split("/api/ticket/scan/")[1].split("/")
       : [];
     const eventId = parts[0];
     const code = parts[1];
-    return HTTP_CLIENT.post(API_CONFIG.CHECK_IN.scanTicket(eventId, code), { note: note || null });
+    console.log("eventId", { eventId, code });
+    return HTTP_CLIENT.post(scannedData);
+    // return HTTP_CLIENT.post(API_CONFIG.CHECK_IN.scanTicket(eventId, code), { note: note || null });
   },
 
   updateTicketNote: (code: string, note: string, eventUuid: string) =>

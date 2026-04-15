@@ -134,11 +134,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     setScanning(true);
     setScannedData(data);
     setScanTime(getFormatDate());
+    console.log("data-->",data)
 
     try {
       const note = notes[data] || '';
       const res = await requestScan(data, note);
       const scanData = res?.data;
+
       setScanResponse(scanData?.data);
 
       let scanResult: ScanResult = {

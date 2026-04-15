@@ -94,12 +94,10 @@ const ExploreEventsScreen: React.FC = () => {
   const route = useRoute<any>();
   const insets = useSafeAreaInsets();
 
-  // Calculate top padding for safe area
   const topPadding = Platform.OS === 'android'
-    ? (StatusBar.currentHeight || 0)
+    ?  0
     : insets.top;
 
-  // Get section title, events, and onEventChange callback from route params
   const {
     sectionTitle = 'Explore Events',
     events: initialEvents = [],
@@ -108,7 +106,6 @@ const ExploreEventsScreen: React.FC = () => {
 
   const [events, setEvents] = useState<EventItem[]>(initialEvents);
 
-  // Handle bookmark toggle
   const handleBookmarkPress = (eventUuid: string) => {
     setEvents(prevEvents =>
       prevEvents.map(event =>
@@ -119,7 +116,6 @@ const ExploreEventsScreen: React.FC = () => {
     );
   };
 
-  // Handle event press - use onEventChange callback if available
   const handleEventPress = (event: EventItem) => {
     const eventUuid = event.uuid || event.eventUuid;
 
@@ -144,24 +140,22 @@ const ExploreEventsScreen: React.FC = () => {
       onEventChange(eventForChange);
     }
 
-    // Navigate to DashboardDetail in root stack
-    // Don't call goBack - keep ExploreEventsScreen in stack
     navigation.navigate('DashboardDetail', {
       eventInfo: eventForChange,
       showEventDashboard: true,
     });
   };
 
-  // Handle back press
   const handleBackPress = () => {
     navigation.goBack();
   };
 
   return (
     <View style={styles.container}>
+      {/* <StatusBar barStyle="dark-content" backgroundColor={color.white_FFFFFF} /> */}
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPadding + 16 }]}>
-        <TouchableOpacity style={styles.headerButton} onPress={handleBackPress}>
+        <TouchableOpacity style={styles.headerButton} onPress={()=>{handleBackPress()}}>
           <SvgIcons.backArrow />
         </TouchableOpacity>
         <Typography

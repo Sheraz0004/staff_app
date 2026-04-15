@@ -45,7 +45,7 @@ const mainScreenOptions = {
     headerShown: false,
     unmountOnBlur: true,
     statusBarStyle: 'dark' as const,
-    statusBarBackgroundColor: 'white',
+    statusBarBackgroundColor: '#f2f2f2',
     statusBarTranslucent: true,
 };
 

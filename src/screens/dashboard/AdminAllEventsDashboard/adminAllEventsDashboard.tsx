@@ -32,6 +32,10 @@ import {
   selectSelectedCurrencyValue,
   selectSelectedEventFilterValue,
   selectDashboardDataLoading,
+  selectEvents,
+  selectEventsPage,
+  selectEventsTotalPages,
+  selectEventsLoadingMore,
   setEventTypes,
   setEventTypesLoading,
   setEventTypesError,
@@ -48,6 +52,14 @@ import {
   setSelectedEventTypeValue,
   setSelectedTicketingTypeValue,
   setSelectedOrganizationValue,
+  setSelectedEventFilterValue,
+  setEvents,
+  appendEvents,
+  setEventsLoading,
+  setEventsError,
+  setEventsPage,
+  setEventsTotalPages,
+  setEventsLoadingMore,
   setDashboardData,
   setDashboardDataLoading,
   setDashboardDataError,
@@ -72,13 +84,24 @@ const AdminAllEventsDashboard: React.FC = () => {
   const ticketingTypes = useSelector(selectTicketingTypes) ?? [];
   const organizations = useSelector(selectOrganizations) ?? [];
   const organizationsPage = useSelector(selectOrganizationsPage) ?? 0;
-  const organizationsTotalPages = useSelector(selectOrganizationsTotalPages) ?? 1;
-  const organizationsLoadingMore = useSelector(selectOrganizationsLoadingMore) ?? false;
-  const selectedEventTypeValue = useSelector(selectSelectedEventTypeValue) ?? "all";
-  const selectedTicketingTypeValue = useSelector(selectSelectedTicketingTypeValue) ?? "all";
-  const selectedOrganizationValue = useSelector(selectSelectedOrganizationValue) ?? "all";
-  const selectedCurrencyValue = useSelector(selectSelectedCurrencyValue) ?? "all";
-  const selectedEventFilterValue = useSelector(selectSelectedEventFilterValue) ?? "all";
+  const organizationsTotalPages =
+    useSelector(selectOrganizationsTotalPages) ?? 1;
+  const organizationsLoadingMore =
+    useSelector(selectOrganizationsLoadingMore) ?? false;
+  const events = useSelector(selectEvents) ?? [];
+  const eventsPage = useSelector(selectEventsPage) ?? 0;
+  const eventsTotalPages = useSelector(selectEventsTotalPages) ?? 1;
+  const eventsLoadingMore = useSelector(selectEventsLoadingMore) ?? false;
+  const selectedEventTypeValue =
+    useSelector(selectSelectedEventTypeValue) ?? "all";
+  const selectedTicketingTypeValue =
+    useSelector(selectSelectedTicketingTypeValue) ?? "all";
+  const selectedOrganizationValue =
+    useSelector(selectSelectedOrganizationValue) ?? "all";
+  const selectedCurrencyValue =
+    useSelector(selectSelectedCurrencyValue) ?? "all";
+  const selectedEventFilterValue =
+    useSelector(selectSelectedEventFilterValue) ?? "all";
   const dashboardDataLoading = useSelector(selectDashboardDataLoading) ?? false;
 
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -87,6 +110,7 @@ const AdminAllEventsDashboard: React.FC = () => {
   const [showEventTypePicker, setShowEventTypePicker] = useState(false);
   const [showTicketingTypePicker, setShowTicketingTypePicker] = useState(false);
   const [showOrganizationPicker, setShowOrganizationPicker] = useState(false);
+  const [showEventPicker, setShowEventPicker] = useState(false);
 
   const eventTypeOptions: RadioOption[] = [
     { label: "All", value: "all" },
@@ -112,24 +136,47 @@ const AdminAllEventsDashboard: React.FC = () => {
     })),
   ];
 
+  const eventFilterOptions: RadioOption[] = [
+    { label: "All Events", value: "all" },
+    ...(events ?? []).map((e: any) => ({
+      label: e?.title ?? e?.event_title ?? "",
+      value: String(e?.id ?? e?.uuid ?? ""),
+    })),
+  ];
+
   const selectedEventTypeLabel =
-    eventTypeOptions.find((o) => o.value === selectedEventTypeValue)?.label ?? "All";
+    eventTypeOptions.find((o) => o.value === selectedEventTypeValue)?.label ??
+    "Event Type";
 
   const selectedTicketingTypeLabel =
-    ticketingTypeOptions.find((o) => o.value === selectedTicketingTypeValue)?.label ?? "All";
+    ticketingTypeOptions.find((o) => o.value === selectedTicketingTypeValue)
+      ?.label ?? "Ticketing Type";
 
   const selectedOrganizationLabel =
-    organizationOptions.find((o) => o.value === selectedOrganizationValue)?.label ?? "Organization";
+    organizationOptions.find((o) => o.value === selectedOrganizationValue)
+      ?.label ?? "Organization";
+
+  const selectedEventFilterLabel =
+    eventFilterOptions.find((o) => o.value === selectedEventFilterValue)
+      ?.label ?? "All Events";
 
   useEffect(() => {
     if ((eventTypes ?? []).length === 0) fetchEventTypes();
     if ((ticketingTypes ?? []).length === 0) fetchTicketingTypes();
     if ((organizations ?? []).length === 0) fetchOrganizations();
+    if ((events ?? []).length === 0) fetchEvents();
   }, []);
 
   useEffect(() => {
     fetchDashboardData();
-  }, [selectedOrganizationValue, selectedTicketingTypeValue, selectedEventTypeValue, selectedCurrencyValue, selectedEventFilterValue, selectedYear]);
+  }, [
+    selectedOrganizationValue,
+    selectedTicketingTypeValue,
+    selectedEventTypeValue,
+    selectedCurrencyValue,
+    selectedEventFilterValue,
+    selectedYear,
+  ]);
 
   const buildParams = () => {
     const params: {
@@ -150,32 +197,59 @@ const AdminAllEventsDashboard: React.FC = () => {
       params.currency = selectedCurrencyValue;
     if (selectedEventFilterValue && selectedEventFilterValue !== "all")
       params.event_id = selectedEventFilterValue;
-    if (selectedYear)
-      params.year = selectedYear;
+    if (selectedYear) params.year = selectedYear;
     return params;
   };
 
   const fetchDashboardData = async () => {
+    const params = buildParams();
     dispatch(setDashboardDataLoading(true));
     dispatch(setDashboardDataError(null));
     try {
-      const response = await DASHBOARD_SERVICES.fetchDashboardStats(buildParams());
+      const response = await DASHBOARD_SERVICES.fetchDashboardStats(params);
       dispatch(setDashboardData(response?.data ?? {}));
     } catch (error: any) {
-      dispatch(setDashboardDataError(error?.message ?? "Failed to fetch dashboard data"));
+      dispatch(
+        setDashboardDataError(
+          error?.message ?? "Failed to fetch dashboard data",
+        ),
+      );
     } finally {
       dispatch(setDashboardDataLoading(false));
     }
   };
+
+  // Helper: extract list from various API response shapes
+  const extractList = (raw: any): any[] => {
+    if (Array.isArray(raw)) return raw;
+    return (
+      raw?.data ??
+      raw?.results ??
+      raw?.organizations ??
+      raw?.events ??
+      raw?.types ??
+      []
+    );
+  };
+
+  const extractPagination = (raw: any, fallbackPage: number) => ({
+    totalPages:
+      raw?.totalPages ??
+      raw?.total_pages ??
+      (raw?.count ? Math.ceil(raw.count / 20) : 1),
+    currentPage: raw?.currentPage ?? raw?.current_page ?? fallbackPage,
+  });
 
   const fetchEventTypes = async () => {
     dispatch(setEventTypesLoading(true));
     dispatch(setEventTypesError(null));
     try {
       const response = await DASHBOARD_SERVICES.fetchEventTypes();
-      dispatch(setEventTypes(response?.data?.data ?? []));
+      dispatch(setEventTypes(extractList(response?.data)));
     } catch (error: any) {
-      dispatch(setEventTypesError(error?.message ?? "Failed to fetch event types"));
+      dispatch(
+        setEventTypesError(error?.message ?? "Failed to fetch event types"),
+      );
     } finally {
       dispatch(setEventTypesLoading(false));
     }
@@ -186,16 +260,21 @@ const AdminAllEventsDashboard: React.FC = () => {
     dispatch(setTicketingTypesError(null));
     try {
       const response = await DASHBOARD_SERVICES.fetchTicketingTypes();
-      dispatch(setTicketingTypes(response?.data?.data ?? []));
+      dispatch(setTicketingTypes(extractList(response?.data)));
     } catch (error: any) {
-      dispatch(setTicketingTypesError(error?.message ?? "Failed to fetch ticketing types"));
+      dispatch(
+        setTicketingTypesError(
+          error?.message ?? "Failed to fetch ticketing types",
+        ),
+      );
     } finally {
       dispatch(setTicketingTypesLoading(false));
     }
   };
 
-  const fetchOrganizations = async (page: number = 0) => {
-    if (page === 0) {
+  const fetchOrganizations = async (page?: number) => {
+    const isInitial = page == null;
+    if (isInitial) {
       dispatch(setOrganizationsLoading(true));
       dispatch(setOrganizationsError(null));
     } else {
@@ -203,20 +282,27 @@ const AdminAllEventsDashboard: React.FC = () => {
     }
     try {
       const response = await DASHBOARD_SERVICES.fetchOrganizations(page);
-      const data = response?.data?.data ?? [];
-      const totalPages = response?.data?.totalPages ?? 1;
-      const currentPage = response?.data?.currentPage ?? page;
-      if (page === 0) {
-        dispatch(setOrganizations(data));
+      const raw = response?.data;
+      const list = extractList(raw);
+      if (isInitial) {
+        dispatch(setOrganizations(list));
+        dispatch(setOrganizationsPage(0));
+        // All data fetched in one shot — no load-more needed
+        dispatch(setOrganizationsTotalPages(1));
       } else {
-        dispatch(appendOrganizations(data));
+        dispatch(appendOrganizations(list));
+        const { totalPages, currentPage } = extractPagination(raw, page!);
+        dispatch(setOrganizationsPage(currentPage));
+        dispatch(setOrganizationsTotalPages(totalPages));
       }
-      dispatch(setOrganizationsPage(currentPage));
-      dispatch(setOrganizationsTotalPages(totalPages));
     } catch (error: any) {
-      dispatch(setOrganizationsError(error?.message ?? "Failed to fetch organizations"));
+      dispatch(
+        setOrganizationsError(
+          error?.message ?? "Failed to fetch organizations",
+        ),
+      );
     } finally {
-      if (page === 0) {
+      if (isInitial) {
         dispatch(setOrganizationsLoading(false));
       } else {
         dispatch(setOrganizationsLoadingMore(false));
@@ -226,8 +312,52 @@ const AdminAllEventsDashboard: React.FC = () => {
 
   const loadMoreOrganizations = () => {
     const nextPage = (organizationsPage ?? 0) + 1;
-    if (nextPage < (organizationsTotalPages ?? 1) && !organizationsLoadingMore) {
+    if (
+      nextPage < (organizationsTotalPages ?? 1) &&
+      !organizationsLoadingMore
+    ) {
       fetchOrganizations(nextPage);
+    }
+  };
+
+  const fetchEvents = async (page?: number) => {
+    const isInitial = page == null;
+    if (isInitial) {
+      dispatch(setEventsLoading(true));
+      dispatch(setEventsError(null));
+    } else {
+      dispatch(setEventsLoadingMore(true));
+    }
+    try {
+      const response = await DASHBOARD_SERVICES.fetchEvents(page);
+      const raw = response?.data;
+      const list = extractList(raw);
+      if (isInitial) {
+        dispatch(setEvents(list));
+        dispatch(setEventsPage(0));
+        // All data fetched in one shot — no load-more needed
+        dispatch(setEventsTotalPages(1));
+      } else {
+        dispatch(appendEvents(list));
+        const { totalPages, currentPage } = extractPagination(raw, page!);
+        dispatch(setEventsPage(currentPage));
+        dispatch(setEventsTotalPages(totalPages));
+      }
+    } catch (error: any) {
+      dispatch(setEventsError(error?.message ?? "Failed to fetch events"));
+    } finally {
+      if (isInitial) {
+        dispatch(setEventsLoading(false));
+      } else {
+        dispatch(setEventsLoadingMore(false));
+      }
+    }
+  };
+
+  const loadMoreEvents = () => {
+    const nextPage = (eventsPage ?? 0) + 1;
+    if (nextPage < (eventsTotalPages ?? 1) && !eventsLoadingMore) {
+      fetchEvents(nextPage);
     }
   };
 
@@ -242,7 +372,20 @@ const AdminAllEventsDashboard: React.FC = () => {
 
     const formatDate = (date: Date) => {
       if (!date) return "";
-      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
       return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
     };
 
@@ -263,9 +406,9 @@ const AdminAllEventsDashboard: React.FC = () => {
 
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity>
+          {/* <TouchableOpacity>
             <SvgIcons.drawerSvg width={24} height={24} fill="transparent" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           <Typography weight="700" size={20} color={color.brown_3C200A}>
             Dashboard
           </Typography>
@@ -304,22 +447,24 @@ const AdminAllEventsDashboard: React.FC = () => {
               onPress={() => setShowOrganizationPicker(true)}
             />
           </View>
-          <TouchableOpacity
-            style={styles.dateSelectorInRow}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <SvgIcons.calendarIcon />
-            <Typography
-              style={styles.dateSelectorText}
-              weight="400"
-              size={14}
-              color={color.brown_766F6A}
-              numberOfLines={1}
+          <View style={styles.dropdownWrapper}>
+            <TouchableOpacity
+              style={styles.dateSelectorInRow}
+              onPress={() => setShowDatePicker(true)}
             >
-              {selectedDate}
-            </Typography>
-            <SvgIcons.downArrow />
-          </TouchableOpacity>
+              <SvgIcons.calendarIcon />
+              <Typography
+                style={styles.dateSelectorText}
+                weight="400"
+                size={14}
+                color={color.brown_766F6A}
+                numberOfLines={1}
+              >
+                {selectedDate}
+              </Typography>
+              <SvgIcons.downArrow />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <AdminEarningCard />
@@ -369,6 +514,22 @@ const AdminAllEventsDashboard: React.FC = () => {
         hasMore={(organizationsPage ?? 0) + 1 < (organizationsTotalPages ?? 1)}
         isLoadingMore={organizationsLoadingMore}
         onLoadMore={loadMoreOrganizations}
+        disableDrag
+      />
+
+      <BottomSheetRadioPicker
+        visible={showEventPicker}
+        onClose={() => setShowEventPicker(false)}
+        title="Filter by Event"
+        options={eventFilterOptions}
+        selectedValue={selectedEventFilterValue}
+        onSelect={(option) =>
+          dispatch(setSelectedEventFilterValue(String(option?.value ?? "all")))
+        }
+        hasMore={(eventsPage ?? 0) + 1 < (eventsTotalPages ?? 1)}
+        isLoadingMore={eventsLoadingMore}
+        onLoadMore={loadMoreEvents}
+        disableDrag
       />
     </View>
   );

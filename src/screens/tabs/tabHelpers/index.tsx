@@ -110,6 +110,6 @@ export const commonTabOptions = {
   headerShown: false,
   unmountOnBlur: true,
   statusBarStyle: 'dark',
-  statusBarBackgroundColor: 'white',
-  statusBarTranslucent: false,
+  statusBarBackgroundColor: '#f2f2f2',
+  statusBarTranslucent: true,
 };
