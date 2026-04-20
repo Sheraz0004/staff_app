@@ -453,7 +453,7 @@ const EventsTicketsTab: React.FC<EventsTicketsTabProps> = ({ eventInfo, onEventC
   };
 
   const handleEventPress = (event: EventItem) => {
-    console.log("event-->", event);
+
 
     const eventUuid = event.uuid || event.eventUuid;
 
@@ -476,7 +476,6 @@ const EventsTicketsTab: React.FC<EventsTicketsTabProps> = ({ eventInfo, onEventC
     if (onEventChange) onEventChange(eventForChange);
 
   };
-
   const getFilterText = () => {
     if (!selectedFilter) return null;
     if (selectedFilter === 'Month') {

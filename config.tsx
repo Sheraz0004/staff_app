@@ -83,6 +83,15 @@ const API_CONFIG = {
     orderLookup: `/api/orders/lookup/`,
     orderDetails: (orderId: number) => `/api/orders/${orderId}/order-details/`,
   },
+  TICKETS: {
+    ticketStats: (eventId: string) => `/api/ticket/${eventId}/stats/`,
+    ticketList: (eventId: string, page: number, pageSize: number, status: string = "PAID", checkinStatus?: string, search?: string) => {
+      let url = `/api/user-tickets/?event_id=${eventId}&page=${page}&page_size=${pageSize}&status=${status}`;
+      if (checkinStatus) url += `&checkin_status=${checkinStatus}`;
+      if (search) url += `&search=${encodeURIComponent(search)}`;
+      return url;
+    },
+  },
 };
 
 export default API_CONFIG;

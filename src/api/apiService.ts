@@ -51,7 +51,6 @@ const endpoints = {
   adminDashboardTerminals: "/api/event/dashboard/terminals/",
 };
 
-// Request interceptor — attaches Bearer token to every non-public request
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     const publicEndpoints = [
@@ -1140,6 +1139,7 @@ export const ticketService = {
       }
 
       logger.log('================================================', url);
+      console.log('📊 Dashboard Stats URL:', `${BASE_URL}${url}`);
 
       const response = await apiClient.get(url);
       return response.data;

@@ -177,4 +177,12 @@ export const styles = StyleSheet.create({
     flatListContent: {
         paddingBottom: 50,
     },
+    keyboardAvoidingView: {
+        flex: 1,
+    },
+    centeredLoader: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
 });

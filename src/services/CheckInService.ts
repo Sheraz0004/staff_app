@@ -41,13 +41,14 @@ export const CHECK_IN_SERVICES = {
     HTTP_CLIENT.post(API_CONFIG.CHECK_IN.boxOfficeGetTicket, {
       eventId: eventUuid,
       items: items.map((item) => ({
-        ...item,
-        ...(purchaseCode && purchaseCode.trim() ? { purchaseCode: purchaseCode.trim() } : {}),
+        ticketTypeId: item.ticketTypeId,
+        quantity: item.quantity,
+        purchaseCode: purchaseCode?.trim() || null,
       })),
       userIdentifier,
+      name,
       paymentMethod,
       transactionId,
-      name,
     }),
 
   boxOfficeCheckinAll: (eventUuid: string, orderNumber: string) => {

@@ -20,8 +20,8 @@ interface CheckInAllTicketsProps {
 }
 
 const CheckInAllTickets: React.FC<CheckInAllTicketsProps> = ({ route }) => {
-    const { totalTickets, email, orderData, eventInfo, name, scanned_by } = route.params;
-    const initialTickets = orderData?.data?.data || [];
+    const { totalTickets, email, orderData, eventInfo, name } = route.params;
+    const initialTickets = orderData?.tickets || [];
     const [tickets, setTickets] = useState<any[]>(initialTickets);
     const [isCheckingIn, setIsCheckingIn] = useState<boolean>(false);
     const [checkInSuccess, setCheckInSuccess] = useState<boolean>(false);
@@ -35,9 +35,9 @@ const CheckInAllTickets: React.FC<CheckInAllTicketsProps> = ({ route }) => {
     const { requestCall: doCheckinAll } = useApi(CHECK_IN_SERVICES.boxOfficeCheckinAll, false, false);
     const extractResponse = tickets[0];
     const code = extractResponse?.code;
-    const eventUuid = extractResponse?.event;
-    const orderNumber = extractResponse?.order_number;
-    const ticketNumber = extractResponse?.ticket_number;
+    const eventUuid = extractResponse?.eventId;
+    const orderNumber = extractResponse?.orderNumber;
+    const ticketNumber = extractResponse?.ticketNumber;
 
     const handleSingleCheckIn = async () => {
         if (totalTickets === 1) {
@@ -48,36 +48,30 @@ const CheckInAllTickets: React.FC<CheckInAllTicketsProps> = ({ route }) => {
                 const response = res?.data;
                 logger.log('Single Ticket Check-in Response:', response);
 
-                if (response?.data?.status === 'SCANNED') {
+                const checkinStatus = response?.data?.checkinStatus || response?.data?.status;
+                if (checkinStatus === 'SCANNED') {
                     setCheckInSuccess(true);
                     setShowSuccessPopup(true);
 
-                    // Extract scanned_by information from check-in response
-                    const scannedByFromResponse = response?.data?.scanned_by;
-                    logger.log('Single Ticket Check-in - scanned_by from response:', scannedByFromResponse);
+                    const scannedByFromResponse = response?.data?.scannedBy || response?.data?.scanned_by;
+                    logger.log('Single Ticket Check-in - scannedBy from response:', scannedByFromResponse);
 
-                    // Update the ticket status and scanned_by information immediately
                     const updatedTicket: any = {
                         ...tickets[0],
-                        checkin_status: 'SCANNED',
+                        checkinStatus: 'SCANNED',
                         status: 'SCANNED',
                     };
 
-                    // Map scanned_by object from response
                     if (scannedByFromResponse) {
-                        updatedTicket.scanned_by = {
+                        updatedTicket.scannedBy = {
                             name: scannedByFromResponse.name || 'No Record',
-                            staff_id: scannedByFromResponse.staff_id || 'No Record',
-                            scanned_on: scannedByFromResponse.scanned_on || 'No Record',
+                            staffId: scannedByFromResponse.staffId || scannedByFromResponse.staff_id || 'No Record',
+                            scannedOn: scannedByFromResponse.scannedAt || scannedByFromResponse.scannedOn || scannedByFromResponse.scanned_on || 'No Record',
                         };
                     }
 
-                    // Also update other fields from response if available
-                    if (response?.data?.scan_count !== undefined) {
-                        updatedTicket.scan_count = response.data.scan_count;
-                    }
-                    if (response?.data?.scanned_by?.scanned_on) {
-                        updatedTicket.scanned_on = response.data.scanned_by.scanned_on;
+                    if (response?.data?.scanCount !== undefined) {
+                        updatedTicket.scanCount = response.data.scanCount;
                     }
 
                     setTickets([updatedTicket]);
@@ -112,39 +106,36 @@ const CheckInAllTickets: React.FC<CheckInAllTicketsProps> = ({ route }) => {
                     setCheckInSuccess(true);
                     setShowSuccessPopup(true);
 
-                    // Extract scanned_by information from check-in response
-                    // The response might have scanned_by at root data level or in each ticket
-                    const scannedByFromResponse = response?.data?.scanned_by || response?.scanned_by;
-                    logger.log('Check-in All - scanned_by from response:', scannedByFromResponse);
+                    const scannedByFromResponse = response?.data?.scannedBy || response?.scannedBy
+                        || response?.data?.scanned_by || response?.scanned_by;
+                    logger.log('Check-in All - scannedBy from response:', scannedByFromResponse);
 
-                    // Also check if response has updated tickets array with scanned_by info
-                    const responseTickets = response?.data?.data || response?.data?.tickets || null;
+                    const responseTickets = response?.data?.tickets || response?.tickets
+                        || response?.data?.data || null;
 
-                    // Update all tickets in the list to show as scanned using state
                     const updatedTickets = tickets.map((ticket: any, index: number) => {
                         const updatedTicket: any = {
                             ...ticket,
-                            checkin_status: 'SCANNED',
+                            checkinStatus: 'SCANNED',
                             status: 'SCANNED',
                         };
 
-                        // First, try to get scanned_by from response tickets array if available
-                        const responseTicket = responseTickets?.find((t: any) => t.code === ticket.code || t.uuid === ticket.uuid) ||
-                                              (responseTickets && responseTickets[index]);
+                        const responseTicket = responseTickets?.find(
+                            (t: any) => t.code === ticket.code || t.id === ticket.id
+                        ) || (responseTickets && responseTickets[index]);
 
-                        if (responseTicket?.scanned_by) {
-                            // Use scanned_by from individual ticket in response
-                            updatedTicket.scanned_by = {
-                                name: responseTicket.scanned_by.name || 'No Record',
-                                staff_id: responseTicket.scanned_by.staff_id || 'No Record',
-                                scanned_on: responseTicket.scanned_by.scanned_on || 'No Record',
+                        const ticketScannedBy = responseTicket?.scannedBy || responseTicket?.scanned_by;
+                        if (ticketScannedBy) {
+                            updatedTicket.scannedBy = {
+                                name: ticketScannedBy.name || 'No Record',
+                                staffId: ticketScannedBy.staffId || ticketScannedBy.staff_id || 'No Record',
+                                scannedOn: ticketScannedBy.scannedAt || ticketScannedBy.scannedOn || ticketScannedBy.scanned_on || 'No Record',
                             };
                         } else if (scannedByFromResponse) {
-                            // Use root level scanned_by if available
-                            updatedTicket.scanned_by = {
-                                name: scannedByFromResponse.name || ticket?.scanned_by?.name || 'No Record',
-                                staff_id: scannedByFromResponse.staff_id || ticket?.scanned_by?.staff_id || 'No Record',
-                                scanned_on: scannedByFromResponse.scanned_on || ticket?.scanned_by?.scanned_on || 'No Record',
+                            updatedTicket.scannedBy = {
+                                name: scannedByFromResponse.name || ticket?.scannedBy?.name || 'No Record',
+                                staffId: scannedByFromResponse.staffId || scannedByFromResponse.staff_id || ticket?.scannedBy?.staffId || 'No Record',
+                                scannedOn: scannedByFromResponse.scannedAt || scannedByFromResponse.scannedOn || scannedByFromResponse.scanned_on || ticket?.scannedBy?.scannedOn || 'No Record',
                             };
                         }
 
@@ -173,16 +164,16 @@ const CheckInAllTickets: React.FC<CheckInAllTicketsProps> = ({ route }) => {
     const handleTicketStatusChange = (ticketUuid: string, newStatus: string, scannedByInfo: any = null) => {
         setTickets(prevTickets =>
             prevTickets.map(ticket =>
-                ticket.uuid === ticketUuid
+                (ticket.id?.toString() === ticketUuid || ticket.code === ticketUuid)
                     ? {
                         ...ticket,
                         status: newStatus,
-                        checkin_status: newStatus,
-                        scanned_by: scannedByInfo ? {
-                            name: scannedByInfo.name || ticket.scanned_by?.name || 'No Record',
-                            staff_id: scannedByInfo.staff_id || ticket.scanned_by?.staff_id || 'No Record',
-                            scanned_on: scannedByInfo.scanned_on || ticket.scanned_by?.scanned_on || 'No Record',
-                        } : ticket.scanned_by,
+                        checkinStatus: newStatus,
+                        scannedBy: scannedByInfo ? {
+                            name: scannedByInfo.name || ticket.scannedBy?.name || 'No Record',
+                            staffId: scannedByInfo.staffId || scannedByInfo.staff_id || ticket.scannedBy?.staffId || 'No Record',
+                            scannedOn: scannedByInfo.scannedAt || scannedByInfo.scannedOn || scannedByInfo.scanned_on || ticket.scannedBy?.scannedOn || 'No Record',
+                        } : ticket.scannedBy,
                     }
                     : ticket
             )
@@ -209,7 +200,7 @@ const CheckInAllTickets: React.FC<CheckInAllTicketsProps> = ({ route }) => {
                     {/* <Text style={styles.ticketOrderNum}>Order Number. {orderNumber}</Text> */}
                     <Text style={styles.userName}>{name}</Text>
                     <Text style={styles.ticketEmail}>{email}</Text>
-                    <Text style={styles.ticketHolder}>Purchase Date: {tickets[0]?.formatted_date}</Text>
+                    <Text style={styles.ticketHolder}>Purchase Date: {tickets[0]?.formattedDate}</Text>
 
 
                     <TouchableOpacity
@@ -245,28 +236,28 @@ const CheckInAllTickets: React.FC<CheckInAllTicketsProps> = ({ route }) => {
                                     size={14}
                                     color={color.brown_3C200A}
                                 >
-                                    {tickets[0]?.ticket_class || 'No Record'}
+                                    {tickets[0]?.ticketClass || 'No Record'}
                                 </Typography>
                                 <Text style={[styles.values, styles.marginTop10]}>Ticket ID</Text>
-                                <Text style={[styles.ticketNumber, styles.marginTop10]}>{tickets[0]?.ticket_number || 'No Record'}</Text>
+                                <Text style={[styles.ticketNumber, styles.marginTop10]}>{tickets[0]?.ticketNumber || 'No Record'}</Text>
                                 <Text style={[styles.values]}>Last Scanned On</Text>
-                                <Text style={[styles.valueScanCount, styles.marginTop10]}>{formatDateTime(tickets[0]?.scanned_by?.scanned_on) || 'No Record'}</Text>
+                                <Text style={[styles.valueScanCount, styles.marginTop10]}>{formatDateTime(tickets[0]?.scannedBy?.scannedOn) || 'No Record'}</Text>
                             </View>
                             <View style={styles.rightColumnContent}>
                                 <Text style={styles.values}>Scanned By</Text>
                                 <Text style={[styles.valueScanCount, styles.marginTop10]}>
-                                    {truncateStaffName(tickets[0]?.scanned_by?.name) || 'No Record'}
+                                    {truncateStaffName(tickets[0]?.scannedBy?.name) || 'No Record'}
                                 </Text>
                                 <Text style={[styles.values, styles.marginTop10]}>Staff ID</Text>
                                 <Text style={[styles.valueScanCount, styles.marginTop8]}>
-                                    {tickets[0]?.scanned_by?.staff_id || 'No Record'}
+                                    {tickets[0]?.scannedBy?.staffId || 'No Record'}
                                 </Text>
                                 <Text style={[styles.values, styles.marginTop10]}>Price</Text>
                                 <Text style={[styles.value, styles.marginTop10]}>
-                                    {tickets[0]?.currency || 'GHS'} {tickets[0]?.ticket_price || 'No Record'}
+                                    {tickets[0]?.currency || 'GHS'} {tickets[0]?.ticketPrice || 'No Record'}
                                 </Text>
                                 <Text style={[styles.values, styles.marginTop10]}>Scan Count</Text>
-                                <Text style={[styles.valueScanCount, styles.marginTop9]}>{tickets[0]?.scan_count || 'No Record'}</Text>
+                                <Text style={[styles.valueScanCount, styles.marginTop9]}>{tickets[0]?.scanCount || 'No Record'}</Text>
                             </View>
                         </View>
                     </View>
@@ -285,30 +276,34 @@ const CheckInAllTickets: React.FC<CheckInAllTicketsProps> = ({ route }) => {
                     <View style={styles.ticketsList}>
                         <CheckInAllPopUp
                             ticketslist={tickets.map((ticket: any) => ({
-                                order_number: ticket.order_number,
-                                type: ticket.ticket_type,
-                                price: ticket.ticket_price,
-                                date: ticket.formatted_date,
-                                status: ticket.status || ticket.checkin_status,
+                                order_number: ticket.orderNumber,
+                                type: ticket.ticketType,
+                                price: ticket.ticketPrice,
+                                date: ticket.formattedDate,
+                                status: ticket.status || ticket.checkinStatus,
                                 code: ticket.code,
                                 note: ticket.note,
-                                uuid: ticket.uuid,
+                                uuid: ticket.id?.toString() || ticket.code,
                                 eventUuid: eventInfo.eventUuid,
                                 message: ticket.message,
-                                last_scanned_on: ticket.last_scanned_on,
-                                scanCount: ticket.scan_count,
-                                ticketHolder: ticket.ticket_holder,
-                                lastScannedByName: ticket.last_scanned_by_name,
+                                last_scanned_on: ticket.scannedBy?.scannedOn,
+                                scanCount: ticket.scanCount,
+                                ticketHolder: ticket.ticketHolder,
+                                lastScannedByName: ticket.scannedBy?.name,
                                 currency: ticket.currency,
                                 eventInfo: eventInfo,
-                                ticket_number: ticket.ticket_number,
+                                ticket_number: ticket.ticketNumber,
                                 category: ticket.category || 'No Record',
-                                ticketClass: ticket.ticket_class || 'No Record',
+                                ticketClass: ticket.ticketClass || 'No Record',
                                 name: name || 'No Record',
                                 email: email || 'No Record',
-                                scanned_by: ticket.scanned_by,
-                                scanned_on: ticket.scanned_on,
-                                staff_id: ticket.staff_id,
+                                scanned_by: ticket.scannedBy ? {
+                                    name: ticket.scannedBy.name,
+                                    staff_id: ticket.scannedBy.staffId,
+                                    scanned_on: ticket.scannedBy.scannedOn,
+                                } : null,
+                                scanned_on: ticket.scannedBy?.scannedOn,
+                                staff_id: ticket.scannedBy?.staffId,
                             }))}
                             onTicketStatusChange={handleTicketStatusChange}
                             onScanCountUpdate={route.params?.onScanCountUpdate}

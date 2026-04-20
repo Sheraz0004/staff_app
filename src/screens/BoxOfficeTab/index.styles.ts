@@ -255,7 +255,7 @@ export const styles = StyleSheet.create({
     borderColor: color.red_FF0000,
   },
   errorText: {
-    top: 10,
+    top: 15,
     color: color.red_FF0000,
     marginBottom: 10,
   },
@@ -353,5 +353,32 @@ export const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  fullEmptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 48,
+    gap: 16,
+  },
+  listEmptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 24,
+    gap: 12,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: color.black_2F251D,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: color.brown_766F6A,
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });
