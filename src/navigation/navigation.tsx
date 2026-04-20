@@ -26,6 +26,7 @@ import ExploreDetailScreenTicketsTab from '../screens/eventsTicketsTab/ExploreDe
 import Tickets from '../screens/Tickets';
 import DashboardScreen from '../screens/dashboard';
 import ManualScan from '../screens/ManualScan';
+import OrderDetails from '../screens/OrderDetails';
 import ProfileScreen from '../screens/ProfileScreen';
 import AdminTerminalDashboard from '../screens/dashboard/AdminTerminalDashboard';
 
@@ -148,6 +149,11 @@ function MainStack(): React.ReactElement {
             <MainNav.Screen
                 name="Profile"
                 component={ProfileScreen}
+                options={mainScreenOptions}
+            />
+            <MainNav.Screen
+                name="OrderDetails"
+                component={OrderDetails}
                 options={mainScreenOptions}
             />
             <MainNav.Screen

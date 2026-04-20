@@ -21,12 +21,12 @@ interface EventInformation {
 
 const transformEventInfo = (data: any, eventUuid: string): EventInformation => ({
     staff_name: data?.staff_name,
-    event_title: data?.event_title,
+    event_title: data?.eventTitle || data?.event_title,
     cityName: data?.location?.city,
-    date: data?.start_date,
-    time: data?.start_time,
+    date: data?.startDate || data?.start_date,
+    time: data?.startTime || data?.start_time,
     userId: data?.staff_id,
-    scanCount: data?.scan_count,
+    scanCount: data?.scanCount ?? data?.scan_count,
     event_uuid: data?.location?.uuid,
     eventUuid,
 });
@@ -89,12 +89,12 @@ export const useEventInfo = (routeEventInfo: EventInformation | null, userId: st
                 const { data } = await eventService.fetchEventInfo(eventUuid);
                 resolved = {
                     staff_name: data?.staff_name || newEvent.staff_name,
-                    event_title: data?.event_title || newEvent.event_title || newEvent.title,
+                    event_title: data?.eventTitle || data?.event_title || newEvent.event_title || newEvent.title,
                     cityName: data?.location?.city || newEvent.cityName,
-                    date: data?.start_date || newEvent.date,
-                    time: data?.start_time || newEvent.time,
+                    date: data?.startDate || data?.start_date || newEvent.date,
+                    time: data?.startTime || data?.start_time || newEvent.time,
                     userId: data?.staff_id || newEvent.userId,
-                    scanCount: data?.scan_count ?? newEvent.scanCount ?? 0,
+                    scanCount: data?.scanCount ?? data?.scan_count ?? newEvent.scanCount ?? 0,
                     event_uuid: data?.location?.uuid || newEvent.event_uuid,
                     eventUuid,
                 };

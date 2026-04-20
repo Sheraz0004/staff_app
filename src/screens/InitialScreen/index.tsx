@@ -72,12 +72,12 @@ const InitialScreen: React.FC = () => {
           navigation.replace('LoggedIn', {
             eventInfo: {
               staff_name: eventInfoData?.data?.staff_name,
-              event_title: eventInfoData?.data?.event_title,
+              event_title: eventInfoData?.data?.eventTitle || eventInfoData?.data?.event_title,
               cityName: eventInfoData?.data?.location?.city,
-              date: eventInfoData?.data?.start_date,
-              time: eventInfoData?.data?.start_time,
+              date: eventInfoData?.data?.startDate || eventInfoData?.data?.start_date,
+              time: eventInfoData?.data?.startTime || eventInfoData?.data?.start_time,
               userId: eventInfoData?.data?.staff_id,
-              scanCount: eventInfoData?.data?.scan_count,
+              scanCount: eventInfoData?.data?.scanCount ?? eventInfoData?.data?.scan_count,
               event_uuid: eventInfoData?.data?.location?.uuid,
               eventUuid: lastEventUuid,
             },

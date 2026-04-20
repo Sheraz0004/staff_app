@@ -13,4 +13,7 @@ export const EVENT_SERVICES = {
     HTTP_CLIENT.get(
       API_CONFIG.EVENTS.eventStats(params.page, params.pageSize ?? 10, params.eventClass ?? '')
     ),
+
+  fetchMyEvents: (params: { page?: number; page_size?: number; sort_by?: string; sort_dir?: string } = {}) =>
+    HTTP_CLIENT.get(API_CONFIG.EVENTS.myEvents(params)),
 };

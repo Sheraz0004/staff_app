@@ -1,38 +1,35 @@
-import React from 'react';
-import { Text, View, SafeAreaView } from 'react-native';
-import { color } from '../../color/color';
-import Header from '../../components/header';
-import SvgIcons from '../../components/SvgIcons';
-import { useNavigation } from '@react-navigation/native';
-import { formatDateTime } from '../../constants/dateAndTime';
-import Typography from '../../components/Typography';
-import { truncateStaffName } from '../../utils/stringUtils';
-import { styles } from './index.styles';
+import React from "react";
+import { Text, View, SafeAreaView } from "react-native";
+import { color } from "../../color/color";
+import Header from "../../components/header";
+import SvgIcons from "../../components/SvgIcons";
+import { useNavigation } from "@react-navigation/native";
+import { formatDateTime } from "../../constants/dateAndTime";
+import Typography from "../../components/Typography";
+import { truncateStaffName } from "../../utils/stringUtils";
+import { styles } from "./index.styles";
 
 interface TicketScannedProps {
   route: any;
 }
 
 const TicketScanned: React.FC<TicketScannedProps> = ({ route }) => {
-  const { scanResponse, eventInfo, note }: { scanResponse: any; eventInfo: any; note: any } = route.params;
+  const {
+    scanResponse,
+    eventInfo,
+    note,
+  }: { scanResponse: any; eventInfo: any; note: any } = route.params;
   const navigation = useNavigation();
-
-  const displayedNote = note || scanResponse?.note || 'No note added';
-
+  const displayedNote = note || scanResponse?.note || "No note added";
   // Safely extract scanned by data
   const scannedByName: any =
-    typeof scanResponse?.scanned_by === 'object'
-      ? scanResponse?.scanned_by?.name
-      : scanResponse?.scanned_by;
+    scanResponse?.scannedBy?.name || scanResponse?.scannedBy?.email || "No Record";
 
-  const scannedByStaffId: any =
-    typeof scanResponse?.scanned_by === 'object'
-      ? scanResponse?.scanned_by?.staff_id
-      : scanResponse?.staff_id;
+  const scannedByStaffId: any = scanResponse?.scannedBy?.staffId || "No Record";
 
-  const scannedOn: any = scanResponse?.scanned_on
-    ? formatDateTime(scanResponse?.scanned_on)
-    : 'No Record';
+  const scannedOn: any = scanResponse?.scannedBy?.scannedOn
+    ? formatDateTime(scanResponse?.scannedBy?.scannedOn)
+    : "No Record";
 
   return (
     <SafeAreaView style={styles.container}>
@@ -42,7 +39,7 @@ const TicketScanned: React.FC<TicketScannedProps> = ({ route }) => {
         {/* TOP CARD */}
         <View style={styles.popUp}>
           <Text style={styles.labeltickets}>
-            {scanResponse?.message || 'No Record'}
+            {scanResponse?.message || "No Record"}
           </Text>
 
           <SvgIcons.successBrownSVG
@@ -53,15 +50,15 @@ const TicketScanned: React.FC<TicketScannedProps> = ({ route }) => {
           />
 
           <Text style={styles.userName}>
-            {scanResponse?.name || 'No Record'}
+            {scanResponse?.ticketHolder || "No Record"}
           </Text>
 
           <Text style={styles.userEmail}>
-            {scanResponse?.user_email || 'No Record'}
+            {scanResponse?.ticketHolderEmail || "No Record"}
           </Text>
 
           <Text style={styles.userPurchaseDate}>
-            Purchase Date: {scanResponse?.date || 'No Record'}
+            Purchase Date: {scanResponse?.formattedCreatedAt || "No Record"}
           </Text>
         </View>
 
@@ -72,17 +69,17 @@ const TicketScanned: React.FC<TicketScannedProps> = ({ route }) => {
             <View style={styles.leftColumnContent}>
               <Text style={styles.values}>Category</Text>
               <Typography style={[styles.value, styles.marginTop10]}>
-                {scanResponse?.category || 'No Record'}
+                {scanResponse?.ticketCategory || "No Record"}
               </Typography>
 
               <Text style={[styles.values, styles.marginTop10]}>Class</Text>
               <Typography style={[styles.value, styles.marginTop10]}>
-                {scanResponse?.ticketClass || 'No Record'}
+                {scanResponse?.ticketClass || "No Record"}
               </Typography>
 
               <Text style={[styles.values, styles.marginTop10]}>Ticket ID</Text>
               <Text style={[styles.ticketNumber, styles.marginTop10]}>
-                {scanResponse?.ticket_number || 'No Record'}
+                {scanResponse?.ticketNumber || "No Record"}
               </Text>
 
               <Text style={[styles.values]}>Last Scanned On</Text>
@@ -95,29 +92,25 @@ const TicketScanned: React.FC<TicketScannedProps> = ({ route }) => {
             <View style={styles.rightColumnContent}>
               <Text style={styles.values}>Scanned By</Text>
               <Text style={[styles.valueScanCount, styles.marginTop8]}>
-                {truncateStaffName(scannedByName) || 'No Record'}
+                {truncateStaffName(scannedByName) || "No Record"}
               </Text>
 
-              <Text style={[styles.values, styles.marginTop10]}>
-                Staff ID
-              </Text>
+              <Text style={[styles.values, styles.marginTop10]}>Staff ID</Text>
               <Text style={[styles.valueScanCount, styles.marginTop8]}>
-                {scannedByStaffId || 'No Record'}
+                {scannedByStaffId || "No Record"}
               </Text>
 
-              <Text style={[styles.values, styles.marginTop10]}>
-                Price
-              </Text>
+              <Text style={[styles.values, styles.marginTop10]}>Price</Text>
               <Text style={[styles.value, styles.marginTop10]}>
-                {scanResponse?.currency || 'GHS'}{' '}
-                {scanResponse?.ticket_price || 'No Record'}
+                {scanResponse?.currency || "GHS"}{" "}
+                {scanResponse?.ticketPrice || "No Record"}
               </Text>
 
               <Text style={[styles.values, styles.marginTop10]}>
                 Scan Count
               </Text>
               <Text style={[styles.valueScanCount, styles.marginTop9]}>
-                {scanResponse?.scan_count || 'No Record'}
+                {scanResponse?.scanCount || "No Record"}
               </Text>
             </View>
           </View>

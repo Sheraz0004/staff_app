@@ -45,6 +45,7 @@ export const styles = StyleSheet.create({
 
   // ── Event Cards ──
   eventsContainer: { paddingHorizontal: 20 },
+  listContent: { paddingHorizontal: 20, paddingBottom: 40 },
   largeCard: { marginBottom: 24 },
   largeImageContainer: { height: 200 },
   largeImage: { width: '100%', height: '100%', resizeMode: 'cover', borderRadius: 12 },
@@ -57,6 +58,7 @@ export const styles = StyleSheet.create({
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 },
   clearAllButton: { marginTop: 12, paddingVertical: 8, paddingHorizontal: 16 },
   bottomSpacer: { height: 40 },
+  footerLoader: { paddingVertical: 16, alignItems: 'center' },
 
   // ── Bottom Sheet Modal ──
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.4)', justifyContent: 'flex-end' },

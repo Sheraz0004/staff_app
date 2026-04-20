@@ -18,6 +18,10 @@ const API_CONFIG = {
     eventInfo: (eventId: string) => `/api/ticket/event/${eventId}/info/`,
     eventStats: (page: number = 1, pageSize: number = 10, eventClass: string = '') =>
       `/api/event/stats/?page=${page}&page_size=${pageSize}&event_class=${eventClass}`,
+    myEvents: (params: { page?: number; page_size?: number; sort_by?: string; sort_dir?: string } = {}) => {
+      const { page = 1, page_size = 20, sort_by = 'startDate', sort_dir = 'asc' } = params;
+      return `/api/staff-event-access/my-events/?page=${page}&page_size=${page_size}&sort_by=${sort_by}&sort_dir=${sort_dir}`;
+    },
   },
   DASHBOARD: {
     eventTypes: "/api/event/types/?page_size=-1",
@@ -76,6 +80,8 @@ const API_CONFIG = {
     boxOfficeGetTicket: `/api/orders/box-office/`,
     boxOfficeCheckinAll: (eventId: string, orderNumber: string) =>
       `/api/ticket/check-in-all/${eventId}/${orderNumber}/`,
+    orderLookup: `/api/orders/lookup/`,
+    orderDetails: (orderId: number) => `/api/orders/${orderId}/order-details/`,
   },
 };
 

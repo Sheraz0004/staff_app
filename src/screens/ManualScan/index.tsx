@@ -1,8 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, ListRenderItemInfo } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  ListRenderItemInfo,
+} from 'react-native';
 import Header from '../../components/header';
 import { color } from '../../color/color';
-import { useNavigation, useIsFocused, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import SvgIcons from '../../components/SvgIcons';
 import NoResults from '../../components/NoResults';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
@@ -10,6 +17,75 @@ import { useApi } from '../../services/useApi';
 import Loader from '../../components/Loader/Loader';
 import { CHECK_IN_SERVICES } from '../../services/CheckInService';
 import { styles } from './index.styles';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface ScannedBy {
+  email: string;
+  name: string;
+  scannedAt: string;
+  staffId: number;
+}
+
+interface OrderTicket {
+  id: number;
+  ticketNumber: string;
+  code: string;
+  checkinStatus: 'UNSCANNED' | 'SCANNED';
+  scanCount: number;
+  ticketPrice: number;
+  vat: number;
+  ticketType: string;
+  ticketClass: string;
+  category: string;
+  orderNumber: string;
+  userFirstName: string;
+  userLastName: string;
+  userEmail: string;
+  userPhone: string;
+  ticketHolder: string;
+  eventId: number;
+  eventName: string;
+  eventDate: string;
+  eventTime: string;
+  eventBanner: string | null;
+  currency: string;
+  organizationName: string;
+  location: string;
+  createdAt: string;
+  formattedDate: string;
+  message: string | null;
+  note: string | null;
+  scannedBy: ScannedBy | null;
+}
+
+interface OrderResult {
+  orderId: number;
+  orderNumber: string;
+  status: string;
+  boughtBy: string;
+  eventId: number;
+  eventTitle: string;
+  eventDate: string;
+  eventStartTime: string;
+  eventEndTime: string;
+  eventBanner: string | null;
+  total: number;
+  subtotal: number;
+  totalVat: number;
+  discountedValue: number | null;
+  currency: string;
+  paymentMethod: string | null;
+  transactionId: string | null;
+  createdAt: string;
+  buyerFirstName: string | null;
+  buyerLastName: string | null;
+  buyerEmail: string | null;
+  buyerPhone: string | null;
+  tickets: OrderTicket[];
+}
+
+// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface ManualScanProps {
   eventInfo?: any;
@@ -19,6 +95,8 @@ interface ManualScanProps {
   userRole?: string;
 }
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 const ManualScan = ({
   eventInfo: propEventInfo,
   onScanCountUpdate,
@@ -27,12 +105,7 @@ const ManualScan = ({
   userRole: propUserRole,
 }: ManualScanProps) => {
   const navigation = useNavigation<any>();
-  const isFocused = useIsFocused();
   const routeHook = useRoute<any>();
-  const [searchText, setSearchText] = useState<string>('');
-  const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
-  const [ticketOrders, setTicketOrders] = useState<any[]>([]);
-  const [isOffline, setIsOffline] = useState<boolean>(false);
   useOfflineSync();
 
   const eventInfo = propEventInfo || routeHook?.params?.eventInfo;
@@ -40,76 +113,99 @@ const ManualScan = ({
   const finalActiveTab = activeHeaderTab || routeHook?.params?.activeHeaderTab;
   const isFromRootStack = !propEventInfo && !!routeHook?.params?.eventInfo;
 
-  const { loading, requestCall: loadOrders } = useApi(CHECK_IN_SERVICES.fetchTicketOrders, false, true);
+  const [searchText, setSearchText] = useState<string>('');
+  const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
+  const [orders, setOrders] = useState<OrderResult[]>([]);
+  const [hasSearched, setHasSearched] = useState<boolean>(false);
 
-  const fetchOrders = async (): Promise<void> => {
-    if (!eventInfo?.eventUuid) return;
+  const { loading, requestCall: doLookup } = useApi(CHECK_IN_SERVICES.lookupOrders, false, true);
+
+  const handleSearch = async (): Promise<void> => {
+    const query = searchText.trim();
+    if (!query) return;
     try {
-      const res = await loadOrders(eventInfo.eventUuid);
-      const result = res?.data;
-      setIsOffline(!!result?.offline);
-      setTicketOrders(result?.data || []);
-    } catch (_) {
-      // error toast already shown by useApi
+      const res = await doLookup(query);
+      setOrders(res?.data ?? []);
+      setHasSearched(true);
+    } catch (error) {
+      // console.log("error--->",error.response)
     }
   };
 
-  useEffect(() => {
-    fetchOrders();
-  }, [eventInfo]);
-
-  useEffect(() => {
-    if (isFocused && eventInfo) fetchOrders();
-  }, [isFocused]);
-
-  const filterTickets = (): any[] => {
-    if (!searchText) return ticketOrders;
-    return ticketOrders.filter(
-      (order) =>
-        order.order_number?.toString().includes(searchText) ||
-        order.user_full_name?.toLowerCase().includes(searchText.toLowerCase())
-    );
+  const getBuyerName = (order: OrderResult): string => {
+    const first = order.buyerFirstName ?? '';
+    const last = order.buyerLastName ?? '';
+    return [first, last].filter(Boolean).join(' ') || 'N/A';
   };
 
-  const filteredTickets = filterTickets();
+  // Transform camelCase tickets from the lookup API into the snake_case shape
+  // that ManualCheckInAllTickets already knows how to render.
+  const toLegacyTickets = (tickets: OrderTicket[]) =>
+    tickets.map((t) => ({
+      code: t.code,
+      uuid: String(t.id),
+      ticket_number: t.ticketNumber,
+      ticket_type: t.ticketType,
+      ticket_class: t.ticketClass,
+      ticket_price: t.ticketPrice,
+      checkin_status: t.checkinStatus,
+      scan_count: t.scanCount,
+      note: t.note,
+      message: t.message,
+      category: t.category,
+      currency: t.currency,
+      formatted_date: t.formattedDate,
+      user_first_name: t.userFirstName,
+      user_last_name: t.userLastName,
+      user_email: t.userEmail,
+      user_phone: t.userPhone,
+      ticket_holder: t.ticketHolder,
+      scanned_by: t.scannedBy
+        ? {
+            name: t.scannedBy.name,
+            staff_id: t.scannedBy.staffId,
+            scanned_on: t.scannedBy.scannedAt,
+          }
+        : null,
+      last_scanned_on: t.scannedBy?.scannedAt ?? null,
+      last_scanned_by_name: t.scannedBy?.name ?? null,
+    }));
 
-  const renderItem = ({ item }: ListRenderItemInfo<any>) => (
+  const renderItem = ({ item }: ListRenderItemInfo<OrderResult>) => (
     <TouchableOpacity
       style={styles.ticketCard}
       onPress={() =>
         navigation.navigate('ManualCheckInAllTickets', {
           ticket: item,
-          total: item.ticket_count,
-          orderNumber: item.order_number,
-          eventUuid: eventInfo?.eventUuid,
+          total: item.tickets.length,
+          orderNumber: item.orderNumber,
+          eventUuid: item?.eventId,
           eventInfo,
           onScanCountUpdate,
-          category: item.category || 'N/A',
-          ticketClass: item.ticketClass || 'N/A',
+          category: item.tickets[0]?.category ?? 'N/A',
+          ticketClass: item.tickets[0]?.ticketClass ?? 'N/A',
+          preloadedTickets: toLegacyTickets(item.tickets),
         })
       }
     >
       <View style={styles.ticketRow}>
         <View style={styles.leftColumn}>
-          <Text style={styles.name}>{item.user_full_name || 'N/A'}</Text>
-          <Text style={styles.id}>{item.order_number || 'N/A'}</Text>
+          <Text style={styles.name}>{getBuyerName(item)}</Text>
+          <Text style={styles.id}>{item.orderNumber}</Text>
         </View>
         <View style={styles.rightColumn}>
           <Text style={styles.type}>Tickets</Text>
-          <Text style={styles.total}>{item.ticket_count?.toString() || 'N/A'}</Text>
+          <Text style={styles.total}>{item.tickets.length}</Text>
         </View>
       </View>
     </TouchableOpacity>
   );
 
+  const emptyMessage = hasSearched ? 'No Matching Results' : 'Search by order number, email, or phone';
+
   return (
     <View style={styles.mainContainer}>
       <Loader isLoading={loading} />
-      {isOffline && (
-        <View style={styles.offlineBanner}>
-          <Text style={styles.offlineText}>Offline Mode - Using cached data</Text>
-        </View>
-      )}
       <Header
         eventInfo={eventInfo}
         activeTab={finalActiveTab}
@@ -121,25 +217,29 @@ const ManualScan = ({
         <View style={[styles.searchContainer, isSearchFocused && styles.searchContainerFocused]}>
           <TextInput
             style={[styles.searchBar, searchText ? styles.searchInputWithText : styles.searchInputPlaceholder]}
-            placeholder="Order Number or User Name"
+            placeholder="Order number, email, or phone"
             placeholderTextColor={color.brown_766F6A}
-            onChangeText={setSearchText}
             value={searchText}
+            onChangeText={setSearchText}
             selectionColor={color.selectField_CEBCA0}
+            returnKeyType="search"
             onFocus={() => setIsSearchFocused(true)}
             onBlur={() => setIsSearchFocused(false)}
+            onSubmitEditing={handleSearch}
+            autoCapitalize="none"
+            autoCorrect={false}
           />
-          <TouchableOpacity>
+          <TouchableOpacity onPress={handleSearch}>
             <SvgIcons.searchIcon width={20} height={20} fill="transparent" />
           </TouchableOpacity>
         </View>
 
         <FlatList
-          data={filteredTickets}
+          data={orders}
           renderItem={renderItem}
-          keyExtractor={(item) => item.order_number?.toString() || Math.random().toString()}
+          keyExtractor={(item) => item.orderId.toString()}
           contentContainerStyle={styles.flatListContent}
-          ListEmptyComponent={() => <NoResults message="No Matching Results" />}
+          ListEmptyComponent={() => <NoResults message={emptyMessage} />}
         />
       </View>
     </View>

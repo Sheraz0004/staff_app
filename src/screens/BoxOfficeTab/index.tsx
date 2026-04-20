@@ -141,6 +141,7 @@ const BoxOfficeTab: React.FC<BoxOfficeTabProps> = ({ eventInfo, onScanCountUpdat
 
       // Fetch pricing categories
       const statsRes = await requestFetchStats(eventInfo.eventUuid);
+      // console.log("statsRes--->",statsRes)
       const pricingStatsResponse = statsRes?.data;
       if (pricingStatsResponse?.data) {
         const categories = pricingStatsResponse.data.map((item: any) => item.alias);
@@ -162,6 +163,7 @@ const BoxOfficeTab: React.FC<BoxOfficeTabProps> = ({ eventInfo, onScanCountUpdat
 
       // Fetch ticket pricing
       const pricingRes = await requestFetchPricing(eventInfo?.eventUuid);
+            console.log("pricingRes--->",pricingRes)
       const pricingData = pricingRes?.data;
 
       if (!pricingData) {
@@ -204,11 +206,7 @@ const BoxOfficeTab: React.FC<BoxOfficeTabProps> = ({ eventInfo, onScanCountUpdat
         return acc;
       }, []);
 
-      logger.log('BoxOfficeTab: Processed categories:', categories);
-
-      setTicketPricing(categories);
-
-      // Set initial selected tickets based on the selected tab
+      setTicketPricing(categories)
       let targetCategory: any;
       if (selectedTab && categories.find((cat: any) => cat.title === selectedTab)) {
         targetCategory = categories.find((cat: any) => cat.title === selectedTab);

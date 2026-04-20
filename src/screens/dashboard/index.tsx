@@ -205,7 +205,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
           }
 
           const stats = await ticketService.fetchDashboardStats();
-            logger.log('📊 Dashboard Stats for ORGANIZER:', JSON.stringify(stats, null, 2));
+            // logger.log('📊 Dashboard Stats for ORGANIZER:', JSON.stringify(stats, null, 2));
 
 
           // if (userRole === 'ORGANIZER') {

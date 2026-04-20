@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   Image,
-  Dimensions,
   Platform,
   StatusBar,
   ActivityIndicator,
@@ -15,14 +14,13 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { color } from '../../../color/color';
-import { eventService } from '../../../api/apiService';
+import { EVENT_SERVICES } from '../../../services/EventService';
 import { logger } from '../../../utils/logger';
 import SvgIcons from '../../../components/SvgIcons';
 import Typography from '../../../components/Typography';
-import { useSelector } from 'react-redux';
 import { styles } from './index.styles';
 
-const { width, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const PAGE_SIZE = 10;
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const MONTHS_FULL = [
@@ -32,16 +30,16 @@ const MONTHS_FULL = [
 
 interface EventItem {
   uuid?: string;
-  eventUuid?: string;
+  id?: number;
   title?: string;
-  event_title?: string;
-  image?: string;
-  date?: string;
-  time?: string;
-  location?: string;
-  cityName?: string;
-  rawDate?: string | null;
-  isBookmarked?: boolean;
+  banner?: string | null;
+  formattedStartDate?: string;
+  timeDuration?: string;
+  location?: string | null;
+  globalLocation?: string | null;
+  description?: string;
+  eventNumber?: string;
+  priceFrom?: number | null;
   [key: string]: any;
 }
 
@@ -77,30 +75,35 @@ interface EventsTicketsTabProps {
 const LargeEventCard: React.FC<LargeEventCardProps> = ({ event, onPress }) => (
   <TouchableOpacity style={styles.largeCard} onPress={onPress} activeOpacity={0.8}>
     <View style={styles.largeImageContainer}>
-      <Image source={{ uri: event.image }} style={styles.largeImage} />
+      <Image
+        source={{
+          uri: event.banner || 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800',
+        }}
+        style={styles.largeImage}
+      />
       <TouchableOpacity style={styles.bookmarkButton}>
         <SvgIcons.bookmarkedIcon />
       </TouchableOpacity>
     </View>
     <View style={styles.cardContent}>
       <Typography style={styles.eventTitle} weight="700" size={13} color={color.brown_3C200A}>
-        {event.title || event.event_title}
+        {event.title}
       </Typography>
       <Typography style={styles.eventDate} weight="400" size={10} color={color.grey_87807C}>
-        {event.date}
+        {event.formattedStartDate}
       </Typography>
       <Typography style={styles.eventTime} weight="400" size={10} color={color.grey_87807C}>
-        {event.time}
+        {event.timeDuration}
       </Typography>
       <Typography style={styles.eventLocation} weight="400" size={10} color={color.brown_766F6A} numberOfLines={1}>
-        {event.location || event.cityName}
+        {event.location || event.globalLocation || 'TBD'}
       </Typography>
     </View>
   </TouchableOpacity>
 );
 
 // ─────────────────────────────────────────────
-// Month Picker Grid (from AdminAllEventsDashboard)
+// Month Picker Grid
 // ─────────────────────────────────────────────
 const MonthPickerGrid: React.FC<MonthPickerGridProps> = ({ onMonthSelect, selectedMonth, selectedYear }) => {
   const currentDate = new Date();
@@ -119,7 +122,6 @@ const MonthPickerGrid: React.FC<MonthPickerGridProps> = ({ onMonthSelect, select
 
   return (
     <View style={styles.monthPickerGridContainer}>
-      {/* Year navigation */}
       <View style={styles.pickerNav}>
         <TouchableOpacity style={styles.navButton} onPress={() => setDisplayYear(displayYear - 1)}>
           <SvgIcons.leftArrowGreyBg />
@@ -132,7 +134,6 @@ const MonthPickerGrid: React.FC<MonthPickerGridProps> = ({ onMonthSelect, select
         </TouchableOpacity>
       </View>
 
-      {/* Months grid */}
       <View style={styles.monthsGrid}>
         {MONTHS_SHORT.map((month, index) => (
           <TouchableOpacity
@@ -207,28 +208,21 @@ const WhenFilterBottomSheet: React.FC<WhenFilterBottomSheetProps> = ({
 
   const handleFilterSelect = (filter: string) => {
     onFilterChange(filter);
-    // Auto-close for non-Month filters
     if (filter !== 'Month') {
       handleClose();
     }
   };
 
-  const handleMonthFieldPress = () => {
-    setShowMonthPicker(true);
-  };
-
   const handleMonthGridSelect = (monthIndex: number, year: number) => {
     onMonthSelect(monthIndex, year);
     setShowMonthPicker(false);
-    // Auto-close the entire bottom sheet after month selection
     handleClose();
   };
 
-  const filterOptions = ['All','Today', 'Tomorrow', 'This Week', 'Month'];
+  const filterOptions = ['All', 'Today', 'Tomorrow', 'This Week', 'Month'];
 
   if (!visible) return null;
 
-  // Show month picker grid view
   if (showMonthPicker) {
     return (
       <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
@@ -249,7 +243,6 @@ const WhenFilterBottomSheet: React.FC<WhenFilterBottomSheetProps> = ({
     );
   }
 
-  // Show "When" radio options
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
       <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={handleClose}>
@@ -259,12 +252,10 @@ const WhenFilterBottomSheet: React.FC<WhenFilterBottomSheetProps> = ({
         >
           <View style={styles.modalHandle} />
 
-          {/* Title */}
           <Typography weight="700" size={18} color={color.brown_3C200A} style={styles.filterTitle}>
             When
           </Typography>
 
-          {/* Radio options */}
           {filterOptions.map((option) => (
             <TouchableOpacity
               key={option}
@@ -284,11 +275,10 @@ const WhenFilterBottomSheet: React.FC<WhenFilterBottomSheetProps> = ({
             </TouchableOpacity>
           ))}
 
-          {/* Month dropdown field - shown when "Month" is selected */}
           {selectedFilter === 'Month' && (
             <TouchableOpacity
               style={styles.monthDropdownField}
-              onPress={handleMonthFieldPress}
+              onPress={() => setShowMonthPicker(true)}
               activeOpacity={0.7}
             >
               <SvgIcons.calendarIcon width={18} height={18} />
@@ -325,8 +315,10 @@ const EventsTicketsTab: React.FC<EventsTicketsTabProps> = ({ eventInfo, onEventC
   const [loading, setLoading] = useState(true);
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<EventItem[]>([]);
-  const authUser = useSelector((state: any) => state.entities.user.user);
-
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Filter state
   const [filterVisible, setFilterVisible] = useState(false);
@@ -334,55 +326,57 @@ const EventsTicketsTab: React.FC<EventsTicketsTabProps> = ({ eventInfo, onEventC
   const [selectedMonthIndex, setSelectedMonthIndex] = useState(new Date().getMonth());
   const [selectedMonthYear, setSelectedMonthYear] = useState(new Date().getFullYear());
 
-  // Fetch events from API
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        setLoading(true);
-        const staffEventsData = await eventService.fetchStaffEvents(authUser.id);
-        const eventsList = staffEventsData?.data || [];
+  const transformEvents = (events: any[]): EventItem[] =>
+    events
+      .filter((event: any) => event.id)
+      .map((event: any) => ({ ...event, uuid: String(event.id) }));
 
-        let events: any[] = [];
-        eventsList.forEach((item: any) => {
-          if (item.events && Array.isArray(item.events)) {
-            events = [...events, ...item.events];
-          } else if (item.uuid) {
-            events.push(item);
-          }
-        });
+  const loadEvents = async (pageNum: number, reset = false) => {
+    try {
+      // console.log('[EventsTicketsTab] fetchMyEvents request →', { page: pageNum, page_size: PAGE_SIZE });
+      const res = await EVENT_SERVICES.fetchMyEvents({ page: pageNum, page_size: PAGE_SIZE });
+      const responseData = res?.data;
+      // console.log('[EventsTicketsTab] fetchMyEvents response ←', responseData);
 
-        const transformedEvents: EventItem[] = events
-          .filter((event) => event.uuid || event.eventUuid)
-          .map((event) => {
-            const eventUuid = event.uuid || event.eventUuid;
-            return {
-              uuid: eventUuid,
-              eventUuid: eventUuid,
-              title: event.title || event.event_title,
-              event_title: event.title || event.event_title,
-              image: event.image || event.banner_url || 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800',
-              date: event.start_date || event.date || 'TBD',
-              time: event.start_time || event.time || 'TBD',
-              location: event.location?.city || event.cityName || event.venue || 'TBD',
-              cityName: event.location?.city || event.cityName,
-              rawDate: event.start_date || event.date || null,
-              isBookmarked: false,
-            };
-          });
+      const results: any[] = responseData?.events || [];
 
-        setAllEvents(transformedEvents);
-        setFilteredEvents(transformedEvents);
-      } catch (error: any) {
-        logger.error('Error fetching events for Tickets tab:', error.response);
+      const transformed = transformEvents(results);
+
+      setAllEvents(prev => reset ? transformed : [...prev, ...transformed]);
+      setPage(pageNum);
+      setHasMore(responseData?.hasMore ?? false);
+    } catch (error: any) {
+      console.log('[EventsTicketsTab] fetchMyEvents error ←', {
+        status: error?.response?.status,
+        data: error?.response?.data,
+        message: error?.message,
+      });
+      logger.error('Error fetching my events:', error?.response);
+      if (reset) {
         setAllEvents([]);
-        setFilteredEvents([]);
-      } finally {
-        setLoading(false);
       }
-    };
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+      setIsFetchingMore(false);
+    }
+  };
 
-    fetchEvents();
+  useEffect(() => {
+    loadEvents(1, true);
   }, []);
+
+  const handleRefresh = () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    loadEvents(1, true);
+  };
+
+  const handleLoadMore = () => {
+    if (!hasMore || isFetchingMore || loading || isRefreshing) return;
+    setIsFetchingMore(true);
+    loadEvents(page + 1, false);
+  };
 
   // Parse date helper
   const parseDate = (dateStr: string) => {
@@ -404,7 +398,7 @@ const EventsTicketsTab: React.FC<EventsTicketsTabProps> = ({ eventInfo, onEventC
 
   // Apply filter
   useEffect(() => {
-    if (!selectedFilter) {
+    if (!selectedFilter || selectedFilter === 'All') {
       setFilteredEvents(allEvents);
       return;
     }
@@ -413,7 +407,7 @@ const EventsTicketsTab: React.FC<EventsTicketsTabProps> = ({ eventInfo, onEventC
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     const filtered = allEvents.filter((event) => {
-      const eventDate = parseDate(event.rawDate || event.date);
+      const eventDate = parseDate(event.formattedStartDate ?? '');
       if (!eventDate) return true;
 
       const eventDay = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
@@ -445,7 +439,7 @@ const EventsTicketsTab: React.FC<EventsTicketsTabProps> = ({ eventInfo, onEventC
   }, [selectedFilter, selectedMonthIndex, selectedMonthYear, allEvents]);
 
   const handleFilterChange = (filter: string) => {
-    setSelectedFilter(filter);
+    setSelectedFilter(filter === 'All' ? null : filter);
   };
 
   const handleMonthSelect = (monthIndex: number, year: number) => {
@@ -459,11 +453,15 @@ const EventsTicketsTab: React.FC<EventsTicketsTabProps> = ({ eventInfo, onEventC
   };
 
   const handleEventPress = (event: EventItem) => {
+    console.log("event-->", event);
+
     const eventUuid = event.uuid || event.eventUuid;
-    if (!eventUuid || eventUuid.length < 10) {
-      logger.error('Invalid event UUID:', eventUuid);
-      return;
-    }
+
+    // if (!eventUuid || eventUuid.length < 10)
+    //    {
+    //   logger.error('Invalid event UUID:', eventUuid);
+    //   return;
+    // }
 
     const eventForChange = {
       uuid: eventUuid,
@@ -476,9 +474,9 @@ const EventsTicketsTab: React.FC<EventsTicketsTabProps> = ({ eventInfo, onEventC
     };
 
     if (onEventChange) onEventChange(eventForChange);
+
   };
 
-  // Active filter display text
   const getFilterText = () => {
     if (!selectedFilter) return null;
     if (selectedFilter === 'Month') {
@@ -488,6 +486,33 @@ const EventsTicketsTab: React.FC<EventsTicketsTabProps> = ({ eventInfo, onEventC
   };
 
   const activeFilterText = getFilterText();
+
+  const renderFooter = () => {
+    if (!isFetchingMore) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color={color.btnBrown_AE6F28} />
+      </View>
+    );
+  };
+
+  const renderEmpty = () => {
+    if (loading) return null;
+    return (
+      <View style={styles.emptyState}>
+        <Typography weight="400" size={16} color={color.brown_766F6A}>
+          {activeFilterText ? 'No events found for this filter' : 'No events available'}
+        </Typography>
+        {activeFilterText && (
+          <TouchableOpacity onPress={handleClearFilter} style={styles.clearAllButton}>
+            <Typography weight="600" size={14} color={color.btnBrown_AE6F28}>
+              Clear Filter
+            </Typography>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
 
   if (loading) {
     return (
@@ -539,34 +564,24 @@ const EventsTicketsTab: React.FC<EventsTicketsTabProps> = ({ eventInfo, onEventC
         </View>
       )}
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.eventsContainer}>
-          {filteredEvents.map((event, index) => (
-            <LargeEventCard
-              key={`${event.uuid || event.eventUuid}-${index}`}
-              event={event}
-              onPress={() => handleEventPress(event)}
-            />
-          ))}
-        </View>
-
-        {filteredEvents.length === 0 && (
-          <View style={styles.emptyState}>
-            <Typography weight="400" size={16} color={color.brown_766F6A}>
-              {activeFilterText ? 'No events found for this filter' : 'No events available'}
-            </Typography>
-            {activeFilterText && (
-              <TouchableOpacity onPress={handleClearFilter} style={styles.clearAllButton}>
-                <Typography weight="600" size={14} color={color.btnBrown_AE6F28}>
-                  Clear Filter
-                </Typography>
-              </TouchableOpacity>
-            )}
-          </View>
+      <FlatList
+        data={filteredEvents}
+        keyExtractor={(item, index) => `${item.uuid || item.eventUuid}-${index}`}
+        renderItem={({ item }) => (
+          <LargeEventCard
+            event={item}
+            onPress={() => handleEventPress(item)}
+          />
         )}
-
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
+        contentContainerStyle={styles.listContent}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.3}
+        onRefresh={handleRefresh}
+        refreshing={isRefreshing}
+        ListFooterComponent={renderFooter}
+        ListEmptyComponent={renderEmpty}
+        showsVerticalScrollIndicator={false}
+      />
 
       {/* When Filter Bottom Sheet */}
       <WhenFilterBottomSheet

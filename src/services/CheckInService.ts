@@ -4,15 +4,8 @@ import HTTP_CLIENT from "../utils/config";
 export const CHECK_IN_SERVICES = {
 
   scanTicket: (scannedData: string, note?: string) => {
-    // console.log("scannedData<----", scannedData)
-    const parts = scannedData.includes("/api/ticket/scan/")
-      ? scannedData.split("/api/ticket/scan/")[1].split("/")
-      : [];
-    const eventId = parts[0];
-    const code = parts[1];
-    console.log("eventId", { eventId, code });
-    return HTTP_CLIENT.post(scannedData);
-    // return HTTP_CLIENT.post(API_CONFIG.CHECK_IN.scanTicket(eventId, code), { note: note || null });
+    const [eventId, code] = scannedData.split(":");
+    return HTTP_CLIENT.post(API_CONFIG.CHECK_IN.scanTicket(eventId, code), { note: note || null });
   },
 
   updateTicketNote: (code: string, note: string, eventUuid: string) =>
@@ -24,10 +17,12 @@ export const CHECK_IN_SERVICES = {
   fetchTicketOrderDetails: (orderNumber: string, eventUuid: string) =>
     HTTP_CLIENT.get(API_CONFIG.CHECK_IN.fetchTicketOrderDetails(orderNumber, eventUuid)),
 
-  manualCheckin: (eventUuid: string, code: string) =>
-    HTTP_CLIENT.post(API_CONFIG.CHECK_IN.manualCheckin(eventUuid, code)),
+  manualCheckin: (eventUuid: string, code: string) => {
+    const url = `${API_CONFIG.BASE_URL}${API_CONFIG.CHECK_IN.manualCheckin(eventUuid, code)}`;
+    console.log('[Single Check-In] URL:', url);
+    return HTTP_CLIENT.post(API_CONFIG.CHECK_IN.manualCheckin(eventUuid, code));
+  },
 
-  // ─── Sell (Box Office) ───────────────────────────────────────────────────────
   fetchTicketPricingStats: (eventId: string) =>
     HTTP_CLIENT.get(API_CONFIG.CHECK_IN.fetchTicketPricingStats(eventId)),
 
@@ -55,6 +50,15 @@ export const CHECK_IN_SERVICES = {
       name,
     }),
 
-  boxOfficeCheckinAll: (eventUuid: string, orderNumber: string) =>
-    HTTP_CLIENT.patch(API_CONFIG.CHECK_IN.boxOfficeCheckinAll(eventUuid, orderNumber)),
+  boxOfficeCheckinAll: (eventUuid: string, orderNumber: string) => {
+    const url = `${API_CONFIG.BASE_URL}${API_CONFIG.CHECK_IN.boxOfficeCheckinAll(eventUuid, orderNumber)}`;
+    console.log('[Check-In All] URL:', url);
+    return HTTP_CLIENT.patch(API_CONFIG.CHECK_IN.boxOfficeCheckinAll(eventUuid, orderNumber));
+  },
+
+  lookupOrders: (searchFor: string) =>
+    HTTP_CLIENT.post(API_CONFIG.CHECK_IN.orderLookup, { searchFor }),
+
+  fetchOrderDetails: (orderId: number) =>
+    HTTP_CLIENT.get(API_CONFIG.CHECK_IN.orderDetails(orderId)),
 };

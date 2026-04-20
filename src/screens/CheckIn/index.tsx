@@ -1,26 +1,26 @@
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { CameraView, useCameraPermissions } from "expo-camera";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Text,
   TouchableOpacity,
   View,
   Dimensions,
   Animated,
-} from 'react-native';
-import CameraOverlay from '../../components/CameraOverlay';
-import Header from '../../components/header';
-import { color } from '../../color/color';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { getFormatDate } from '../../constants/currentdateandtime';
-import NoteModal from '../../constants/noteModal';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { logger } from '../../utils/logger';
-import { useOfflineSync } from '../../hooks/useOfflineSync';
-import { useApi } from '../../services/useApi';
-import { CHECK_IN_SERVICES } from '../../services/CheckInService';
-import { styles } from './index.styles';
+} from "react-native";
+import CameraOverlay from "../../components/CameraOverlay";
+import Header from "../../components/header";
+import { color } from "../../color/color";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import { getFormatDate } from "../../constants/currentdateandtime";
+import NoteModal from "../../constants/noteModal";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { logger } from "../../utils/logger";
+import { useOfflineSync } from "../../hooks/useOfflineSync";
+import { useApi } from "../../services/useApi";
+import { CHECK_IN_SERVICES } from "../../services/CheckInService";
+import { styles } from "./index.styles";
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 
 interface HomeScreenProps {
   eventInfo: any;
@@ -54,7 +54,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     false,
     false,
   );
-  const [facing, setFacing] = useState<'back' | 'front'>('back');
+  const [facing, setFacing] = useState<"back" | "front">("back");
   const [permission, requestPermission] = useCameraPermissions();
   const [scannedData, setScannedData] = useState<string | null>(null);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
@@ -68,7 +68,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   const [noteToEdit, setNoteToEdit] = useState<string | null>(null);
   const animatedWidth = useRef(new Animated.Value(0)).current;
   const [showAnimation, setShowAnimation] = useState<boolean>(false);
-  const [scanResponse, setScanResponse] = useState<any>(null);
+  const scanResponseRef = useRef<any>(null);
   const { isOnline } = useOfflineSync(false);
 
   useFocusEffect(
@@ -80,7 +80,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   useFocusEffect(
     useCallback(() => {
       if (onHeaderTabChange) {
-        onHeaderTabChange('Auto');
+        onHeaderTabChange("Auto");
       }
     }, [onHeaderTabChange]),
   );
@@ -125,7 +125,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   }
 
   function toggleCameraFacing() {
-    setFacing((current) => (current === 'back' ? 'front' : 'back'));
+    setFacing((current) => (current === "back" ? "front" : "back"));
   }
 
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
@@ -134,43 +134,41 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     setScanning(true);
     setScannedData(data);
     setScanTime(getFormatDate());
-    console.log("data-->",data)
-
     try {
-      const note = notes[data] || '';
+      const note = notes[data] || "";
       const res = await requestScan(data, note);
       const scanData = res?.data;
-
-      setScanResponse(scanData?.data);
+      console.log("scanData--->", scanData);
+      scanResponseRef.current = scanData;
 
       let scanResult: ScanResult = {
-        text: 'Scan Successful',
-        color: '#4BB543',
-        icon: 'check',
+        text: "Scan Successful",
+        color: "#4BB543",
+        icon: "check",
       };
 
       if (scanData?.offline || scanData?.queued) {
         scanResult = {
           text: scanData?.queued
-            ? 'Queued for Sync'
-            : 'Scan Successful (Offline)',
-          color: '#FFA500',
-          icon: 'check',
+            ? "Queued for Sync"
+            : "Scan Successful (Offline)",
+          color: "#FFA500",
+          icon: "check",
         };
-      } else if (scanData?.data?.scan_count > 1) {
+      } else if (scanData?.scanCount > 1) {
         scanResult = {
-          text: 'Scanned Already',
-          color: '#D8A236',
-          icon: 'close',
+          text: "Scanned Already",
+          color: "#D8A236",
+          icon: "close",
         };
       } else if (
-        scanData?.data?.status === 'error' ||
-        scanData?.data?.status === 'invalid'
+        scanData?.status === "error" ||
+        scanData?.status === "invalid"
       ) {
         scanResult = {
-          text: 'Scan Unsuccessful',
-          color: '#ED4337',
-          icon: 'close',
+          text: "Scan Unsuccessful",
+          color: "#ED4337",
+          icon: "close",
         };
       } else {
         if (onScanCountUpdate) onScanCountUpdate();
@@ -180,19 +178,19 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
       animateProgressBar();
       setShowAnimation(true);
     } catch (error: any) {
-        console.log('error--->', error.response.data);
+      console.log("error--->", error.response.data);
 
-      let errorMessage = 'Scan Unsuccessful';
-      let errorColor = '#ED4337';
+      let errorMessage = "Scan Unsuccessful";
+      let errorColor = "#ED4337";
 
       if (
-        error.response?.data?.non_field_errors?.includes('Scan limit reached.')
+        error.response?.data?.non_field_errors?.includes("Scan limit reached.")
       ) {
-        errorMessage = 'Scan Limit Reached';
-        errorColor = '#D8A236';
+        errorMessage = "Scan Limit Reached";
+        errorColor = "#D8A236";
       }
 
-      setScanResult({ text: errorMessage, color: errorColor, icon: 'close' });
+      setScanResult({ text: errorMessage, color: errorColor, icon: "close" });
       animateProgressBar();
       setShowAnimation(true);
     }
@@ -215,7 +213,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   const handleAddNote = async (newNote: string) => {
     if (!scannedData) return;
 
-    const parts = scannedData.split('/');
+    const parts = scannedData.split("/");
     const ticketCode = parts[parts.length - 2];
     const currentEventUuid = eventInfo?.eventUuid;
 
@@ -225,7 +223,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         setNotes((prevNotes) => ({ ...prevNotes, [scannedData]: newNote }));
       }
     } catch (error: any) {
-      logger.error('Failed to update ticket note:', error.message);
+      logger.error("Failed to update ticket note:", error.message);
     }
 
     setNoteModalVisible(false);
@@ -233,13 +231,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
   const handleNoteButtonPress = () => {
     if (noteCount === 1) {
-      navigation.navigate('TicketScanned', {
-        scanResponse,
+      navigation.navigate("TicketScanned", {
+        scanResponse: scanResponseRef.current,
         eventInfo,
-        note: notes[scannedData!] || 'No note added',
+        note: notes[scannedData!] || "No note added",
       });
     } else {
-      setNoteToEdit(notes[scannedData!] || '');
+      setNoteToEdit(notes[scannedData!] || "");
       setNoteModalVisible(true);
     }
   };
@@ -250,10 +248,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   };
 
   const handleDetailButtonPress = () => {
-    navigation.navigate('TicketScanned', {
-      scanResponse,
+    navigation.navigate("TicketScanned", {
+      scanResponse: scanResponseRef.current,
       eventInfo,
-      note: notes[scannedData!] || 'No note added',
+      note: notes[scannedData!] || "No note added",
     });
   };
 
@@ -274,7 +272,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
       />
       <View
         style={
-          userRole === 'ADMIN'
+          userRole === "ADMIN"
             ? styles.darkBackgroundAdmin
             : styles.darkBackground
         }
@@ -303,7 +301,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
             />
             <CameraOverlay
               linePosition={linePosition}
-              scannedData={scanResult ? scanResult.color : '#AE6F28'}
+              scannedData={scanResult ? scanResult.color : "#AE6F28"}
             />
           </View>
         </View>
@@ -337,7 +335,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                 >
                   <Text style={styles.detailColor}>Details</Text>
                 </TouchableOpacity>
-                {scanResult.text === 'Scanned Already' && (
+                {/* {scanResult.text === "Scanned Already" && ( */}
                   <TouchableOpacity
                     style={styles.noteButton}
                     onPress={handleNoteButtonPress}
@@ -353,7 +351,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                       </View>
                     )}
                   </TouchableOpacity>
-                )}
+                {/* // )} */}
               </View>
             </View>
           </View>

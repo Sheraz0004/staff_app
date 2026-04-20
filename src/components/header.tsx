@@ -79,10 +79,10 @@ const Header: React.FC<HeaderProps> = ({
             if (response.success) {
                 setUserData(response.data);
             } else {
-                Alert.alert('Error', 'Failed to fetch profile data');
+                // Alert.alert('Error', 'Failed to fetch profile data');
             }
         } catch (error) {
-            Alert.alert('Error', 'Failed to fetch profile data');
+            // Alert.alert('Error', 'Failed to fetch profile data');
         }
     };
 
