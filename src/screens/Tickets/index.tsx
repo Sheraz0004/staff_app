@@ -5,6 +5,8 @@ import Header from '../../components/header';
 import TicketsTab from '../TicketsTab';
 import BoxOfficeTab from '../BoxOfficeTab';
 import SvgIcons from '../../components/SvgIcons';
+import { useApi } from '../../services/useApi';
+import { EVENT_SERVICES } from '../../services/EventService';
 import { styles } from './index.styles';
 
 interface SettingsScreenProps {
@@ -32,6 +34,9 @@ const SettingsScreen = (props: SettingsScreenProps) => {
   const isFromRootStack = route?.name === 'TicketsDetail';
   const shouldOpenBoxOffice = routeParams?.openBoxOffice || routeParams?.screen === 'BoxOfficeTab';
 
+  const { requestCall: requestEventInfo } = useApi(EVENT_SERVICES.fetchEventInfo, false, false);
+  const [dynamicEventInfo, setDynamicEventInfo] = useState<any>(null);
+
   const [activeView, setActiveView] = useState<string>(shouldOpenBoxOffice ? 'BoxOfficeTab' : 'TicketsTab');
   const [tabKey, setTabKey] = useState<number>(0);
 
@@ -39,6 +44,29 @@ const SettingsScreen = (props: SettingsScreenProps) => {
   const [activeHeaderTab, setActiveHeaderTab] = useState<string>(
     shouldOpenBoxOffice ? 'Sell' : defaultHeaderTab
   );
+
+  const eventUuidForSell = finalEventInfo?.eventUuid || finalEventInfo?.uuid;
+  useEffect(() => {
+    if (!eventUuidForSell) return;
+    requestEventInfo(String(eventUuidForSell))
+      .then((infoRes: any) => {
+        const info = infoRes?.data;
+        if (info) {
+          setDynamicEventInfo({
+            ...(finalEventInfo || {}),
+            event_title: info?.eventTitle || info?.event_title,
+            date: info?.startDate || info?.start_date,
+            time: info?.startTime || info?.start_time,
+            staff_name: info?.staff_name,
+            scanCount: info?.scanCount ?? info?.scan_count,
+            event_uuid: info?.location?.uuid,
+            eventUuid: String(eventUuidForSell),
+            cityName: info?.location?.city,
+          });
+        }
+      })
+      .catch(() => {});
+  }, [eventUuidForSell]);
 
   useEffect(() => {
     if (routeParams?.initialTab === 'Scanned') {
@@ -76,7 +104,7 @@ const SettingsScreen = (props: SettingsScreenProps) => {
   return (
     <View style={styles.mainContainer}>
       <Header
-        eventInfo={finalEventInfo}
+        eventInfo={dynamicEventInfo || finalEventInfo}
         showBackButton={isFromRootStack}
         onBackPress={handleBackPress}
         activeTab={activeHeaderTab}

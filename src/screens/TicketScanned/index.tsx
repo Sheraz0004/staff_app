@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { SafeAreaView, Text, View } from "react-native";
 import Header from "../../components/header";
 import SvgIcons from "../../components/SvgIcons";
 import Typography from "../../components/Typography";
-import { formatDateTime } from "../../constants/dateAndTime";
+import { formatDateTime, formatDateWithMonthName } from "../../constants/dateAndTime";
 import { truncateStaffName } from "../../utils/stringUtils";
+import { useApi } from "../../services/useApi";
+import { EVENT_SERVICES } from "../../services/EventService";
 import { styles } from "./index.styles";
 
 interface TicketScannedProps {
@@ -16,8 +18,35 @@ const TicketScanned: React.FC<TicketScannedProps> = ({ route }) => {
     scanResponse,
     eventInfo,
     note,
-  }: { scanResponse: any; eventInfo: any; note: any } = route.params;
+    eventId,
+  }: { scanResponse: any; eventInfo: any; note: any; eventId?: string } = route.params;
   const displayedNote = note || scanResponse?.note || "No note added";
+
+  const { requestCall: requestEventInfo } = useApi(EVENT_SERVICES.fetchEventInfo, false, false);
+  const [fetchedEvent, setFetchedEvent] = useState<any>(null);
+
+  useEffect(() => {
+    const id = eventId || eventInfo?.eventUuid;
+    if (!id) return;
+    requestEventInfo(String(id))
+      .then((res: any) => {
+        const info = res?.data;
+        if (info) {
+          setFetchedEvent({
+            title: info?.eventTitle || info?.event_title,
+            date: info?.startDate || info?.start_date,
+            time: info?.startTime || info?.start_time,
+            city: info?.location?.city,
+          });
+        }
+      })
+      .catch(() => {});
+  }, [eventId]);
+
+  const eventTitle = fetchedEvent?.title || eventInfo?.event_title;
+  const eventDate = fetchedEvent?.date || eventInfo?.date;
+  const eventTime = fetchedEvent?.time || eventInfo?.time;
+  const eventCity = fetchedEvent?.city || eventInfo?.cityName;
   // Safely extract scanned by data
   const scannedByName: any =
     scanResponse?.scannedBy?.name ||
@@ -62,6 +91,38 @@ const TicketScanned: React.FC<TicketScannedProps> = ({ route }) => {
             Purchase Date: {scanResponse?.formattedCreatedAt || "No Record"}
           </Text>
         </View>
+
+        {/* EVENT DETAILS CARD */}
+        {(eventTitle || eventDate) && (
+          <View style={styles.ticketContainer}>
+            <View style={styles.row}>
+              <View style={styles.leftColumnContent}>
+                <Text style={styles.values}>Event</Text>
+                <Typography style={[styles.value, styles.marginTop10]}>
+                  {eventTitle || "No Record"}
+                </Typography>
+                {eventCity && (
+                  <>
+                    <Text style={[styles.values, styles.marginTop10]}>Location</Text>
+                    <Text style={[styles.valueScanCount, styles.marginTop10]}>
+                      {eventCity}
+                    </Text>
+                  </>
+                )}
+              </View>
+              <View style={styles.rightColumnContent}>
+                <Text style={styles.values}>Date</Text>
+                <Text style={[styles.valueScanCount, styles.marginTop8]}>
+                  {formatDateWithMonthName(eventDate) || "No Record"}
+                </Text>
+                <Text style={[styles.values, styles.marginTop10]}>Time</Text>
+                <Text style={[styles.valueScanCount, styles.marginTop8]}>
+                  {eventTime || "No Record"}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* TICKET INFO CARD */}
         <View style={styles.ticketContainer}>

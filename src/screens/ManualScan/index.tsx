@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { useOfflineSync } from '../../hooks/useOfflineSync';
 import { useApi } from '../../services/useApi';
 import Loader from '../../components/Loader/Loader';
 import { CHECK_IN_SERVICES } from '../../services/CheckInService';
+import { EVENT_SERVICES } from '../../services/EventService';
 import { styles } from './index.styles';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -119,15 +120,63 @@ const ManualScan = ({
   const [hasSearched, setHasSearched] = useState<boolean>(false);
 
   const { loading, requestCall: doLookup } = useApi(CHECK_IN_SERVICES.lookupOrders, false, true);
+  const { requestCall: requestEventInfo } = useApi(EVENT_SERVICES.fetchEventInfo, false, false);
+  const [dynamicEventInfo, setDynamicEventInfo] = useState<any>(null);
+
+  const eventUuid = eventInfo?.eventUuid || eventInfo?.uuid;
+  useEffect(() => {
+    if (!eventUuid) return;
+    requestEventInfo(String(eventUuid))
+      .then((infoRes: any) => {
+        const info = infoRes?.data;
+        if (info) {
+          setDynamicEventInfo({
+            ...(eventInfo || {}),
+            event_title: info?.eventTitle || info?.event_title,
+            date: info?.startDate || info?.start_date,
+            time: info?.startTime || info?.start_time,
+            staff_name: info?.staff_name,
+            scanCount: info?.scanCount ?? info?.scan_count,
+            event_uuid: info?.location?.uuid,
+            eventUuid: String(eventUuid),
+            cityName: info?.location?.city,
+          });
+        }
+      })
+      .catch(() => {});
+  }, [eventUuid]);
 
   const handleSearch = async (): Promise<void> => {
     const query = searchText.trim();
     if (!query) return;
     try {
       const res = await doLookup(query);
-      setOrders(res?.data ?? []);
+      const results: OrderResult[] = res?.data ?? [];
+      setOrders(results);
       console.log("Api response---->", res);
       setHasSearched(true);
+
+      const eventId = results[0]?.eventId;
+      if (eventId) {
+        requestEventInfo(String(eventId))
+          .then((infoRes: any) => {
+            const info = infoRes?.data;
+            if (info) {
+              setDynamicEventInfo({
+                ...(eventInfo || {}),
+                event_title: info?.eventTitle || info?.event_title,
+                date: info?.startDate || info?.start_date,
+                time: info?.startTime || info?.start_time,
+                staff_name: info?.staff_name,
+                scanCount: info?.scanCount ?? info?.scan_count,
+                event_uuid: info?.location?.uuid,
+                eventUuid: String(eventId),
+                cityName: info?.location?.city,
+              });
+            }
+          })
+          .catch(() => {});
+      }
     } catch (error) {
       // console.log("error--->",error.response)
     }
@@ -208,7 +257,7 @@ const ManualScan = ({
     <View style={styles.mainContainer}>
       <Loader isLoading={loading} />
       <Header
-        eventInfo={eventInfo}
+        eventInfo={dynamicEventInfo || eventInfo}
         activeTab={finalActiveTab}
         onTabChange={onHeaderTabChange}
         userRole={userRole}

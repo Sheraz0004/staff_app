@@ -35,6 +35,7 @@ function AdminTabs({
   const navigation = useNavigation();
 
   const onEventSelected = async (newEvent: any) => {
+    
     setActiveHeaderTab('Sell');
     const resolved = await handleEventChange(newEvent);
     navigation.navigate('DashboardDetail' as never, {
@@ -42,6 +43,8 @@ function AdminTabs({
       showEventDashboard: true,
     } as never);
   };
+
+
   const onTicketEventSelected = async (newEvent: any) => {
     const shouldOpenBoxOffice = !normalTicketMode.current;
     normalTicketMode.current = false;

@@ -22,6 +22,7 @@ import { logger } from "../../utils/logger";
 import { useOfflineSync } from "../../hooks/useOfflineSync";
 import { useApi } from "../../services/useApi";
 import { CHECK_IN_SERVICES } from "../../services/CheckInService";
+import { EVENT_SERVICES } from "../../services/EventService";
 import { styles } from "./index.styles";
 
 const { width } = Dimensions.get("window");
@@ -59,6 +60,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     false,
     false,
   );
+  const { requestCall: requestEventInfo } = useApi(
+    EVENT_SERVICES.fetchEventInfo,
+    false,
+    false,
+  );
+  const [dynamicEventInfo, setDynamicEventInfo] = useState<any>(null);
 
   const [permission, requestPermission] = useCameraPermissions();
   const [scannedData, setScannedData] = useState<string | null>(null);
@@ -115,6 +122,27 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
       setScannedData(data);
       setScanTime(getFormatDate());
       setIsDuplicateScan(false);
+      const [scannedEventId] = data.split(":");
+      if (scannedEventId) {
+        requestEventInfo(scannedEventId)
+          .then((infoRes: any) => {
+            const info = infoRes?.data;
+            if (info) {
+              setDynamicEventInfo((prev: any) => ({
+                ...(prev || eventInfo || {}),
+                event_title: info?.eventTitle || info?.event_title,
+                date: info?.startDate || info?.start_date,
+                time: info?.startTime || info?.start_time,
+                staff_name: info?.staff_name,
+                scanCount: info?.scanCount ?? info?.scan_count,
+                event_uuid: info?.location?.uuid,
+                eventUuid: scannedEventId,
+                cityName: info?.location?.city,
+              }));
+            }
+          })
+          .catch(() => {});
+      }
 
       try {
         const note = notesRef.current[data] || "";
@@ -144,6 +172,27 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         } else if (scanData?.scanCount > 1) {
           result = { text: "Scanned Already", color: "#D8A236", icon: "close" };
           setIsDuplicateScan(true);
+          const eventIdFromScan = scanData?.eventId;
+          if (eventIdFromScan) {
+            requestEventInfo(String(eventIdFromScan))
+              .then((infoRes: any) => {
+                const info = infoRes?.data;
+                if (info) {
+                  setDynamicEventInfo((prev: any) => ({
+                    ...(prev || eventInfo || {}),
+                    event_title: info?.eventTitle || info?.event_title,
+                    date: info?.startDate || info?.start_date,
+                    time: info?.startTime || info?.start_time,
+                    staff_name: info?.staff_name,
+                    scanCount: info?.scanCount ?? info?.scan_count,
+                    event_uuid: info?.location?.uuid,
+                    eventUuid: String(eventIdFromScan),
+                    cityName: info?.location?.city,
+                  }));
+                }
+              })
+              .catch(() => {});
+          }
         } else if (
           scanData?.status === "error" ||
           scanData?.status === "invalid"
@@ -215,19 +264,24 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   }, []);
 
   const handleDetailButtonPress = useCallback(() => {
+    const scannedEventId =
+      scannedData?.split(":")?.[0] ||
+      scanResponseRef.current?.eventId ||
+      dynamicEventInfo?.eventUuid;
     navigation.navigate("TicketScanned", {
       scanResponse: scanResponseRef.current,
-      eventInfo,
+      eventInfo: dynamicEventInfo || eventInfo,
       note: notes[scannedData!] || "No note added",
+      eventId: scannedEventId,
     });
-  }, [navigation, eventInfo, notes, scannedData]);
+  }, [navigation, dynamicEventInfo, eventInfo, notes, scannedData]);
 
   if (!permission) return <View />;
   if (!permission.granted) {
     return (
       <View style={styles.container}>
         <Header
-          eventInfo={eventInfo}
+          eventInfo={dynamicEventInfo || eventInfo}
           activeTab={activeHeaderTab}
           onTabChange={onHeaderTabChange}
           userRole={userRole}
@@ -245,12 +299,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
           </Text>
         </View>
       )}
-      <Header
-        eventInfo={eventInfo}
-        activeTab={activeHeaderTab}
-        onTabChange={onHeaderTabChange}
-        userRole={userRole}
-      />
+    <Header
+          eventInfo={dynamicEventInfo || eventInfo}
+          activeTab={activeHeaderTab}
+          onTabChange={onHeaderTabChange}
+          userRole={userRole}
+        />
       <View
         style={
           userRole === "ADMIN"

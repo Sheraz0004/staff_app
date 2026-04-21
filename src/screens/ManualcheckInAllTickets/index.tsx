@@ -14,7 +14,7 @@ import CheckInAllPopup from "../../constants/checkInAllPopupticketList"; // Corr
 import SuccessPopup from "../../constants/SuccessPopup";
 import ErrorPopup from "../../constants/ErrorPopup";
 import Typography from "../../components/Typography";
-import { formatDateTime } from "../../constants/dateAndTime";
+import { formatDateTime, formatDateWithMonthName } from "../../constants/dateAndTime";
 import { truncateStaffName } from "../../utils/stringUtils";
 import { logger } from "../../utils/logger";
 import { useOfflineSync } from "../../hooks/useOfflineSync";
@@ -24,6 +24,7 @@ import { offlineStorage } from "../../utils/offlineStorage";
 import OfflineIndicator from "../../components/OfflineIndicator";
 import { useApi } from "../../services/useApi";
 import { CHECK_IN_SERVICES } from "../../services/CheckInService";
+import { EVENT_SERVICES } from "../../services/EventService";
 import { styles } from "./index.styles";
 
 const ManualCheckInAllTickets: React.FC = () => {
@@ -37,11 +38,17 @@ const ManualCheckInAllTickets: React.FC = () => {
     false,
   );
   // console.log("params--->",eventUuid)
+  const { requestCall: requestEventInfo } = useApi(
+    EVENT_SERVICES.fetchEventInfo,
+    false,
+    false,
+  );
   const { loading: isCheckingIn, requestCall: doCheckin } = useApi(
     CHECK_IN_SERVICES.manualCheckin,
     false,
     false,
   );
+  const [dynamicEventInfo, setDynamicEventInfo] = useState<any>(null);
   const { loading: isCheckingInAll, requestCall: doCheckinAll } = useApi(
     CHECK_IN_SERVICES.boxOfficeCheckinAll,
     false,
@@ -58,6 +65,28 @@ const ManualCheckInAllTickets: React.FC = () => {
   const [isOffline, setIsOffline] = useState<boolean>(false);
   const [isQueued, setIsQueued] = useState<boolean>(false);
   const { isOnline, queueSize, triggerSync } = useOfflineSync();
+
+  useEffect(() => {
+    if (!eventUuid) return;
+    requestEventInfo(String(eventUuid))
+      .then((infoRes: any) => {
+        const info = infoRes?.data;
+        if (info) {
+          setDynamicEventInfo({
+            ...(eventInfo || {}),
+            event_title: info?.eventTitle || info?.event_title,
+            date: info?.startDate || info?.start_date,
+            time: info?.startTime || info?.start_time,
+            staff_name: info?.staff_name,
+            scanCount: info?.scanCount ?? info?.scan_count,
+            event_uuid: info?.location?.uuid,
+            eventUuid: String(eventUuid),
+            cityName: info?.location?.city,
+          });
+        }
+      })
+      .catch(() => {});
+  }, [eventUuid]);
 
   // Function to refresh ticket details
   const fetchTicketDetails = async () => {
@@ -577,7 +606,7 @@ const ManualCheckInAllTickets: React.FC = () => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <Header eventInfo={eventInfo} />
+        <Header eventInfo={dynamicEventInfo || eventInfo} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={color.btnBrown_AE6F28} />
         </View>
@@ -588,7 +617,7 @@ const ManualCheckInAllTickets: React.FC = () => {
   if (error) {
     return (
       <SafeAreaView style={styles.container}>
-        <Header eventInfo={eventInfo} />
+        <Header eventInfo={dynamicEventInfo || eventInfo} />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
         </View>
@@ -599,7 +628,7 @@ const ManualCheckInAllTickets: React.FC = () => {
   if (!ticketDetails || ticketDetails.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <Header eventInfo={eventInfo} />
+        <Header eventInfo={dynamicEventInfo || eventInfo} />
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>
             No ticket details found for this order.
@@ -611,7 +640,7 @@ const ManualCheckInAllTickets: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header eventInfo={eventInfo} />
+      <Header eventInfo={dynamicEventInfo || eventInfo} />
       <OfflineIndicator />
       {isQueued && (
         <View style={styles.queuedBanner}>
@@ -674,8 +703,38 @@ const ManualCheckInAllTickets: React.FC = () => {
             </TouchableOpacity>
           )}
         </View>
-        
 
+        {/* EVENT DETAILS CARD */}
+        {((dynamicEventInfo || eventInfo)?.event_title || (dynamicEventInfo || eventInfo)?.date) && (
+          <View style={styles.ticketContainer}>
+            <View style={styles.row}>
+              <View style={styles.leftColumnContent}>
+                <Text style={styles.values}>Event</Text>
+                <Text style={[styles.valueScanCount, styles.marginTop10]}>
+                  {(dynamicEventInfo || eventInfo)?.event_title || "No Record"}
+                </Text>
+                {(dynamicEventInfo || eventInfo)?.cityName && (
+                  <>
+                    <Text style={[styles.values, styles.marginTop10]}>Location</Text>
+                    <Text style={[styles.valueScanCount, styles.marginTop10]}>
+                      {(dynamicEventInfo || eventInfo)?.cityName}
+                    </Text>
+                  </>
+                )}
+              </View>
+              <View style={styles.rightColumnContent}>
+                <Text style={styles.values}>Date</Text>
+                <Text style={[styles.valueScanCount, styles.marginTop8]}>
+                  {formatDateWithMonthName((dynamicEventInfo || eventInfo)?.date) || "No Record"}
+                </Text>
+                <Text style={[styles.values, styles.marginTop10]}>Time</Text>
+                <Text style={[styles.valueScanCount, styles.marginTop8]}>
+                  {(dynamicEventInfo || eventInfo)?.time || "No Record"}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {total === 1 && ticketDetails.length === 1 && (
           <View style={styles.ticketContainer}>
