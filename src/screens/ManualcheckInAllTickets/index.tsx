@@ -4,6 +4,7 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ActivityIndicator,
+  ScrollView,
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import Header from "../../components/header";
@@ -14,7 +15,10 @@ import CheckInAllPopup from "../../constants/checkInAllPopupticketList"; // Corr
 import SuccessPopup from "../../constants/SuccessPopup";
 import ErrorPopup from "../../constants/ErrorPopup";
 import Typography from "../../components/Typography";
-import { formatDateTime, formatDateWithMonthName } from "../../constants/dateAndTime";
+import {
+  formatDateTime,
+  formatDateWithMonthName,
+} from "../../constants/dateAndTime";
 import { truncateStaffName } from "../../utils/stringUtils";
 import { logger } from "../../utils/logger";
 import { useOfflineSync } from "../../hooks/useOfflineSync";
@@ -55,7 +59,7 @@ const ManualCheckInAllTickets: React.FC = () => {
     true,
   );
   const [ticketDetails, setTicketDetails] = useState<any[]>([]);
-  console.log({ticketDetails})
+  console.log({ ticketDetails });
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [userDetails, setUserDetails] = useState<any>(null);
@@ -95,7 +99,7 @@ const ManualCheckInAllTickets: React.FC = () => {
     try {
       const res = await fetchDetails(orderNumber, eventUuid);
       const response = res?.data;
-      
+
       logger.log("Ticket Details Response:", JSON.stringify(response, null, 2));
 
       // Check if response is from offline cache
@@ -182,7 +186,7 @@ const ManualCheckInAllTickets: React.FC = () => {
   // Listen for sync completion
   useEffect(() => {
     const unsubscribe = syncService.addListener(async (syncResult: any) => {
-                fetchTicketDetails();
+      fetchTicketDetails();
       // if (syncResult.success && syncResult.synced > 0) {
       //   logger.log("Sync completed - refreshing ticket details");
       //   // Clear cached order details to force fresh fetch from server
@@ -508,8 +512,8 @@ const ManualCheckInAllTickets: React.FC = () => {
       setShowSuccessPopup(true);
       if (route.params?.onScanCountUpdate) route.params.onScanCountUpdate();
     } catch (error) {
-              logger.error("Check-in error:", error.response.data);
-        
+      logger.error("Check-in error:", error.response.data);
+
       setShowErrorPopup(true);
     }
   };
@@ -649,223 +653,234 @@ const ManualCheckInAllTickets: React.FC = () => {
           </Text>
         </View>
       )}
-      <View style={styles.wrapper}>
-        <View style={styles.popUp}>
-          <SvgIcons.successBrownSVG
-            width={81}
-            height={80}
-            fill="transparent"
-            style={styles.successImageIcon}
-          />
-          <Text style={styles.userName}>{userDetails?.name}</Text>
-          {/* <Text style={styles.ticketHolder}>Ticket Holder</Text> */}
-          <Text style={styles.ticketHolder}>{userDetails?.email}</Text>
-          <Text style={styles.ticketPurchaseDate}>
-            Purchase Date: {userDetails?.purchaseDate}
-          </Text>
-          {total === 1 && (
-            <TouchableOpacity
-              style={[
-                styles.button,
-                isOffline && !checkInSuccess && styles.buttonOffline,
-                isQueued && styles.buttonQueued,
-              ]}
-              onPress={handleSingleCheckIn}
-              disabled={isCheckingIn || checkInSuccess}
-            >
-              {isCheckingIn ? (
-                <ActivityIndicator color={color.btnTxt_FFF6DF} />
-              ) : checkInSuccess ? (
-                <Text style={styles.buttonText}>
-                  {isQueued ? "Queued" : "Scanned"}
-                </Text>
-              ) : (
-                <Text style={styles.buttonText}>
-                  {isOffline ? "Check-In (Offline)" : "Check-In"}
-                </Text>
-              )}
-            </TouchableOpacity>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <View style={styles.wrapper}>
+          <View style={styles.popUp}>
+            <SvgIcons.successBrownSVG
+              width={81}
+              height={80}
+              fill="transparent"
+              style={styles.successImageIcon}
+            />
+            <Text style={styles.userName}>{userDetails?.name}</Text>
+            {/* <Text style={styles.ticketHolder}>Ticket Holder</Text> */}
+            <Text style={styles.ticketHolder}>{userDetails?.email}</Text>
+            <Text style={styles.ticketPurchaseDate}>
+              Purchase Date: {userDetails?.purchaseDate}
+            </Text>
+            {total === 1 && (
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  isOffline && !checkInSuccess && styles.buttonOffline,
+                  isQueued && styles.buttonQueued,
+                ]}
+                onPress={handleSingleCheckIn}
+                disabled={isCheckingIn || checkInSuccess}
+              >
+                {isCheckingIn ? (
+                  <ActivityIndicator color={color.btnTxt_FFF6DF} />
+                ) : checkInSuccess ? (
+                  <Text style={styles.buttonText}>
+                    {isQueued ? "Queued" : "Scanned"}
+                  </Text>
+                ) : (
+                  <Text style={styles.buttonText}>
+                    {isOffline ? "Check-In (Offline)" : "Check-In"}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
+
+            {total > 1 && (
+              <TouchableOpacity
+                style={[styles.button, allCheckedIn && styles.buttonQueued]}
+                onPress={handleCheckInAll}
+                disabled={isCheckingInAll || allCheckedIn}
+              >
+                {isCheckingInAll ? (
+                  <ActivityIndicator color={color.btnTxt_FFF6DF} />
+                ) : (
+                  <Text style={styles.buttonText}>
+                    {allCheckedIn ? "All Scanned" : "Check-In All"}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* EVENT DETAILS CARD */}
+          {((dynamicEventInfo || eventInfo)?.event_title ||
+            (dynamicEventInfo || eventInfo)?.date) && (
+            <View style={styles.ticketContainer}>
+              <View style={styles.row}>
+                <View style={styles.leftColumnContent}>
+                  <Text style={styles.values}>Event</Text>
+                  <Text style={[styles.valueScanCount, styles.marginTop10]}>
+                    {(dynamicEventInfo || eventInfo)?.event_title ||
+                      "No Record"}
+                  </Text>
+                  {(dynamicEventInfo || eventInfo)?.cityName && (
+                    <>
+                      <Text style={[styles.values, styles.marginTop10]}>
+                        Location
+                      </Text>
+                      <Text style={[styles.valueScanCount, styles.marginTop10]}>
+                        {(dynamicEventInfo || eventInfo)?.cityName}
+                      </Text>
+                    </>
+                  )}
+                </View>
+                <View style={styles.rightColumnContent}>
+                  <Text style={styles.values}>Date</Text>
+                  <Text style={[styles.valueScanCount, styles.marginTop8]}>
+                    {formatDateWithMonthName(
+                      (dynamicEventInfo || eventInfo)?.date,
+                    ) || "No Record"}
+                  </Text>
+                  <Text style={[styles.values, styles.marginTop10]}>Time</Text>
+                  <Text style={[styles.valueScanCount, styles.marginTop8]}>
+                    {(dynamicEventInfo || eventInfo)?.time || "No Record"}
+                  </Text>
+                </View>
+              </View>
+            </View>
           )}
 
-          {total > 1 && (
-            <TouchableOpacity
-              style={[styles.button, allCheckedIn && styles.buttonQueued]}
-              onPress={handleCheckInAll}
-              disabled={isCheckingInAll || allCheckedIn}
-            >
-              {isCheckingInAll ? (
-                <ActivityIndicator color={color.btnTxt_FFF6DF} />
-              ) : (
-                <Text style={styles.buttonText}>
-                  {allCheckedIn ? "All Scanned" : "Check-In All"}
-                </Text>
-              )}
-            </TouchableOpacity>
+          {total === 1 && ticketDetails.length === 1 && (
+            <View style={styles.ticketContainer}>
+              <View style={styles.row}>
+                <View style={styles.leftColumnContent}>
+                  <Text style={styles.values}>Category</Text>
+                  <Typography
+                    style={[styles.value, styles.marginTop10]}
+                    weight="400"
+                    size={14}
+                    color={color.brown_3C200A}
+                  >
+                    {ticketDetails[0]?.category || "No Record"}
+                  </Typography>
+                  <Text style={[styles.values, styles.marginTop10]}>Class</Text>
+                  <Typography
+                    style={[styles.value, styles.marginTop10]}
+                    weight="400"
+                    size={14}
+                    color={color.brown_3C200A}
+                  >
+                    {ticketDetails[0]?.ticket_class || "No Record"}
+                  </Typography>
+                  <Text style={[styles.values, styles.marginTop10]}>
+                    Ticket ID
+                  </Text>
+                  <Text style={[styles.ticketNumber, styles.marginTop10]}>
+                    {ticketDetails[0]?.ticket_number || "No Record"}
+                  </Text>
+                  <Text style={[styles.values]}>Last Scanned On</Text>
+                  <Text style={[styles.valueScanCount, styles.marginTop10]}>
+                    {formatDateTime(ticketDetails[0]?.scanned_by?.scanned_on) ||
+                      "No Record"}
+                  </Text>
+                </View>
+                <View style={styles.rightColumnContent}>
+                  <Text style={styles.values}>Scanned By</Text>
+                  <Text style={[styles.valueScanCount, styles.marginTop8]}>
+                    {truncateStaffName(ticketDetails[0]?.scanned_by?.name) ||
+                      "No Record"}
+                  </Text>
+                  <Text style={[styles.values, styles.marginTop10]}>
+                    Staff ID
+                  </Text>
+                  <Text style={[styles.valueScanCount, styles.marginTop8]}>
+                    {ticketDetails[0]?.scanned_by?.staff_id || "No Record"}
+                  </Text>
+                  <Text style={[styles.values, styles.marginTop10]}>Price</Text>
+                  <Text style={[styles.value, styles.marginTop10]}>
+                    {ticketDetails[0]?.currency || "GHS"}{" "}
+                    {ticketDetails[0]?.ticket_price || "No Record"}
+                  </Text>
+                  <Text style={[styles.values, styles.marginTop10]}>
+                    Scan Count
+                  </Text>
+                  <Text style={[styles.valueScanCount, styles.marginTop9]}>
+                    {ticketDetails[0]?.scan_count || "No Record"}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Note section for single ticket */}
+          {total === 1 && ticketDetails.length === 1 && (
+            <View style={styles.noteContainer}>
+              <Text style={styles.LabelNote}>Note</Text>
+              <Text style={styles.noteDescription}>
+                {ticketDetails[0]?.note || "No note added"}
+              </Text>
+            </View>
+          )}
+
+          {total > 1 && ticketDetails.length > 0 && (
+            <View style={styles.ticketsList}>
+              <CheckInAllPopup
+                ticketslist={ticketDetails?.map((ticket: any) => ({
+                  order_number: ticket.ticket_number,
+                  type: ticket.ticket_type,
+                  price: ticket.ticket_price,
+                  date: ticket.formatted_date,
+                  status: ticket.checkin_status,
+                  code: ticket.code,
+                  note: ticket.note,
+                  uuid: ticket.uuid,
+                  eventUuid: eventUuid,
+                  message: ticket.message,
+                  last_scanned_on: ticket.last_scanned_on,
+                  scanCount: ticket.scan_count,
+                  ticketHolder: ticket.ticket_holder,
+                  lastScannedByName: ticket.last_scanned_by_name,
+                  currency: ticket.currency,
+                  eventInfo: eventInfo,
+                  ticket_number: ticket.ticket_number,
+                  name:
+                    `${ticket.user_first_name || ""} ${ticket.user_last_name || ""}`.trim() ||
+                    "No Record",
+                  category: ticket.category || "No Record",
+                  ticketClass: ticket.ticket_class || "No Record",
+                  scanned_by: ticket.scanned_by,
+                  scanned_on: ticket.scanned_by?.scanned_on || "No Record",
+                }))}
+                onTicketStatusChange={handleTicketStatusChange}
+                onScanCountUpdate={route.params?.onScanCountUpdate}
+                userEmail={userDetails?.email}
+              />
+            </View>
           )}
         </View>
-
-        {/* EVENT DETAILS CARD */}
-        {((dynamicEventInfo || eventInfo)?.event_title || (dynamicEventInfo || eventInfo)?.date) && (
-          <View style={styles.ticketContainer}>
-            <View style={styles.row}>
-              <View style={styles.leftColumnContent}>
-                <Text style={styles.values}>Event</Text>
-                <Text style={[styles.valueScanCount, styles.marginTop10]}>
-                  {(dynamicEventInfo || eventInfo)?.event_title || "No Record"}
-                </Text>
-                {(dynamicEventInfo || eventInfo)?.cityName && (
-                  <>
-                    <Text style={[styles.values, styles.marginTop10]}>Location</Text>
-                    <Text style={[styles.valueScanCount, styles.marginTop10]}>
-                      {(dynamicEventInfo || eventInfo)?.cityName}
-                    </Text>
-                  </>
-                )}
-              </View>
-              <View style={styles.rightColumnContent}>
-                <Text style={styles.values}>Date</Text>
-                <Text style={[styles.valueScanCount, styles.marginTop8]}>
-                  {formatDateWithMonthName((dynamicEventInfo || eventInfo)?.date) || "No Record"}
-                </Text>
-                <Text style={[styles.values, styles.marginTop10]}>Time</Text>
-                <Text style={[styles.valueScanCount, styles.marginTop8]}>
-                  {(dynamicEventInfo || eventInfo)?.time || "No Record"}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {total === 1 && ticketDetails.length === 1 && (
-          <View style={styles.ticketContainer}>
-            <View style={styles.row}>
-              <View style={styles.leftColumnContent}>
-                <Text style={styles.values}>Category</Text>
-                <Typography
-                  style={[styles.value, styles.marginTop10]}
-                  weight="400"
-                  size={14}
-                  color={color.brown_3C200A}
-                >
-                  {ticketDetails[0]?.category || "No Record"}
-                </Typography>
-                <Text style={[styles.values, styles.marginTop10]}>Class</Text>
-                <Typography
-                  style={[styles.value, styles.marginTop10]}
-                  weight="400"
-                  size={14}
-                  color={color.brown_3C200A}
-                >
-                  {ticketDetails[0]?.ticket_class || "No Record"}
-                </Typography>
-                <Text style={[styles.values, styles.marginTop10]}>
-                  Ticket ID
-                </Text>
-                <Text style={[styles.ticketNumber, styles.marginTop10]}>
-                  {ticketDetails[0]?.ticket_number || "No Record"}
-                </Text>
-                <Text style={[styles.values]}>Last Scanned On</Text>
-                <Text style={[styles.valueScanCount, styles.marginTop10]}>
-                  {formatDateTime(ticketDetails[0]?.scanned_by?.scanned_on) ||
-                    "No Record"}
-                </Text>
-              </View>
-              <View style={styles.rightColumnContent}>
-                <Text style={styles.values}>Scanned By</Text>
-                <Text style={[styles.valueScanCount, styles.marginTop8]}>
-                  {truncateStaffName(ticketDetails[0]?.scanned_by?.name) ||
-                    "No Record"}
-                </Text>
-                <Text style={[styles.values, styles.marginTop10]}>
-                  Staff ID
-                </Text>
-                <Text style={[styles.valueScanCount, styles.marginTop8]}>
-                  {ticketDetails[0]?.scanned_by?.staff_id || "No Record"}
-                </Text>
-                <Text style={[styles.values, styles.marginTop10]}>Price</Text>
-                <Text style={[styles.value, styles.marginTop10]}>
-                  {ticketDetails[0]?.currency || "GHS"}{" "}
-                  {ticketDetails[0]?.ticket_price || "No Record"}
-                </Text>
-                <Text style={[styles.values, styles.marginTop10]}>
-                  Scan Count
-                </Text>
-                <Text style={[styles.valueScanCount, styles.marginTop9]}>
-                  {ticketDetails[0]?.scan_count || "No Record"}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Note section for single ticket */}
-        {total === 1 && ticketDetails.length === 1 && (
-          <View style={styles.noteContainer}>
-            <Text style={styles.LabelNote}>Note</Text>
-            <Text style={styles.noteDescription}>
-              {ticketDetails[0]?.note || "No note added"}
-            </Text>
-          </View>
-        )}
-
-        {total > 1 && ticketDetails.length > 0 && (
-          <View style={styles.ticketsList}>
-            <CheckInAllPopup
-              ticketslist={ticketDetails?.map((ticket: any) => ({
-                order_number: ticket.ticket_number,
-                type: ticket.ticket_type,
-                price: ticket.ticket_price,
-                date: ticket.formatted_date,
-                status: ticket.checkin_status,
-                code: ticket.code,
-                note: ticket.note,
-                uuid: ticket.uuid,
-                eventUuid: eventUuid,
-                message: ticket.message,
-                last_scanned_on: ticket.last_scanned_on,
-                scanCount: ticket.scan_count,
-                ticketHolder: ticket.ticket_holder,
-                lastScannedByName: ticket.last_scanned_by_name,
-                currency: ticket.currency,
-                eventInfo: eventInfo,
-                ticket_number: ticket.ticket_number,
-                name:
-                  `${ticket.user_first_name || ""} ${ticket.user_last_name || ""}`.trim() ||
-                  "No Record",
-                category: ticket.category || "No Record",
-                ticketClass: ticket.ticket_class || "No Record",
-                scanned_by: ticket.scanned_by,
-                scanned_on: ticket.scanned_by?.scanned_on || "No Record",
-              }))}
-              onTicketStatusChange={handleTicketStatusChange}
-              onScanCountUpdate={route.params?.onScanCountUpdate}
-              userEmail={userDetails?.email}
-            />
-          </View>
-        )}
-      </View>
-      <SuccessPopup
-        visible={showSuccessPopup}
-        onClose={handleCloseSuccessPopup}
-        title={isQueued ? "Check-In Queued" : "Check-In Successful"}
-        subtitle={
-          isQueued
-            ? "Check-in will sync when you're back online"
-            : total === 1
-              ? "Ticket checked in successfully"
-              : "Tickets checked in successfully"
-        }
-      />
-      <ErrorPopup
-        visible={showErrorPopup}
-        onClose={handleCloseErrorPopup}
-        title="Check-In Failed"
-        subtitle={
-          isOffline
-            ? "Cannot check in while offline. Please connect to internet and try again."
-            : "We couldn't check in this ticket. Please try again or contact support."
-        }
-      />
+        <SuccessPopup
+          visible={showSuccessPopup}
+          onClose={handleCloseSuccessPopup}
+          title={isQueued ? "Check-In Queued" : "Check-In Successful"}
+          subtitle={
+            isQueued
+              ? "Check-in will sync when you're back online"
+              : total === 1
+                ? "Ticket checked in successfully"
+                : "Tickets checked in successfully"
+          }
+        />
+        <ErrorPopup
+          visible={showErrorPopup}
+          onClose={handleCloseErrorPopup}
+          title="Check-In Failed"
+          subtitle={
+            isOffline
+              ? "Cannot check in while offline. Please connect to internet and try again."
+              : "We couldn't check in this ticket. Please try again or contact support."
+          }
+        />
+      </ScrollView>
     </SafeAreaView>
   );
 };

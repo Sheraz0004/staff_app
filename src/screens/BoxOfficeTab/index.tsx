@@ -1038,8 +1038,7 @@ const BoxOfficeTab: React.FC<BoxOfficeTabProps> = ({
                   setPinModalVisible(false);
                   setCashPin("");
                 }}
-                // disabled={!isPaymentSectionEnabled()}
-                disabled={true}
+                disabled={!isPaymentSectionEnabled()}
               >
                 {paymentOption === "BANK" ? (
                   <SvgIcons.cardIconActive width={24} height={24} />
@@ -1151,8 +1150,7 @@ const BoxOfficeTab: React.FC<BoxOfficeTabProps> = ({
                   setPinModalVisible(false);
                   setCashPin("");
                 }}
-                // disabled={!isPaymentSectionEnabled()}
-                disabled={true}
+                disabled={!isPaymentSectionEnabled()}
               >
                 {paymentOption === "MOBILE_MONEY" ? (
                   <SvgIcons.mobMoneyIconActive width={24} height={24} />

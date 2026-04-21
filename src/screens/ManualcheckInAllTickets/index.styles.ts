@@ -19,6 +19,10 @@ export const styles = StyleSheet.create({
         marginTop: 16,
         marginBottom: -4,
     },
+    scrollContent:{
+        flexGrow: 1,
+        paddingBottom: 60
+    },
     button: {
         backgroundColor: color.btnBrown_AE6F28,
         width: '100%',

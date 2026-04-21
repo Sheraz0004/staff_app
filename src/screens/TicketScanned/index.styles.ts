@@ -10,6 +10,10 @@ export const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 10,
   },
+  scrollContent:{
+    flexGrow: 1,
+    paddingBottom: 60,
+  },
 
   popUp: {
     alignItems: 'center',

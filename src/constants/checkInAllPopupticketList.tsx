@@ -172,7 +172,7 @@ const CheckInAllPopup: React.FC<CheckInAllPopupProps> = ({
       scannedBy: {
         name: item.lastScannedByName || "No Record",
         email: item.scanned_by_email || "No Record",
-        staffId: "No Record",
+        staffId: item?.scanned_by?.staff_id || "No Record",
         scannedOn: item.last_scanned_on || "No Record",
       },
       currency: item.currency || "GHS",
@@ -180,7 +180,7 @@ const CheckInAllPopup: React.FC<CheckInAllPopupProps> = ({
       scanCount: item.scanCount || item.scan_count || 0,
       note: item.note || "No note added",
     };
-    console.log({item})
+    // console.log({item})
 
     navigation.navigate("TicketScanned", {
       scanResponse,

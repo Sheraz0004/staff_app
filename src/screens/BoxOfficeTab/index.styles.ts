@@ -7,6 +7,7 @@ export const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 10,
+    paddingBottom:50
   },
   tabContainer: {
     marginBottom: 10,
