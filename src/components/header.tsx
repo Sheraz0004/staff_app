@@ -68,7 +68,7 @@ const Header: React.FC<HeaderProps> = ({
   );
 
   const tabs: string[] = ["Auto", "Manual", "Sell"];
-  console.log("eventInfo--->",eventInfo)
+  // console.log("eventInfo--->",eventInfo)
 
   const topPadding =
     Platform.OS === "android" ? StatusBar.currentHeight || 0 : insets.top;

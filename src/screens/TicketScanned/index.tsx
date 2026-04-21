@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { SafeAreaView, ScrollView, Text, View } from "react-native";
 import Header from "../../components/header";
 import SvgIcons from "../../components/SvgIcons";
@@ -8,69 +8,65 @@ import {
   formatDateWithMonthName,
 } from "../../constants/dateAndTime";
 import { truncateStaffName } from "../../utils/stringUtils";
-import { useApi } from "../../services/useApi";
-import { EVENT_SERVICES } from "../../services/EventService";
+import { useSelector } from "react-redux";
+import { RootState } from "../../redux/reducers/rootReducer";
 import { styles } from "./index.styles";
 
-interface TicketScannedProps {
-  route: any;
-}
-
-const TicketScanned: React.FC<TicketScannedProps> = ({ route }) => {
+const TicketScanned: React.FC<{ route: any }> = ({ route }) => {
   const {
     scanResponse,
-    eventInfo,
+    eventUuid,
+    eventInfo: legacyEventInfo,
     note,
     eventId,
-  }: { scanResponse: any; eventInfo: any; note: any; eventId?: string } =
-    route.params;
+  } = route.params;
+
   const displayedNote = note || scanResponse?.note || "No note added";
 
-  const { requestCall: requestEventInfo } = useApi(
-    EVENT_SERVICES.fetchEventInfo,
-    false,
-    false,
+  const eventInfoCache = useSelector(
+    (state: RootState) => state.manualCheckin.eventInfoCache,
   );
-  const [fetchedEvent, setFetchedEvent] = useState<any>(null);
 
-  useEffect(() => {
-    const id = eventId || eventInfo?.eventUuid;
-    if (!id) return;
-    requestEventInfo(String(id))
-      .then((res: any) => {
-        const info = res?.data;
-        if (info) {
-          setFetchedEvent({
-            title: info?.eventTitle || info?.event_title,
-            date: info?.startDate || info?.start_date,
-            time: info?.startTime || info?.start_time,
-            city: info?.location?.city,
-          });
-        }
-      })
-      .catch(() => {});
-  }, [eventId]);
+  // Resolve the event uuid from new or legacy params
+  const resolvedUuid =
+    eventUuid || eventId || legacyEventInfo?.eventUuid || legacyEventInfo?.uuid;
+  const cached = resolvedUuid ? eventInfoCache[String(resolvedUuid)] : null;
 
-  const eventTitle = fetchedEvent?.title || eventInfo?.event_title;
-  const eventDate = fetchedEvent?.date || eventInfo?.date;
-  const eventTime = fetchedEvent?.time || eventInfo?.time;
-  const eventCity = fetchedEvent?.city || eventInfo?.cityName;
-  // Safely extract scanned by data
-  const scannedByName: any =
-    scanResponse?.scannedBy?.name ||
+  // console.log("scanResponse--->",scanResponse)
+
+  // Prefer Redux cache, fall back to legacy eventInfo param
+  const eventTitle = cached?.event_title || legacyEventInfo?.event_title;
+  const eventDate = cached?.date || legacyEventInfo?.date;
+  const eventTime = cached?.time || legacyEventInfo?.time;
+  const eventCity = cached?.cityName || legacyEventInfo?.cityName;
+
+  const headerEventInfo = cached
+    ? {
+        event_title: cached.event_title,
+        date: cached.date,
+        time: cached.time,
+        cityName: cached.cityName,
+        eventUuid: cached.eventUuid,
+      }
+    : legacyEventInfo;
+
+  const scannedByName =
     scanResponse?.scannedBy?.email ||
+    scanResponse?.scannedBy?.name ||
     "No Record";
-
-  const scannedByStaffId: any = scanResponse?.scannedBy?.staffId || "No Record";
-
-  const scannedOn: any = scanResponse?.scannedBy?.scannedOn
-    ? formatDateTime(scanResponse?.scannedBy?.scannedOn)
+  const scannedByStaffId = scanResponse?.scannedBy?.staffId || "No Record";
+  const scannedOn = scanResponse?.scannedBy?.scannedOn !=="No Record"
+    ? formatDateTime(scanResponse.scannedBy.scannedOn)
     : "No Record";
+
   return (
     <SafeAreaView style={styles.container}>
-      <Header eventInfo={eventInfo} />
+      <Header eventInfo={headerEventInfo} />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         <View style={styles.wrapper}>
           {/* TOP CARD */}
           <View style={styles.popUp}>
@@ -135,7 +131,6 @@ const TicketScanned: React.FC<TicketScannedProps> = ({ route }) => {
           {/* TICKET INFO CARD */}
           <View style={styles.ticketContainer}>
             <View style={styles.row}>
-              {/* LEFT COLUMN */}
               <View style={styles.leftColumnContent}>
                 <Text style={styles.values}>Category</Text>
                 <Typography style={[styles.value, styles.marginTop10]}>
@@ -154,13 +149,12 @@ const TicketScanned: React.FC<TicketScannedProps> = ({ route }) => {
                   {scanResponse?.ticketNumber || "No Record"}
                 </Text>
 
-                <Text style={[styles.values]}>Last Scanned On</Text>
+                <Text style={styles.values}>Last Scanned On</Text>
                 <Text style={[styles.valueScanCount, styles.marginTop10]}>
                   {scannedOn}
                 </Text>
               </View>
 
-              {/* RIGHT COLUMN */}
               <View style={styles.rightColumnContent}>
                 <Text style={styles.values}>Scanned By</Text>
                 <Text style={[styles.valueScanCount, styles.marginTop8]}>
