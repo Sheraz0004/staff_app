@@ -15,6 +15,7 @@ export const DASHBOARD_SERVICES = {
     event_type?: string;
     currency?: string;
     event_id?: string;
-    year?: number;
+    start_date?: string;
+    end_date?: string;
   }) => HTTP_CLIENT.get(API_CONFIG.DASHBOARD.dashboardStats(params)),
 };

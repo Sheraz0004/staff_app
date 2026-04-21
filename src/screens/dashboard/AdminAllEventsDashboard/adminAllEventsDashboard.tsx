@@ -106,7 +106,7 @@ const AdminAllEventsDashboard: React.FC = () => {
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState("Jan 23, 2026");
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [dateRange, setDateRange] = useState<{ start_date: string; end_date: string } | null>(null);
   const [showEventTypePicker, setShowEventTypePicker] = useState(false);
   const [showTicketingTypePicker, setShowTicketingTypePicker] = useState(false);
   const [showOrganizationPicker, setShowOrganizationPicker] = useState(false);
@@ -175,7 +175,7 @@ const AdminAllEventsDashboard: React.FC = () => {
     selectedEventTypeValue,
     selectedCurrencyValue,
     selectedEventFilterValue,
-    selectedYear,
+    dateRange,
   ]);
 
   const buildParams = () => {
@@ -185,7 +185,8 @@ const AdminAllEventsDashboard: React.FC = () => {
       event_type?: string;
       currency?: string;
       event_id?: string;
-      year?: number;
+      start_date?: string;
+      end_date?: string;
     } = {};
     if (selectedOrganizationValue && selectedOrganizationValue !== "all")
       params.organization_uuid = selectedOrganizationValue;
@@ -197,7 +198,8 @@ const AdminAllEventsDashboard: React.FC = () => {
       params.currency = selectedCurrencyValue;
     if (selectedEventFilterValue && selectedEventFilterValue !== "all")
       params.event_id = selectedEventFilterValue;
-    if (selectedYear) params.year = selectedYear;
+    if (dateRange?.start_date) params.start_date = dateRange.start_date;
+    if (dateRange?.end_date) params.end_date = dateRange.end_date;
     return params;
   };
 
@@ -362,41 +364,35 @@ const AdminAllEventsDashboard: React.FC = () => {
   };
 
   const handleDateRangeSelect = ({ startDate, endDate, year }: DateRange) => {
+    const toApiDate = (date: Date) => {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    };
+
+    const toDisplayDate = (date: Date) => {
+      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+    };
+
     if (year) {
-      setSelectedYear(year);
+      setDateRange({ start_date: `${year}-01-01`, end_date: `${year}-12-31` });
       setSelectedDate(String(year));
       return;
     }
 
-    setSelectedYear(null);
-
-    const formatDate = (date: Date) => {
-      if (!date) return "";
-      const months = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ];
-      return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
-    };
-
     if (startDate && endDate) {
+      setDateRange({ start_date: toApiDate(startDate), end_date: toApiDate(endDate) });
       if (startDate.getTime() === endDate.getTime()) {
-        setSelectedDate(formatDate(startDate));
+        setSelectedDate(toDisplayDate(startDate));
       } else {
-        setSelectedDate(`${formatDate(startDate)} - ${formatDate(endDate)}`);
+        setSelectedDate(`${toDisplayDate(startDate)} - ${toDisplayDate(endDate)}`);
       }
     } else if (startDate) {
-      setSelectedDate(formatDate(startDate));
+      const apiDate = toApiDate(startDate);
+      setDateRange({ start_date: apiDate, end_date: apiDate });
+      setSelectedDate(toDisplayDate(startDate));
     }
   };
 

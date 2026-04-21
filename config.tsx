@@ -41,7 +41,8 @@ const API_CONFIG = {
       event_type?: string;
       currency?: string;
       event_id?: string;
-      year?: number;
+      start_date?: string;
+      end_date?: string;
     }) => {
       const base = "/api/organization/dashboard/";
       const queryParams: string[] = [];
@@ -55,11 +56,13 @@ const API_CONFIG = {
         queryParams.push(`currency=${params.currency}`);
       if (params?.event_id)
         queryParams.push(`event_id=${params.event_id}`);
-      if (params?.year)
-        queryParams.push(`year=${params.year}`);
-      return queryParams.length > 0
-        ? `${base}?${queryParams.join("&")}`
-        : base;
+      if (params?.start_date)
+        queryParams.push(`start_date=${params.start_date}`);
+      if (params?.end_date)
+        queryParams.push(`end_date=${params.end_date}`);
+      const url = queryParams.length > 0 ? `${base}?${queryParams.join("&")}` : base;
+      console.log("[Dashboard URL]", url);
+      return url;
     },
   },
   CHECK_IN: {

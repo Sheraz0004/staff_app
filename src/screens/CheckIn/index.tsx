@@ -57,6 +57,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   const [facing, setFacing] = useState<"back" | "front">("back");
   const [permission, requestPermission] = useCameraPermissions();
   const [scannedData, setScannedData] = useState<string | null>(null);
+  // console.log("scannedData-->",scannedData)
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [scanning, setScanning] = useState<boolean>(false);
   const [scanTime, setScanTime] = useState<string | null>(null);
@@ -138,7 +139,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
       const note = notes[data] || "";
       const res = await requestScan(data, note);
       const scanData = res?.data;
-      console.log("scanData--->", scanData);
+
       scanResponseRef.current = scanData;
 
       let scanResult: ScanResult = {
@@ -178,7 +179,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
       animateProgressBar();
       setShowAnimation(true);
     } catch (error: any) {
-      console.log("error--->", error.response.data);
+      // console.log("error--->", error.response.data);
 
       let errorMessage = "Scan Unsuccessful";
       let errorColor = "#ED4337";
@@ -213,17 +214,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   const handleAddNote = async (newNote: string) => {
     if (!scannedData) return;
 
-    const parts = scannedData.split("/");
-    const ticketCode = parts[parts.length - 2];
-    const currentEventUuid = eventInfo?.eventUuid;
+    const [eventId, ticketCode] = scannedData.split(":");
 
     try {
       if (newNote.trim().length > 0) {
-        await requestUpdateNote(ticketCode, newNote, currentEventUuid);
+        await requestUpdateNote(ticketCode, newNote, eventId);
         setNotes((prevNotes) => ({ ...prevNotes, [scannedData]: newNote }));
       }
     } catch (error: any) {
-      logger.error("Failed to update ticket note:", error.message);
+      logger.error("Failed to update ticket note:", error.response.data);
     }
 
     setNoteModalVisible(false);
@@ -336,21 +335,21 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                   <Text style={styles.detailColor}>Details</Text>
                 </TouchableOpacity>
                 {/* {scanResult.text === "Scanned Already" && ( */}
-                  <TouchableOpacity
-                    style={styles.noteButton}
-                    onPress={handleNoteButtonPress}
-                  >
-                    <Text style={styles.noteColor}>Note</Text>
-                    {Object.keys(notes).length > 0 && (
-                      <View style={styles.greyCircle}>
-                        <View style={styles.redCircle}>
-                          <Text style={styles.redCircleText}>
-                            {Object.keys(notes).length}
-                          </Text>
-                        </View>
+                <TouchableOpacity
+                  style={styles.noteButton}
+                  onPress={handleNoteButtonPress}
+                >
+                  <Text style={styles.noteColor}>Note</Text>
+                  {Object.keys(notes).length > 0 && (
+                    <View style={styles.greyCircle}>
+                      <View style={styles.redCircle}>
+                        <Text style={styles.redCircleText}>
+                          {Object.keys(notes).length}
+                        </Text>
                       </View>
-                    )}
-                  </TouchableOpacity>
+                    </View>
+                  )}
+                </TouchableOpacity>
                 {/* // )} */}
               </View>
             </View>
