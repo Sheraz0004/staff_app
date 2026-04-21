@@ -26,10 +26,12 @@ interface ScannedBy {
 interface TicketItem {
   uuid: string;
   ticket_number: string;
+  order_number?: string;
   category: string;
   status: string;
+  message?: string;
   ticketClass?: string;
-  eventUuid?: string;
+  eventUuid?: number | string;
   code?: string;
   ticket_holder?: string;
   ticketHolder?: string;
@@ -38,13 +40,14 @@ interface TicketItem {
   currency?: string;
   ticket_price?: number | string;
   price?: number | string;
-  last_scan?: string;
-  last_scanned_on?: string;
-  scanned_by?: ScannedBy | string;
+  last_scan?: string | null;
+  last_scanned_on?: string | null;
+  lastScannedByName?: string | null;
+  scanned_by?: ScannedBy | string | null;
   staff_id?: string;
   scan_count?: number;
   scanCount?: number;
-  note?: string;
+  note?: string | null;
   event_uuid?: string;
   scanned_by_email?: string;
   ticket_holder_email?: string;
@@ -69,7 +72,6 @@ const CheckInAllPopup: React.FC<CheckInAllPopupProps> = ({
   ticketslist,
   onTicketStatusChange,
   onScanCountUpdate,
-  userEmail,
 }) => {
   const route = useRoute<any>();
   const { eventInfo } = route.params;
@@ -94,16 +96,9 @@ const CheckInAllPopup: React.FC<CheckInAllPopupProps> = ({
         ticketToCheckIn.code!,
       );
       const response = checkinRes?.data;
-      logger.log("API Response:", response);
-
       setIsQueued(false);
-
-      if (response?.data?.status === "SCANNED") {
-        const scannedByFromResponse = response?.data?.scanned_by;
-        logger.log(
-          "CheckInAllPopup - scanned_by from response:",
-          scannedByFromResponse,
-        );
+      if (response?.status === "SCANNED") {
+        const scannedByFromResponse = response?.scanned_by;
         if (onTicketStatusChange) {
           onTicketStatusChange(
             ticketToCheckIn.uuid,
@@ -157,6 +152,8 @@ const CheckInAllPopup: React.FC<CheckInAllPopupProps> = ({
     }
   };
 
+
+
   const handleCloseSuccessPopup = () => setShowSuccessPopup(false);
   const handleCloseErrorPopup = () => {
     setShowErrorPopup(false);
@@ -165,37 +162,31 @@ const CheckInAllPopup: React.FC<CheckInAllPopupProps> = ({
 
   const handleItemPress = (item: TicketItem) => {
     const scanResponse = {
-      message:
-        item.status === "SCANNED" ? "Ticket Scanned" : "Ticket Unscanned",
-      ticket_holder: item.ticket_holder || item.ticketHolder || "No Record",
-      ticket: item.ticket_type || item.type,
-      currency: item.currency,
-      ticket_price: item.ticket_price || item.price,
-      last_scan: item.last_scan || item.last_scanned_on,
-      scanned_by:
-        typeof item.scanned_by === "object"
-          ? item.scanned_by?.name
-          : item.scanned_by || "No Record",
-      staff_id:
-        typeof item.scanned_by === "object"
-          ? item.scanned_by?.staff_id
-          : item.staff_id || "No Record",
-      ticket_number: item.ticket_number,
-      scan_count: item.scan_count || item.scanCount || 0,
-      note: item.note || "No note added",
-      event_uuid: item.event_uuid || item.eventUuid,
-      scanned_by_email: item.scanned_by_email || "No Record",
-      ticket_holder_email: item.ticket_holder_email || "No Record",
-      status: item.status || "UNSCANNED",
-      name: item.name || "No Record",
-      date: item.date,
-      user_email: item.email || userEmail || "No Record",
-      category: item.category || "No Record",
+      message: item.message || (item.status === "SCANNED" ? "Ticket Scanned" : "Ticket Unscanned"),
+      ticketHolder: item.ticketHolder || item.ticket_holder || item.name || "No Record",
+      ticketHolderEmail: item.ticket_holder_email || "No Record",
+      formattedCreatedAt: item.date || "No Record",
+      ticketCategory: item.category || "No Record",
       ticketClass: item.ticketClass || "No Record",
-      scanned_on: item?.scanned_on || "No Record",
+      ticketNumber: item.ticket_number || item.order_number || "No Record",
+      scannedBy: {
+        name: item.lastScannedByName || "No Record",
+        email: item.scanned_by_email || "No Record",
+        staffId: "No Record",
+        scannedOn: item.last_scanned_on || "No Record",
+      },
+      currency: item.currency || "GHS",
+      ticketPrice: item.price || item.ticket_price || "No Record",
+      scanCount: item.scanCount || item.scan_count || 0,
+      note: item.note || "No note added",
     };
+    console.log({item})
 
-    navigation.navigate("TicketScanned", { scanResponse, eventInfo });
+    navigation.navigate("TicketScanned", {
+      scanResponse,
+      eventInfo,
+      note: item.note || "No note added",
+    });
   };
 
   const renderItem = ({ item }: ListRenderItemInfo<TicketItem>) => (

@@ -209,6 +209,7 @@ const AdminAllEventsDashboard: React.FC = () => {
     dispatch(setDashboardDataError(null));
     try {
       const response = await DASHBOARD_SERVICES.fetchDashboardStats(params);
+      console.log("response dasboard--->",response)
       dispatch(setDashboardData(response?.data ?? {}));
     } catch (error: any) {
       dispatch(

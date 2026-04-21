@@ -39,6 +39,8 @@ const NoteModal: React.FC<NoteModalProps> = ({
         }
     };
 
+    const isUpdate = !!initialNote;
+
     return (
         <Modal animationType="slide" transparent={true} visible={visible}>
             <View style={styles.centeredView}>
@@ -46,7 +48,7 @@ const NoteModal: React.FC<NoteModalProps> = ({
                     <TouchableOpacity style={styles.closeButton} onPress={onCancel}>
                         <SvgIcons.CrossIconBrownbg width={24} height={24} />
                     </TouchableOpacity>
-                    <Text style={styles.modalText}>Add Note</Text>
+                    <Text style={styles.modalText}>{isUpdate ? 'Update Note' : 'Add Note'}</Text>
                     <TextInput
                         style={[styles.noteInput, { textAlignVertical: 'top' }]}
                         multiline={true}
@@ -58,7 +60,7 @@ const NoteModal: React.FC<NoteModalProps> = ({
                         placeholderTextColor={color.black_544B45}
                     />
                     <TouchableOpacity style={styles.button} onPress={handleAddNote}>
-                        <Text style={styles.buttonText}>Add</Text>
+                        <Text style={styles.buttonText}>{isUpdate ? 'Update' : 'Add'}</Text>
                     </TouchableOpacity>
                 </View>
             </View>

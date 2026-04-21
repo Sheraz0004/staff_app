@@ -36,7 +36,7 @@ const ManualCheckInAllTickets: React.FC = () => {
     false,
     false,
   );
-//   console.log("params--->",eventUuid)
+  // console.log("params--->",eventUuid)
   const { loading: isCheckingIn, requestCall: doCheckin } = useApi(
     CHECK_IN_SERVICES.manualCheckin,
     false,
@@ -48,6 +48,7 @@ const ManualCheckInAllTickets: React.FC = () => {
     true,
   );
   const [ticketDetails, setTicketDetails] = useState<any[]>([]);
+  console.log({ticketDetails})
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [userDetails, setUserDetails] = useState<any>(null);
@@ -65,6 +66,7 @@ const ManualCheckInAllTickets: React.FC = () => {
     try {
       const res = await fetchDetails(orderNumber, eventUuid);
       const response = res?.data;
+      
       logger.log("Ticket Details Response:", JSON.stringify(response, null, 2));
 
       // Check if response is from offline cache
@@ -151,17 +153,18 @@ const ManualCheckInAllTickets: React.FC = () => {
   // Listen for sync completion
   useEffect(() => {
     const unsubscribe = syncService.addListener(async (syncResult: any) => {
-      if (syncResult.success && syncResult.synced > 0) {
-        logger.log("Sync completed - refreshing ticket details");
-        // Clear cached order details to force fresh fetch from server
-        await offlineStorage.clearOrderDetails(orderNumber, eventUuid);
-        // Clear queued state since sync completed
-        setIsQueued(false);
-        // Refresh ticket details after successful sync
-        setTimeout(() => {
-          fetchTicketDetails();
-        }, 1000); // Give sync a moment to complete
-      }
+                fetchTicketDetails();
+      // if (syncResult.success && syncResult.synced > 0) {
+      //   logger.log("Sync completed - refreshing ticket details");
+      //   // Clear cached order details to force fresh fetch from server
+      //   await offlineStorage.clearOrderDetails(orderNumber, eventUuid);
+      //   // Clear queued state since sync completed
+      //   setIsQueued(false);
+      //   // Refresh ticket details after successful sync
+      //   setTimeout(() => {
+      //     fetchTicketDetails();
+      //   }, 1000); // Give sync a moment to complete
+      // }
     });
 
     return () => {
@@ -749,7 +752,7 @@ const ManualCheckInAllTickets: React.FC = () => {
         {total > 1 && ticketDetails.length > 0 && (
           <View style={styles.ticketsList}>
             <CheckInAllPopup
-              ticketslist={ticketDetails.map((ticket: any) => ({
+              ticketslist={ticketDetails?.map((ticket: any) => ({
                 order_number: ticket.ticket_number,
                 type: ticket.ticket_type,
                 price: ticket.ticket_price,

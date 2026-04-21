@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { View } from 'react-native';
+import { useRef, useEffect } from 'react';
+import { View, Animated } from 'react-native';
 import { styles } from './CameraOverlay.styles';
 
 interface MarkerProps {
@@ -70,27 +70,37 @@ function marker({ color, size, borderLength, thickness = 2, borderRadius = 0 }: 
 }
 
 interface CameraOverlayProps {
-    linePosition: number;
     scannedData?: string;
 }
 
-const CameraOverlay: React.FC<CameraOverlayProps> = ({ linePosition, scannedData }) => {
-    const [lineColor, setLineColor] = useState<string>('#AE6F28');
+const CameraOverlay: React.FC<CameraOverlayProps> = ({ scannedData }) => {
+    const lineAnim = useRef(new Animated.Value(0)).current;
+    const lineColor = scannedData || '#AE6F28';
 
     useEffect(() => {
-        if (scannedData) {
-            setLineColor(scannedData);
-        }
-    }, [scannedData]);
+        const animation = Animated.loop(
+            Animated.sequence([
+                Animated.timing(lineAnim, { toValue: 225, duration: 1200, useNativeDriver: true }),
+                Animated.timing(lineAnim, { toValue: 0, duration: 1200, useNativeDriver: true }),
+            ])
+        );
+        animation.start();
+        return () => animation.stop();
+    }, [lineAnim]);
 
     return (
         <View style={styles.overlayContainer}>
             <View style={styles.frame}>
                 {marker({ color: '#AE6F28', size: '80%', borderLength: '20%', thickness: 4, borderRadius: 10 })}
-                <View
+                <Animated.View
                     style={[
                         styles.scannerLine,
-                        { top: linePosition + 35, backgroundColor: lineColor, shadowColor: lineColor },
+                        {
+                            top: 35,
+                            backgroundColor: lineColor,
+                            shadowColor: lineColor,
+                            transform: [{ translateY: lineAnim }],
+                        },
                     ]}
                 />
             </View>

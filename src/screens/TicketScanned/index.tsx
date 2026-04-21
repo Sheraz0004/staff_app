@@ -1,11 +1,9 @@
 import React from "react";
-import { Text, View, SafeAreaView } from "react-native";
-import { color } from "../../color/color";
+import { SafeAreaView, Text, View } from "react-native";
 import Header from "../../components/header";
 import SvgIcons from "../../components/SvgIcons";
-import { useNavigation } from "@react-navigation/native";
-import { formatDateTime } from "../../constants/dateAndTime";
 import Typography from "../../components/Typography";
+import { formatDateTime } from "../../constants/dateAndTime";
 import { truncateStaffName } from "../../utils/stringUtils";
 import { styles } from "./index.styles";
 
@@ -19,17 +17,20 @@ const TicketScanned: React.FC<TicketScannedProps> = ({ route }) => {
     eventInfo,
     note,
   }: { scanResponse: any; eventInfo: any; note: any } = route.params;
-  const navigation = useNavigation();
   const displayedNote = note || scanResponse?.note || "No note added";
   // Safely extract scanned by data
   const scannedByName: any =
-    scanResponse?.scannedBy?.name || scanResponse?.scannedBy?.email || "No Record";
+    scanResponse?.scannedBy?.name ||
+    scanResponse?.scannedBy?.email ||
+    "No Record";
 
   const scannedByStaffId: any = scanResponse?.scannedBy?.staffId || "No Record";
 
   const scannedOn: any = scanResponse?.scannedBy?.scannedOn
     ? formatDateTime(scanResponse?.scannedBy?.scannedOn)
     : "No Record";
+
+  console.log("route---->", route.params);
 
   return (
     <SafeAreaView style={styles.container}>

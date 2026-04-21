@@ -6,14 +6,18 @@ import {
   View,
   Dimensions,
   Animated,
+  ActivityIndicator,
 } from "react-native";
 import CameraOverlay from "../../components/CameraOverlay";
 import Header from "../../components/header";
-import { color } from "../../color/color";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import { getFormatDate } from "../../constants/currentdateandtime";
 import NoteModal from "../../constants/noteModal";
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import {
+  useNavigation,
+  useFocusEffect,
+  useIsFocused,
+} from "@react-navigation/native";
 import { logger } from "../../utils/logger";
 import { useOfflineSync } from "../../hooks/useOfflineSync";
 import { useApi } from "../../services/useApi";
@@ -44,6 +48,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   userRole,
 }) => {
   const navigation = useNavigation<any>();
+  const isFocused = useIsFocused();
   const { requestCall: requestScan } = useApi(
     CHECK_IN_SERVICES.scanTicket,
     false,
@@ -54,62 +59,168 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     false,
     false,
   );
-  const [facing, setFacing] = useState<"back" | "front">("back");
+
   const [permission, requestPermission] = useCameraPermissions();
   const [scannedData, setScannedData] = useState<string | null>(null);
-  // console.log("scannedData-->",scannedData)
+
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
-  const [scanning, setScanning] = useState<boolean>(false);
   const [scanTime, setScanTime] = useState<string | null>(null);
-  const [linePosition, setLinePosition] = useState<number>(0);
-  const [movingDown, setMovingDown] = useState<boolean>(true);
-  const [noteModalVisible, setNoteModalVisible] = useState<boolean>(false);
-  const [notes, setNotes] = useState<Record<string, string>>({});
-  const [noteCount, setNoteCount] = useState<number>(0);
-  const [noteToEdit, setNoteToEdit] = useState<string | null>(null);
-  const animatedWidth = useRef(new Animated.Value(0)).current;
   const [showAnimation, setShowAnimation] = useState<boolean>(false);
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [noteToEdit, setNoteToEdit] = useState<string | null>(null);
+  const [noteModalVisible, setNoteModalVisible] = useState<boolean>(false);
+  const [noteUpdating, setNoteUpdating] = useState<boolean>(false);
+  const [isDuplicateScan, setIsDuplicateScan] = useState<boolean>(false);
+
+  const animatedWidth = useRef(new Animated.Value(0)).current;
+  const scanningRef = useRef(false);
   const scanResponseRef = useRef<any>(null);
+  const notesRef = useRef(notes);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const { isOnline } = useOfflineSync(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      setScanning(false);
-    }, []),
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      if (onHeaderTabChange) {
-        onHeaderTabChange("Auto");
-      }
-    }, [onHeaderTabChange]),
-  );
-
   useEffect(() => {
-    requestPermission();
-  }, []);
-
-  useEffect(() => {
-    setNoteCount(Object.keys(notes).length);
+    notesRef.current = notes;
   }, [notes]);
 
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      setLinePosition((prevPosition) => {
-        if (movingDown && prevPosition >= 225) {
-          setMovingDown(false);
-          return prevPosition - 2;
-        } else if (!movingDown && prevPosition <= 0) {
-          setMovingDown(true);
-          return prevPosition + 2;
-        }
-        return movingDown ? prevPosition + 2 : prevPosition - 2;
-      });
-    }, 2);
+    requestPermission();
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
-    return () => clearInterval(intervalId);
-  }, [movingDown]);
+  useFocusEffect(
+    useCallback(() => {
+      scanningRef.current = false;
+      onHeaderTabChange?.("Auto");
+    }, [onHeaderTabChange]),
+  );
+
+  const animateProgressBar = useCallback(() => {
+    animatedWidth.setValue(0);
+    Animated.timing(animatedWidth, {
+      toValue: width,
+      duration: 1000,
+      useNativeDriver: false,
+    }).start();
+  }, [animatedWidth]);
+
+  const handleBarCodeScanned = useCallback(
+    async ({ data }: { data: string }) => {
+      if (scanningRef.current) return;
+      scanningRef.current = true;
+
+      setScannedData(data);
+      setScanTime(getFormatDate());
+      setIsDuplicateScan(false);
+
+      try {
+        const note = notesRef.current[data] || "";
+        const res = await requestScan(data, note);
+        const scanData = res?.data;
+        console.log("scanData->", scanData);
+        scanResponseRef.current = scanData;
+
+        if (scanData?.note) {
+          setNotes((prev) => ({ ...prev, [data]: scanData.note }));
+        }
+
+        let result: ScanResult = {
+          text: "Scan Successful",
+          color: "#4BB543",
+          icon: "check",
+        };
+
+        if (scanData?.offline || scanData?.queued) {
+          result = {
+            text: scanData?.queued
+              ? "Queued for Sync"
+              : "Scan Successful (Offline)",
+            color: "#FFA500",
+            icon: "check",
+          };
+        } else if (scanData?.scanCount > 1) {
+          result = { text: "Scanned Already", color: "#D8A236", icon: "close" };
+          setIsDuplicateScan(true);
+        } else if (
+          scanData?.status === "error" ||
+          scanData?.status === "invalid"
+        ) {
+          result = {
+            text: "Scan Unsuccessful",
+            color: "#ED4337",
+            icon: "close",
+          };
+        } else {
+          onScanCountUpdate?.();
+        }
+
+        setScanResult(result);
+      } catch (error: any) {
+        const isScanLimit = error.response?.data?.non_field_errors?.includes(
+          "Scan limit reached.",
+        );
+        setScanResult({
+          text: isScanLimit ? "Scan Limit Reached" : "Scan Unsuccessful",
+          color: isScanLimit ? "#D8A236" : "#ED4337",
+          icon: "close",
+        });
+      } finally {
+        animateProgressBar();
+        setShowAnimation(true);
+
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        timeoutRef.current = setTimeout(() => {
+          scanningRef.current = false;
+          setShowAnimation(false);
+        }, 2000);
+      }
+    },
+    [requestScan, onScanCountUpdate, animateProgressBar],
+  );
+
+  const handleAddNote = useCallback(
+    async (newNote: string) => {
+      if (!scannedData) return;
+
+      const [eventId, ticketCode] = scannedData.split(":");
+
+      setNoteModalVisible(false);
+
+      if (newNote.trim().length > 0) {
+        setNoteUpdating(true);
+        try {
+          await requestUpdateNote(ticketCode, newNote, eventId);
+          setNotes((prev) => ({ ...prev, [scannedData]: newNote }));
+        } catch (error: any) {
+          logger.error("Failed to update ticket note:", error.response?.data);
+        } finally {
+          setNoteUpdating(false);
+        }
+      }
+    },
+    [scannedData, requestUpdateNote],
+  );
+
+  const handleNoteButtonPress = useCallback(() => {
+    setNoteToEdit(notes[scannedData!] || "");
+    setNoteModalVisible(true);
+  }, [notes, scannedData]);
+
+  const handleDismissResult = useCallback(() => {
+    setScanResult(null);
+    setIsDuplicateScan(false);
+  }, []);
+
+  const handleDetailButtonPress = useCallback(() => {
+    navigation.navigate("TicketScanned", {
+      scanResponse: scanResponseRef.current,
+      eventInfo,
+      note: notes[scannedData!] || "No note added",
+    });
+  }, [navigation, eventInfo, notes, scannedData]);
 
   if (!permission) return <View />;
   if (!permission.granted) {
@@ -124,135 +235,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
       </View>
     );
   }
-
-  function toggleCameraFacing() {
-    setFacing((current) => (current === "back" ? "front" : "back"));
-  }
-
-  const handleBarCodeScanned = async ({ data }: { data: string }) => {
-    if (scanning) return;
-
-    setScanning(true);
-    setScannedData(data);
-    setScanTime(getFormatDate());
-    try {
-      const note = notes[data] || "";
-      const res = await requestScan(data, note);
-      const scanData = res?.data;
-
-      scanResponseRef.current = scanData;
-
-      let scanResult: ScanResult = {
-        text: "Scan Successful",
-        color: "#4BB543",
-        icon: "check",
-      };
-
-      if (scanData?.offline || scanData?.queued) {
-        scanResult = {
-          text: scanData?.queued
-            ? "Queued for Sync"
-            : "Scan Successful (Offline)",
-          color: "#FFA500",
-          icon: "check",
-        };
-      } else if (scanData?.scanCount > 1) {
-        scanResult = {
-          text: "Scanned Already",
-          color: "#D8A236",
-          icon: "close",
-        };
-      } else if (
-        scanData?.status === "error" ||
-        scanData?.status === "invalid"
-      ) {
-        scanResult = {
-          text: "Scan Unsuccessful",
-          color: "#ED4337",
-          icon: "close",
-        };
-      } else {
-        if (onScanCountUpdate) onScanCountUpdate();
-      }
-
-      setScanResult(scanResult);
-      animateProgressBar();
-      setShowAnimation(true);
-    } catch (error: any) {
-      // console.log("error--->", error.response.data);
-
-      let errorMessage = "Scan Unsuccessful";
-      let errorColor = "#ED4337";
-
-      if (
-        error.response?.data?.non_field_errors?.includes("Scan limit reached.")
-      ) {
-        errorMessage = "Scan Limit Reached";
-        errorColor = "#D8A236";
-      }
-
-      setScanResult({ text: errorMessage, color: errorColor, icon: "close" });
-      animateProgressBar();
-      setShowAnimation(true);
-    }
-
-    setTimeout(() => {
-      setScanning(false);
-      setShowAnimation(false);
-    }, 2000);
-  };
-
-  const animateProgressBar = () => {
-    animatedWidth.setValue(0);
-    Animated.timing(animatedWidth, {
-      toValue: width,
-      duration: 1000,
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const handleAddNote = async (newNote: string) => {
-    if (!scannedData) return;
-
-    const [eventId, ticketCode] = scannedData.split(":");
-
-    try {
-      if (newNote.trim().length > 0) {
-        await requestUpdateNote(ticketCode, newNote, eventId);
-        setNotes((prevNotes) => ({ ...prevNotes, [scannedData]: newNote }));
-      }
-    } catch (error: any) {
-      logger.error("Failed to update ticket note:", error.response.data);
-    }
-
-    setNoteModalVisible(false);
-  };
-
-  const handleNoteButtonPress = () => {
-    if (noteCount === 1) {
-      navigation.navigate("TicketScanned", {
-        scanResponse: scanResponseRef.current,
-        eventInfo,
-        note: notes[scannedData!] || "No note added",
-      });
-    } else {
-      setNoteToEdit(notes[scannedData!] || "");
-      setNoteModalVisible(true);
-    }
-  };
-
-  const handleEditNote = (editedNote: string) => {
-    setNotes((prevNotes) => ({ ...prevNotes, [scannedData!]: editedNote }));
-    setNoteModalVisible(false);
-  };
-
-  const handleDetailButtonPress = () => {
-    navigation.navigate("TicketScanned", {
-      scanResponse: scanResponseRef.current,
-      eventInfo,
-      note: notes[scannedData!] || "No note added",
-    });
-  };
 
   return (
     <View style={styles.mainContainer}>
@@ -293,13 +275,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         )}
         <View style={styles.cameraContainer}>
           <View style={styles.cameraWrapper}>
-            <CameraView
-              style={styles.camera}
-              facing={facing}
-              onBarcodeScanned={scanning ? undefined : handleBarCodeScanned}
-            />
+            {isFocused && (
+              <CameraView
+                style={styles.camera}
+                facing="back"
+                onBarcodeScanned={handleBarCodeScanned}
+              />
+            )}
             <CameraOverlay
-              linePosition={linePosition}
               scannedData={scanResult ? scanResult.color : "#AE6F28"}
             />
           </View>
@@ -308,19 +291,37 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         {scanResult && (
           <View style={styles.containerstatus}>
             <View style={styles.scanResultsContainer}>
-              <View
-                style={[
-                  styles.scaniconresult,
-                  { backgroundColor: scanResult.color },
-                ]}
-              >
-                <MaterialIcons
-                  name={scanResult.icon}
-                  size={24}
-                  color="white"
-                  style={{ margin: 13 }}
-                />
-              </View>
+              {isDuplicateScan ? (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={handleDismissResult}
+                  style={[
+                    styles.scaniconresult,
+                    { backgroundColor: scanResult.color },
+                  ]}
+                >
+                  <MaterialIcons
+                    name={scanResult.icon}
+                    size={24}
+                    color="white"
+                    style={{ margin: 13 }}
+                  />
+                </TouchableOpacity>
+              ) : (
+                <View
+                  style={[
+                    styles.scaniconresult,
+                    { backgroundColor: scanResult.color },
+                  ]}
+                >
+                  <MaterialIcons
+                    name={scanResult.icon}
+                    size={24}
+                    color="white"
+                    style={{ margin: 13 }}
+                  />
+                </View>
+              )}
               <View style={styles.scanResults}>
                 <Text style={{ color: scanResult.color }}>
                   {scanResult.text}
@@ -334,23 +335,31 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                 >
                   <Text style={styles.detailColor}>Details</Text>
                 </TouchableOpacity>
-                {/* {scanResult.text === "Scanned Already" && ( */}
-                <TouchableOpacity
-                  style={styles.noteButton}
-                  onPress={handleNoteButtonPress}
-                >
-                  <Text style={styles.noteColor}>Note</Text>
-                  {Object.keys(notes).length > 0 && (
-                    <View style={styles.greyCircle}>
-                      <View style={styles.redCircle}>
-                        <Text style={styles.redCircleText}>
-                          {Object.keys(notes).length}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
-                </TouchableOpacity>
-                {/* // )} */}
+                {isDuplicateScan && (
+                  <TouchableOpacity
+                    style={styles.noteButton}
+                    onPress={handleNoteButtonPress}
+                    disabled={noteUpdating}
+                  >
+                    {noteUpdating ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={styles.noteColor.color}
+                      />
+                    ) : (
+                      <>
+                        <Text style={styles.noteColor}>Note</Text>
+                        {!!notes[scannedData!] && (
+                          <View style={styles.greyCircle}>
+                            <View style={styles.redCircle}>
+                              <Text style={styles.redCircleText}>1</Text>
+                            </View>
+                          </View>
+                        )}
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           </View>

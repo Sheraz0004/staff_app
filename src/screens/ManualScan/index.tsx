@@ -126,6 +126,7 @@ const ManualScan = ({
     try {
       const res = await doLookup(query);
       setOrders(res?.data ?? []);
+      console.log("Api response---->", res);
       setHasSearched(true);
     } catch (error) {
       // console.log("error--->",error.response)
