@@ -60,6 +60,26 @@ export const styles = StyleSheet.create({
   bottomSpacer: { height: 40 },
   footerLoader: { paddingVertical: 16, alignItems: 'center' },
 
+  // ── Search Bar ──
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 24,
+    gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#2F251D',
+    paddingVertical: 0,
+  },
+  searchClearButton: { padding: 4 },
+
   // ── Bottom Sheet Modal ──
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.4)', justifyContent: 'flex-end' },
   bottomSheetModal: {

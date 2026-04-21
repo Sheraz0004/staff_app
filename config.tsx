@@ -18,9 +18,21 @@ const API_CONFIG = {
     eventInfo: (eventId: string) => `/api/ticket/event/${eventId}/info/`,
     eventStats: (page: number = 1, pageSize: number = 10, eventClass: string = '') =>
       `/api/event/stats/?page=${page}&page_size=${pageSize}&event_class=${eventClass}`,
-    myEvents: (params: { page?: number; page_size?: number; sort_by?: string; sort_dir?: string } = {}) => {
-      const { page = 1, page_size = 20, sort_by = 'startDate', sort_dir = 'asc' } = params;
-      return `/api/staff-event-access/my-events/?page=${page}&page_size=${page_size}&sort_by=${sort_by}&sort_dir=${sort_dir}`;
+    myEvents: (params: {
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      sort_dir?: string;
+      start_date?: string;
+      end_date?: string;
+      search?: string;
+    } = {}) => {
+      const { page = 1, page_size = 10, sort_by = 'startDate', sort_dir = 'asc', start_date, end_date, search } = params;
+      let url = `/api/staff-event-access/my-events/?page=${page}&page_size=${page_size}&sort_by=${sort_by}&sort_dir=${sort_dir}`;
+      if (start_date) url += `&start_date=${start_date}`;
+      if (end_date) url += `&end_date=${end_date}`;
+      if (search) url += `&search=${encodeURIComponent(search)}`;
+      return url;
     },
   },
   DASHBOARD: {

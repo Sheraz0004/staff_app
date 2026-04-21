@@ -1,140 +1,121 @@
-import React, { useState, useEffect } from 'react';
-import { View, TouchableOpacity, Text } from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import Header from '../../components/header';
-import TicketsTab from '../TicketsTab';
-import BoxOfficeTab from '../BoxOfficeTab';
-import SvgIcons from '../../components/SvgIcons';
-import { useApi } from '../../services/useApi';
-import { EVENT_SERVICES } from '../../services/EventService';
-import { styles } from './index.styles';
+import { useNavigation, useRoute } from "@react-navigation/native";
+import React, { useEffect } from "react";
+import { TouchableOpacity, View, Text } from "react-native";
+import { useDispatch, useSelector } from "react-redux";
+import Header from "../../components/header";
+import BoxOfficeTab from "../BoxOfficeTab";
+import TicketsTab from "../TicketsTab";
+import {
+  fetchEventDetailThunk,
+  setActiveView,
+  setActiveHeaderTab,
+  selectSellSelectedEvent,
+  selectSellEventDetail,
+  selectSellActiveView,
+  selectSellActiveHeaderTab,
+} from "../../redux/reducers/sellCheckinSlice";
+import { setTicketsSelectedTab, resetTicketsTab } from "../../redux/reducers/ticketsTabSlice";
+import { resetBoxOffice } from "../../redux/reducers/boxOfficeSlice";
+import { AppDispatch } from "../../redux/store";
+import { styles } from "./index.styles";
 
 interface SettingsScreenProps {
   navigation?: any;
   route?: any;
-  eventInfo?: any;
   onScanCountUpdate?: (...args: any[]) => void;
-  activeHeaderTab?: string;
-  onHeaderTabChange?: (tab: string) => void;
   userRole?: any;
 }
 
 const SettingsScreen = (props: SettingsScreenProps) => {
+  const dispatch = useDispatch<AppDispatch>();
   const routeFromHook = useRoute();
   const navigationFromHook = useNavigation();
   const route = props.route || routeFromHook;
   const navigation = props.navigation || navigationFromHook;
-
   const routeParams = route?.params || {};
-  const { initialTab, eventInfo: routeEventInfo, selectedTab } = routeParams;
-  const finalEventInfo = props.eventInfo || routeEventInfo;
-  const { onScanCountUpdate, activeHeaderTab: propActiveHeaderTab, onHeaderTabChange, userRole } = props;
-  const defaultHeaderTab = propActiveHeaderTab || routeParams?.activeHeaderTab || 'Sell';
+  const { onScanCountUpdate, userRole } = props;
 
-  const isFromRootStack = route?.name === 'TicketsDetail';
-  const shouldOpenBoxOffice = routeParams?.openBoxOffice || routeParams?.screen === 'BoxOfficeTab';
+  const selectedEvent = useSelector(selectSellSelectedEvent);
+  const eventDetail = useSelector(selectSellEventDetail);
+  const activeView = useSelector(selectSellActiveView);
+  const activeHeaderTab = useSelector(selectSellActiveHeaderTab);
 
-  const { requestCall: requestEventInfo } = useApi(EVENT_SERVICES.fetchEventInfo, false, false);
-  const [dynamicEventInfo, setDynamicEventInfo] = useState<any>(null);
+  const eventInfo = eventDetail
+    ? { ...selectedEvent, ...eventDetail }
+    : selectedEvent;
 
-  const [activeView, setActiveView] = useState<string>(shouldOpenBoxOffice ? 'BoxOfficeTab' : 'TicketsTab');
-  const [tabKey, setTabKey] = useState<number>(0);
-
-  // FIX: Make activeHeaderTab a state so it updates when switching Tickets/Box Office
-  const [activeHeaderTab, setActiveHeaderTab] = useState<string>(
-    shouldOpenBoxOffice ? 'Sell' : defaultHeaderTab
-  );
-
-  const eventUuidForSell = finalEventInfo?.eventUuid || finalEventInfo?.uuid;
-  useEffect(() => {
-    if (!eventUuidForSell) return;
-    requestEventInfo(String(eventUuidForSell))
-      .then((infoRes: any) => {
-        const info = infoRes?.data;
-        if (info) {
-          setDynamicEventInfo({
-            ...(finalEventInfo || {}),
-            event_title: info?.eventTitle || info?.event_title,
-            date: info?.startDate || info?.start_date,
-            time: info?.startTime || info?.start_time,
-            staff_name: info?.staff_name,
-            scanCount: info?.scanCount ?? info?.scan_count,
-            event_uuid: info?.location?.uuid,
-            eventUuid: String(eventUuidForSell),
-            cityName: info?.location?.city,
-          });
-        }
-      })
-      .catch(() => {});
-  }, [eventUuidForSell]);
+  const isFromRootStack = route?.name === "TicketsDetail";
 
   useEffect(() => {
-    if (routeParams?.initialTab === 'Scanned') {
-      setActiveView('TicketsTab');
+    const uuid = selectedEvent?.eventUuid;
+    if (uuid) dispatch(fetchEventDetailThunk(uuid));
+  }, [selectedEvent?.eventUuid]);
+
+  useEffect(() => {
+    if (routeParams?.initialTab === "Scanned") {
+      dispatch(setActiveView("TicketsTab"));
+      dispatch(setTicketsSelectedTab("Scanned"));
     }
   }, [routeParams?.initialTab]);
 
   useEffect(() => {
-    if (routeParams?.screen === 'BoxOfficeTab' || routeParams?.openBoxOffice) {
-      setActiveView('BoxOfficeTab');
-      setActiveHeaderTab('Sell');
+    if (routeParams?.screen === "BoxOfficeTab" || routeParams?.openBoxOffice) {
+      dispatch(setActiveView("BoxOfficeTab"));
+      dispatch(setActiveHeaderTab("Sell"));
     }
-  }, [routeParams]);
+  }, [routeParams?.screen, routeParams?.openBoxOffice]);
+
+  useEffect(() => {
+    return () => {
+      dispatch(resetTicketsTab());
+      dispatch(resetBoxOffice());
+    };
+  }, []);
 
   const handleBackPress = () => {
-    if (navigation?.canGoBack?.()) {
-      navigation.goBack();
-    }
+    if (navigation?.canGoBack?.()) navigation.goBack();
   };
 
-  // FIX: Switch header toggle to 'Sell' when Box Office is selected
-  const handleViewChange = (view: string) => {
-    setActiveView(view);
-    if (view === 'BoxOfficeTab') {
-      setActiveHeaderTab('Sell');
-    }
-  };
-
-  // FIX: Sync when Header's own tab toggle is pressed
-  const handleHeaderTabChange = (tab: string) => {
-    setActiveHeaderTab(tab);
-    onHeaderTabChange?.(tab);
+  const handleViewChange = (view: "TicketsTab" | "BoxOfficeTab") => {
+    dispatch(setActiveView(view));
+    if (view === "BoxOfficeTab") dispatch(setActiveHeaderTab("Sell"));
   };
 
   return (
     <View style={styles.mainContainer}>
       <Header
-        eventInfo={dynamicEventInfo || finalEventInfo}
+        eventInfo={eventInfo}
         showBackButton={isFromRootStack}
         onBackPress={handleBackPress}
         activeTab={activeHeaderTab}
-        onTabChange={handleHeaderTabChange}
+        onTabChange={(tab) => dispatch(setActiveHeaderTab(tab))}
         userRole={userRole}
       />
       <View style={styles.contentContainer}>
         <View style={styles.tabContainer}>
           <TouchableOpacity
-            onPress={() => handleViewChange('TicketsTab')}
-            style={[styles.button, activeView === 'TicketsTab' && styles.activeButton]}
+            onPress={() => handleViewChange("TicketsTab")}
+            style={[styles.button, activeView === "TicketsTab" && styles.activeButton]}
           >
-            <Text style={[styles.buttonText, activeView === 'TicketsTab' && styles.activeButtonText]}>
+            <Text style={[styles.buttonText, activeView === "TicketsTab" && styles.activeButtonText]}>
               Tickets
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => handleViewChange('BoxOfficeTab')}
-            style={[styles.button, activeView === 'BoxOfficeTab' && styles.activeButton]}
+            onPress={() => handleViewChange("BoxOfficeTab")}
+            style={[styles.button, activeView === "BoxOfficeTab" && styles.activeButton]}
           >
-            <Text style={[styles.buttonText, activeView === 'BoxOfficeTab' && styles.activeButtonText]}>
+            <Text style={[styles.buttonText, activeView === "BoxOfficeTab" && styles.activeButtonText]}>
               Box Office
             </Text>
           </TouchableOpacity>
         </View>
-        {activeView === 'TicketsTab' && (
-          <TicketsTab key={tabKey} eventInfo={finalEventInfo} initialTab={initialTab} />
+
+        {activeView === "TicketsTab" && (
+          <TicketsTab eventInfo={eventInfo} />
         )}
-        {activeView === 'BoxOfficeTab' && (
-          <BoxOfficeTab eventInfo={finalEventInfo} onScanCountUpdate={onScanCountUpdate} selectedTab={selectedTab} />
+        {activeView === "BoxOfficeTab" && (
+          <BoxOfficeTab onScanCountUpdate={onScanCountUpdate} />
         )}
       </View>
     </View>

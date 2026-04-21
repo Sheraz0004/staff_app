@@ -32,7 +32,7 @@ function AdminTabs({
   tabBarHeight,
   insets,
 }: AdminTabsProps) {
-  const navigation = useNavigation();
+  const navigation :any = useNavigation();
 
   const onEventSelected = async (newEvent: any) => {
     
