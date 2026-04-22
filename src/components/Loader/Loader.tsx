@@ -35,3 +35,4 @@ const Loader: React.FC<LoaderProps> = React.memo(
 );
 
 export default Loader;
+

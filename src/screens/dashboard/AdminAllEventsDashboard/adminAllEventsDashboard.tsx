@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { View, ScrollView, TouchableOpacity } from "react-native";
+import { View, ScrollView, TouchableOpacity, Image } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
+import { getUser } from "../../../redux/reducers/userReducer";
 import SvgIcons from "../../../components/SvgIcons";
 import { color } from "../../../color/color";
 import Typography from "../../../components/Typography";
@@ -79,6 +80,8 @@ interface DateRange {
 
 const AdminAllEventsDashboard: React.FC = () => {
   const dispatch = useDispatch();
+  const currentUser = useSelector(getUser);
+  // console.log("currentUser-->",currentUser)
 
   const eventTypes = useSelector(selectEventTypes) ?? [];
   const ticketingTypes = useSelector(selectTicketingTypes) ?? [];
@@ -209,7 +212,7 @@ const AdminAllEventsDashboard: React.FC = () => {
     dispatch(setDashboardDataError(null));
     try {
       const response = await DASHBOARD_SERVICES.fetchDashboardStats(params);
-      console.log("response dasboard--->",response)
+      // console.log("response dasboard--->",response)
       dispatch(setDashboardData(response?.data ?? {}));
     } catch (error: any) {
       dispatch(
@@ -365,6 +368,7 @@ const AdminAllEventsDashboard: React.FC = () => {
   };
 
   const handleDateRangeSelect = ({ startDate, endDate, year }: DateRange) => {
+    dispatch(setDashboardDataLoading(true));
     const toApiDate = (date: Date) => {
       const y = date.getFullYear();
       const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -416,7 +420,15 @@ const AdminAllEventsDashboard: React.FC = () => {
           </TouchableOpacity>
           <View style={styles.headerDivider} />
           <View style={styles.avatar}>
-            <SvgIcons.profileImage width={40} height={40} />
+            {currentUser?.profile_image ? (
+              <Image
+                source={{ uri: currentUser.profile_image }}
+                style={{ width: 40, height: 40, borderRadius: 20 }}
+                resizeMode="cover"
+              />
+            ) : (
+              <SvgIcons.profileImage width={40} height={40} />
+            )}
           </View>
         </View>
       </View>

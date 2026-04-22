@@ -1138,8 +1138,8 @@ export const ticketService = {
         url += `?${params.toString()}`;
       }
 
-      logger.log('================================================', url);
-      console.log('📊 Dashboard Stats URL:', `${BASE_URL}${url}`);
+      // logger.log('================================================', url);
+      // console.log('📊 Dashboard Stats URL:', `${BASE_URL}${url}`);
 
       const response = await apiClient.get(url);
       return response.data;
@@ -1188,7 +1188,7 @@ export const eventService = {
   fetchEventInfo: async (eventId: string) => {
     try {
       const response = await apiClient.get(endpoints.eventInfo(eventId));
-      logger.log("Fetch Event Info Response:", response.data);
+      // logger.log("Fetch Event Info Response:", response.data);
       return response.data;
     } catch (error: any) {
       logger.error("Fetch Event Info Error:", {
