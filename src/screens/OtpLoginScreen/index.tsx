@@ -5,11 +5,11 @@ import {
   TextInput,
   TouchableOpacity,
   Keyboard,
-  TouchableWithoutFeedback,
   Platform,
   Alert,
   ActivityIndicator,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useNavigation } from "@react-navigation/native";
 import { color } from "../../color/color";
 import { useDispatch } from "react-redux";
@@ -157,13 +157,15 @@ const OtpLoginScreen: React.FC<OtpLoginScreenProps> = ({ route }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
-      {/* <TouchableWithoutFeedback onPress={Keyboard.dismiss}> */}
-      <View style={{ flex: 1 }}>
-        <LinearGradient
-          colors={["#000000", "#281c10"]}
-          style={StyleSheet.absoluteFillObject}
-        />
+      <LinearGradient
+        colors={["#000000", "#281c10"]}
+        style={StyleSheet.absoluteFillObject}
+      />
 
+      <KeyboardAwareScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={{ flex: 1, justifyContent: "center" }}>
           <View style={styles.container}>
             <Typography
@@ -245,11 +247,10 @@ const OtpLoginScreen: React.FC<OtpLoginScreenProps> = ({ route }) => {
           </View>
         </View>
 
-        {!isKeyboardVisible && (
+        {/* {!isKeyboardVisible && ( */}
           <MiddleSection showGetStartedButton={false} useFlexLayout />
-        )}
-      </View>
-      {/* </TouchableWithoutFeedback> */}
+        {/* )} */}
+      </KeyboardAwareScrollView>
     </View>
   );
 };

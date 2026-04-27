@@ -6,6 +6,7 @@ import EventsScreen from '../../eventsTab/EventsScreen';
 import HomeScreen from '../../CheckIn';
 import EventsTicketsTab from '../../eventsTicketsTab/EventsTicketsTab';
 import { buildScreenOptions, commonTabOptions, ServicesScreen } from '../tabHelpers';
+import AdminAllEventsDashboard from '../../dashboard/AdminAllEventsDashboard/adminAllEventsDashboard';
 
 const Tab = createBottomTabNavigator();
 
@@ -66,6 +67,7 @@ function AdminTabs({
     >
       <Tab.Screen name="Dashboard" options={commonTabOptions}>
         {() => (
+          // <AdminAllEventsDashboard/>
           <DashboardScreen
             eventInfo={eventInformation}
             onScanCountUpdate={updateScanCount}

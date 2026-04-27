@@ -1,52 +1,53 @@
+import Loader from "@/src/components/Loader/Loader";
+import { Image } from "expo-image";
 import React, {
-  useState,
-  useEffect,
-  useRef,
-  useMemo,
   useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
 } from "react";
 import {
-  View,
-  FlatList,
-  TouchableOpacity,
-  Image,
-  TextInput,
-  Platform,
-  StatusBar,
   ActivityIndicator,
-  Modal,
   Animated,
+  FlatList,
+  Modal,
   PanResponder,
+  Platform,
+  RefreshControl,
+  StatusBar,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useDispatch, useSelector } from "react-redux";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useDispatch, useSelector } from "react-redux";
 import { color } from "../../../color/color";
-import {
-  fetchSellEventsThunk,
-  setSearchQuery,
-  setFilter,
-  setMonthFilter,
-  clearFilter,
-  setSelectedEvent,
-  selectSellEvents,
-  selectSellLoading,
-  selectSellLoadingMore,
-  selectSellRefreshing,
-  selectSellHasMore,
-  selectSellPage,
-  selectSellSearchQuery,
-  selectSellSelectedFilter,
-  selectSellMonthIndex,
-  selectSellMonthYear,
-  SellEventItem,
-  SelectedSellEvent,
-} from "../../../redux/reducers/sellCheckinSlice";
-import { AppDispatch } from "../../../redux/store";
 import SvgIcons from "../../../components/SvgIcons";
 import Typography from "../../../components/Typography";
+import {
+  clearFilter,
+  fetchSellEventsThunk,
+  SelectedSellEvent,
+  selectSellEvents,
+  selectSellHasMore,
+  selectSellLoading,
+  selectSellLoadingMore,
+  selectSellMonthIndex,
+  selectSellMonthYear,
+  selectSellPage,
+  selectSellRefreshing,
+  selectSellSearchQuery,
+  selectSellSelectedFilter,
+  SellEventItem,
+  setFilter,
+  setMonthFilter,
+  setSearchQuery,
+  setSelectedEvent,
+} from "../../../redux/reducers/sellCheckinSlice";
+import { AppDispatch } from "../../../redux/store";
 import { styles } from "./index.styles";
-import Loader from "@/src/components/Loader/Loader";
-import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
 const MONTHS_SHORT = [
   "Jan",
@@ -82,61 +83,81 @@ interface LargeEventCardProps {
   onPress: (event: SellEventItem) => void;
 }
 
+const STATUS_COLORS: Record<string, string> = {
+  PUBLISHED: "#22c55e",
+  DRAFT: "#f59e0b",
+  PAID: "#3b82f6",
+  CANCELLED: "#ef4444",
+};
+
 const LargeEventCard = React.memo<LargeEventCardProps>(({ event, onPress }) => {
   const handlePress = useCallback(() => onPress(event), [event, onPress]);
+  const statusColor = event.status
+    ? (STATUS_COLORS[event.status] ?? color.grey_87807C)
+    : null;
+
   return (
     <TouchableOpacity
       style={styles.largeCard}
       onPress={handlePress}
       activeOpacity={0.8}
     >
-      <View style={styles.largeImageContainer}>
-        <Image
-          source={{
-            uri:
-              event?.banner ||
-              "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800",
-          }}
-          style={styles.largeImage}
-        />
-        {/* <TouchableOpacity style={styles.bookmarkButton}>
-        <SvgIcons.bookmarkedIcon />
-      </TouchableOpacity> */}
-      </View>
+      <Image
+        source={{
+          uri:
+            event?.banner ||
+            "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800",
+        }}
+        style={styles.largeImage}
+        contentFit="cover"
+      />
+      {statusColor && (
+        <View style={styles.statusBadge}>
+          <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+          <Typography weight="600" size={10} color={color.white_FFFFFF}>
+            {event.status}
+          </Typography>
+        </View>
+      )}
       <View style={styles.cardContent}>
         <Typography
           style={styles.eventTitle}
           weight="700"
-          size={13}
+          size={14}
           color={color.brown_3C200A}
+          numberOfLines={2}
         >
           {event.title}
         </Typography>
-        <Typography
-          style={styles.eventDate}
-          weight="400"
-          size={10}
-          color={color.grey_87807C}
-        >
-          {event.formattedStartDate}
-        </Typography>
-        <Typography
-          style={styles.eventTime}
-          weight="400"
-          size={10}
-          color={color.grey_87807C}
-        >
-          {event.timeDuration}
-        </Typography>
-        <Typography
-          style={styles.eventLocation}
-          weight="400"
-          size={10}
-          color={color.brown_766F6A}
-          numberOfLines={1}
-        >
-          {event.location || event.globalLocation || "TBD"}
-        </Typography>
+        <View style={styles.eventCardMeta}>
+          <Typography weight="400" size={11} color={color.grey_87807C}>
+            {event.formattedStartDate}
+          </Typography>
+          {event.timeDuration ? (
+            <>
+              <View style={styles.metaDot} />
+              <Typography weight="400" size={11} color={color.grey_87807C}>
+                {event.timeDuration}
+              </Typography>
+            </>
+          ) : null}
+        </View>
+        <View style={styles.eventCardFooter}>
+          <Typography
+            weight="400"
+            size={11}
+            color={color.brown_766F6A}
+            numberOfLines={1}
+            style={{ flex: 1 }}
+          >
+            {event.location || event.globalLocation || "TBD"}
+          </Typography>
+          {event.priceFrom != null && (
+            <Typography weight="400" size={11} color={color.brown_766F6A}>
+              From ${event.priceFrom}
+            </Typography>
+          )}
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -426,6 +447,18 @@ const EventsTicketsTab: React.FC<EventsTicketsTabProps> = ({
   const selectedMonthIndex = useSelector(selectSellMonthIndex);
   const selectedMonthYear = useSelector(selectSellMonthYear);
 
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     if (Platform.OS === "android") {
+  //       StatusBar.setTranslucent(true);
+  //       StatusBar.setBackgroundColor("#FFF");
+  //       StatusBar.setBarStyle("dark-content");
+  //     } else {
+  //       StatusBar.setBarStyle("dark-content");
+  //     }
+  //   }, []),
+  // );
+
   const [filterVisible, setFilterVisible] = useState(false);
   const [searchVisible, setSearchVisible] = useState(!!searchQuery);
   const [searchInput, setSearchInput] = useState(searchQuery);
@@ -589,9 +622,9 @@ const EventsTicketsTab: React.FC<EventsTicketsTabProps> = ({
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: topPadding + 16 }]}>
+      <View style={[styles.header, { paddingTop: topPadding }]}>
         <TouchableOpacity style={styles.headerButton} />
-             <Loader isLoading={loading} />
+        <Loader isLoading={loading} />
         <Typography
           style={styles.headerTitle}
           weight="700"
@@ -617,95 +650,119 @@ const EventsTicketsTab: React.FC<EventsTicketsTabProps> = ({
       </View>
 
       <View style={styles.headerDivider} />
+      {searchVisible && (
+        <View style={styles.searchBar}>
+          <SvgIcons.searchIconDark width={16} height={16} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search events..."
+            placeholderTextColor={color.grey_87807C}
+            value={searchInput}
+            onChangeText={handleSearchChange}
+            onSubmitEditing={handleSearchSubmit}
+            autoFocus
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+          {searchInput.length > 0 && (
+            <TouchableOpacity
+              onPress={handleClearSearch}
+              style={styles.searchClearButton}
+            >
+              <Typography weight="700" size={14} color={color.grey_87807C}>
+                ✕
+              </Typography>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
       <KeyboardAwareScrollView
-        style={styles.container}
+        style={{ flex: 1 }}
         enableOnAndroid
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        extraScrollHeight={20}
+        extraScrollHeight={40}
         enableResetScrollToCoords={false}
         automaticallyAdjustContentInsets={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={color.btnBrown_AE6F28}
+          />
+        }
+        onMomentumScrollEnd={({ nativeEvent }) => {
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          if (
+            layoutMeasurement.height + contentOffset.y >=
+            contentSize.height - 200
+          ) {
+            handleLoadMore();
+          }
+        }}
+        onScrollEndDrag={({ nativeEvent }) => {
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          if (
+            layoutMeasurement.height + contentOffset.y >=
+            contentSize.height - 200
+          ) {
+            handleLoadMore();
+          }
+        }}
       >
-        {searchVisible && (
-          <View style={styles.searchBar}>
-            <SvgIcons.searchIconDark width={16} height={16} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search events..."
-              placeholderTextColor={color.grey_87807C}
-              value={searchInput}
-              onChangeText={handleSearchChange}
-              onSubmitEditing={handleSearchSubmit}
-              autoFocus
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="search"
-            />
-            {searchInput.length > 0 && (
-              <TouchableOpacity
-                onPress={handleClearSearch}
-                style={styles.searchClearButton}
-              >
-                <Typography weight="700" size={14} color={color.grey_87807C}>
-                  ✕
-                </Typography>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        {activeFilterText && (
-          <View style={styles.activeFilterRow}>
-            <TouchableOpacity
-              style={styles.activeFilterChip}
-              onPress={() => setFilterVisible(true)}
-            >
-              <Typography weight="500" size={12} color={color.btnBrown_AE6F28}>
-                {activeFilterText}
-              </Typography>
-              <TouchableOpacity
-                onPress={handleClearFilter}
-                style={styles.clearFilterButton}
-              >
-                <Typography
-                  weight="700"
-                  size={12}
-                  color={color.btnBrown_AE6F28}
-                >
-                  ✕
-                </Typography>
-              </TouchableOpacity>
-            </TouchableOpacity>
-          </View>
-        )}
-
         <FlatList
           data={events}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.3}
-          onRefresh={handleRefresh}
-          refreshing={refreshing}
+          scrollEnabled={false}
+          ListHeaderComponent={
+            <>
+              {activeFilterText && (
+                <View style={styles.activeFilterRow}>
+                  <TouchableOpacity
+                    style={styles.activeFilterChip}
+                    onPress={() => setFilterVisible(true)}
+                  >
+                    <Typography
+                      weight="500"
+                      size={12}
+                      color={color.btnBrown_AE6F28}
+                    >
+                      {activeFilterText}
+                    </Typography>
+                    <TouchableOpacity
+                      onPress={handleClearFilter}
+                      style={styles.clearFilterButton}
+                    >
+                      <Typography
+                        weight="700"
+                        size={12}
+                        color={color.btnBrown_AE6F28}
+                      >
+                        ✕
+                      </Typography>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </>
+          }
           ListFooterComponent={renderFooter}
           ListEmptyComponent={renderEmpty}
-          showsVerticalScrollIndicator={false}
-          removeClippedSubviews
-          windowSize={5}
-          maxToRenderPerBatch={10}
-          initialNumToRender={8}
+          keyboardShouldPersistTaps="handled"
+        />
+        <WhenFilterBottomSheet
+          visible={filterVisible}
+          onClose={() => setFilterVisible(false)}
+          selectedFilter={selectedFilter}
+          onFilterChange={handleFilterChange}
+          selectedMonthIndex={selectedMonthIndex}
+          selectedMonthYear={selectedMonthYear}
+          onMonthSelect={handleMonthSelect}
         />
       </KeyboardAwareScrollView>
-      <WhenFilterBottomSheet
-        visible={filterVisible}
-        onClose={() => setFilterVisible(false)}
-        selectedFilter={selectedFilter}
-        onFilterChange={handleFilterChange}
-        selectedMonthIndex={selectedMonthIndex}
-        selectedMonthYear={selectedMonthYear}
-        onMonthSelect={handleMonthSelect}
-      />
     </View>
   );
 };

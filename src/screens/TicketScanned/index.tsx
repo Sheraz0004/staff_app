@@ -1,5 +1,5 @@
-import React from "react";
-import { SafeAreaView, ScrollView, Text, View } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { Keyboard, SafeAreaView, ScrollView, Text, View } from "react-native";
 import Header from "../../components/header";
 import SvgIcons from "../../components/SvgIcons";
 import Typography from "../../components/Typography";
@@ -11,30 +11,131 @@ import { truncateStaffName } from "../../utils/stringUtils";
 import { useSelector } from "react-redux";
 import { RootState } from "../../redux/reducers/rootReducer";
 import { styles } from "./index.styles";
+import { ticketService } from "../../api/apiService";
+import { logger } from "../../utils/logger";
+import Loader from "@/src/components/Loader/Loader";
+
+interface TicketDetailsResponse {
+  ticketHolder?: string;
+  ticketHolderEmail?: string | null;
+  ticketHolderPhone?: string | null;
+  scannedBy?: {
+    email?: string;
+    name?: string | null;
+    scannedOn?: string;
+    staffId?: string;
+  };
+  scanCount?: number;
+  ticketNumber?: string;
+  eventId?: number;
+  ticket?: string;
+  ticketClass?: string;
+  ticketPrice?: number;
+  currency?: string;
+  status?: string;
+  note?: string | null;
+  purchaseDate?: string;
+  // legacy fallback fields from paramScanResponse
+  message?: string;
+  ticketCategory?: string;
+  formattedCreatedAt?: string;
+}
 
 const TicketScanned: React.FC<{ route: any }> = ({ route }) => {
   const {
-    scanResponse,
+    scanResponse: paramScanResponse,
     eventUuid,
     eventInfo: legacyEventInfo,
-    note,
+    note: paramNote,
     eventId,
   } = route.params;
 
-  const displayedNote = note || scanResponse?.note || "No note added";
+  const [ticketDetails, setTicketDetails] =
+    useState<TicketDetailsResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const ticketNumber = paramScanResponse?.ticketNumber;
+
+  const fetchDetails = useCallback(async () => {
+    if (!ticketNumber) {
+      logger.warn("[TicketScanned] No ticketNumber available — skipping fetch");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      logger.log(
+        "[TicketScanned] Fetching details for ticketNumber:",
+        ticketNumber,
+      );
+
+      const response = await ticketService.fetchTicketDetails(ticketNumber);
+
+      logger.log("[TicketScanned] Raw response:", response);
+
+      // Service returns response.data directly; some endpoints wrap in { data: {...} }
+      const data: TicketDetailsResponse = response?.data ?? response;
+
+      setTicketDetails(data);
+    } catch (err: any) {
+      const message =
+        err?.message ||
+        err?.response?.data?.message ||
+        "Failed to load ticket details.";
+
+      logger.error("[TicketScanned] Error fetching ticket details:", {
+        ticketNumber,
+        status: err?.response?.status,
+        message,
+        responseData: err?.response?.data,
+      });
+
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }, [ticketNumber]);
+
+  useEffect(() => {
+    Keyboard.dismiss();
+  }, []);
+
+  useEffect(() => {
+    fetchDetails();
+  }, [fetchDetails]);
+
+  const data: TicketDetailsResponse = ticketDetails ?? paramScanResponse ?? {};
+  const displayMessage = data.status
+    ? `Ticket ${data.status.charAt(0).toUpperCase()}${data.status.slice(1).toLowerCase()}`
+    : data.message || "No Record";
+  const displayCategory = data.ticket || data.ticketCategory || "No Record";
+  const displayClass = data.ticketClass || "No Record";
+  const displayPurchaseDate = data.purchaseDate
+    ? formatDateTime(data.purchaseDate)
+    : data.formattedCreatedAt || "No Record";
+  const displayContact = data.ticketHolderEmail || data.ticketHolderPhone || "No Record";
+
+  const displayNote = paramNote || data.note || "No note added";
+
+  const scannedByName =
+    data.scannedBy?.email || data.scannedBy?.name || "No Record";
+  const scannedByStaffId = data.scannedBy?.staffId || "No Record";
+  const scannedOn =
+    data.scannedBy?.scannedOn && data.scannedBy.scannedOn !== "No Record"
+      ? formatDateTime(data.scannedBy.scannedOn)
+      : "No Record";
 
   const eventInfoCache = useSelector(
     (state: RootState) => state.manualCheckin.eventInfoCache,
   );
 
-  // Resolve the event uuid from new or legacy params
   const resolvedUuid =
     eventUuid || eventId || legacyEventInfo?.eventUuid || legacyEventInfo?.uuid;
   const cached = resolvedUuid ? eventInfoCache[String(resolvedUuid)] : null;
 
-  // console.log("scanResponse--->",scanResponse)
-
-  // Prefer Redux cache, fall back to legacy eventInfo param
   const eventTitle = cached?.event_title || legacyEventInfo?.event_title;
   const eventDate = cached?.date || legacyEventInfo?.date;
   const eventTime = cached?.time || legacyEventInfo?.time;
@@ -50,18 +151,30 @@ const TicketScanned: React.FC<{ route: any }> = ({ route }) => {
       }
     : legacyEventInfo;
 
-  const scannedByName =
-    scanResponse?.scannedBy?.email ||
-    scanResponse?.scannedBy?.name ||
-    "No Record";
-  const scannedByStaffId = scanResponse?.scannedBy?.staffId || "No Record";
-  const scannedOn = scanResponse?.scannedBy?.scannedOn !=="No Record"
-    ? formatDateTime(scanResponse.scannedBy.scannedOn)
-    : "No Record";
+  if (error && !ticketDetails) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Header eventInfo={headerEventInfo} />
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            paddingHorizontal: 24,
+          }}
+        >
+          <Text style={{ textAlign: "center", color: "#888", fontSize: 14 }}>
+            {error}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       <Header eventInfo={headerEventInfo} />
+      <Loader isLoading={loading} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -70,9 +183,7 @@ const TicketScanned: React.FC<{ route: any }> = ({ route }) => {
         <View style={styles.wrapper}>
           {/* TOP CARD */}
           <View style={styles.popUp}>
-            <Text style={styles.labeltickets}>
-              {scanResponse?.message || "No Record"}
-            </Text>
+            <Text style={styles.labeltickets}>{displayMessage}</Text>
 
             <SvgIcons.successBrownSVG
               width={81}
@@ -82,15 +193,15 @@ const TicketScanned: React.FC<{ route: any }> = ({ route }) => {
             />
 
             <Text style={styles.userName}>
-              {scanResponse?.ticketHolder || "No Record"}
+              {data.ticketHolder || "No Record"}
             </Text>
 
             <Text style={styles.userEmail}>
-              {scanResponse?.ticketHolderEmail || "No Record"}
+              {displayContact}
             </Text>
 
             <Text style={styles.userPurchaseDate}>
-              Purchase Date: {scanResponse?.formattedCreatedAt || "No Record"}
+              Purchase Date: {displayPurchaseDate}
             </Text>
           </View>
 
@@ -134,19 +245,19 @@ const TicketScanned: React.FC<{ route: any }> = ({ route }) => {
               <View style={styles.leftColumnContent}>
                 <Text style={styles.values}>Category</Text>
                 <Typography style={[styles.value, styles.marginTop10]}>
-                  {scanResponse?.ticketCategory || "No Record"}
+                  {displayCategory}
                 </Typography>
 
                 <Text style={[styles.values, styles.marginTop10]}>Class</Text>
                 <Typography style={[styles.value, styles.marginTop10]}>
-                  {scanResponse?.ticketClass || "No Record"}
+                  {displayClass}
                 </Typography>
 
                 <Text style={[styles.values, styles.marginTop10]}>
                   Ticket ID
                 </Text>
                 <Text style={[styles.ticketNumber, styles.marginTop10]}>
-                  {scanResponse?.ticketNumber || "No Record"}
+                  {data.ticketNumber || "No Record"}
                 </Text>
 
                 <Text style={styles.values}>Last Scanned On</Text>
@@ -165,20 +276,19 @@ const TicketScanned: React.FC<{ route: any }> = ({ route }) => {
                   Staff ID
                 </Text>
                 <Text style={[styles.valueScanCount, styles.marginTop8]}>
-                  {scannedByStaffId || "No Record"}
+                  {scannedByStaffId}
                 </Text>
 
                 <Text style={[styles.values, styles.marginTop10]}>Price</Text>
                 <Text style={[styles.value, styles.marginTop10]}>
-                  {scanResponse?.currency || "GHS"}{" "}
-                  {scanResponse?.ticketPrice || "No Record"}
+                  {data.currency || "GHS"} {data.ticketPrice || "No Record"}
                 </Text>
 
                 <Text style={[styles.values, styles.marginTop10]}>
                   Scan Count
                 </Text>
                 <Text style={[styles.valueScanCount, styles.marginTop9]}>
-                  {scanResponse?.scanCount || "No Record"}
+                  {data.scanCount ?? "No Record"}
                 </Text>
               </View>
             </View>
@@ -187,7 +297,7 @@ const TicketScanned: React.FC<{ route: any }> = ({ route }) => {
           {/* NOTE CARD */}
           <View style={styles.noteContainer}>
             <Text style={styles.LabelNote}>Note</Text>
-            <Text style={styles.noteDescription}>{displayedNote}</Text>
+            <Text style={styles.noteDescription}>{displayNote}</Text>
           </View>
         </View>
       </ScrollView>

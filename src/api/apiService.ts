@@ -49,6 +49,7 @@ const endpoints = {
   logout: "/identities/logout",
   updateProfile: "/api/users/profile",
   adminDashboardTerminals: "/api/event/dashboard/terminals/",
+  ticketDetails: (ticketNumber: string) => `/api/ticket/${ticketNumber}/details/`,
 };
 
 apiClient.interceptors.request.use(
@@ -1106,6 +1107,30 @@ export const ticketService = {
 
         throw {
           message: error.response.data.message || "Failed to fetch get box office ticket",
+          response: error.response,
+        };
+      }
+      throw {
+        message: "Network error. Please check your connection.",
+        error,
+      };
+    }
+  },
+
+  fetchTicketDetails: async (ticketNumber: string) => {
+    try {
+      const response = await apiClient.get(endpoints.ticketDetails(ticketNumber));
+      logger.log("Ticket Details Response:", response.data);
+      return response.data;
+    } catch (error: any) {
+      logger.error("Fetch Ticket Details Error:", {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+      if (error.response?.data) {
+        throw {
+          message: error.response.data.message || "Failed to fetch ticket details.",
           response: error.response,
         };
       }

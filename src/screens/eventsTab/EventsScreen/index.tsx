@@ -1,15 +1,15 @@
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   TouchableOpacity,
   FlatList,
-  Platform,
   ActivityIndicator,
   RefreshControl,
+  TextInput,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { Image } from "expo-image";
 import { useNavigation } from "@react-navigation/native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { color } from "../../../color/color";
 import SvgIcons from "../../../components/SvgIcons";
 import Typography from "../../../components/Typography";
@@ -22,13 +22,13 @@ import {
   selectEventsPage,
   selectEventsTotalPages,
   selectEventsTotalCount,
-  selectEventsActiveCount,
-  selectEventsCancelledCount,
-  selectEventsLocations,
+  selectEventsSearchQuery,
+  setSearchQuery,
   EventStat,
 } from "../../../redux/reducers/eventsReducer";
 import { fetchEventStatsThunk } from "../../../redux/thunks/eventThunks";
 import { styles } from "./index.styles";
+import Loader from "@/src/components/Loader/Loader";
 
 interface EventsScreenProps {
   eventInfo?: any;
@@ -135,32 +135,63 @@ const StatCard: React.FC<{
 
 const EventsScreen: React.FC<EventsScreenProps> = ({ onEventChange }) => {
   const navigation = useNavigation<any>();
-  const insets = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
+
   const events = useSelector(selectEvents);
   const loading = useSelector(selectEventsLoading);
   const loadingMore = useSelector(selectEventsLoadingMore);
   const currentPage = useSelector(selectEventsPage);
   const totalPages = useSelector(selectEventsTotalPages);
   const totalCount = useSelector(selectEventsTotalCount);
-  const activeCount = useSelector(selectEventsActiveCount);
-  const cancelledCount = useSelector(selectEventsCancelledCount);
-  const locations = useSelector(selectEventsLocations);
+  const searchQuery = useSelector(selectEventsSearchQuery);
 
-  const topPadding = Platform.OS === "android" ? 10 : insets.top;
+  const [searchVisible, setSearchVisible] = useState(!!searchQuery);
+  const [searchInput, setSearchInput] = useState(searchQuery);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    dispatch(fetchEventStatsThunk(1, "", false));
+    dispatch(fetchEventStatsThunk(1, "", false, ""));
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
   }, []);
 
+  const handleSearchChange = (text: string) => {
+    setSearchInput(text);
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    if (!text.trim()) {
+      dispatch(setSearchQuery(""));
+      dispatch(fetchEventStatsThunk(1, "", false, ""));
+      return;
+    }
+    debounceTimer.current = setTimeout(() => {
+      dispatch(setSearchQuery(text));
+      dispatch(fetchEventStatsThunk(1, "", false, text));
+    }, 1200);
+  };
+
+  const handleSearchSubmit = () => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    dispatch(setSearchQuery(searchInput));
+    dispatch(fetchEventStatsThunk(1, "", false, searchInput));
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput("");
+    setSearchVisible(false);
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    dispatch(setSearchQuery(""));
+    dispatch(fetchEventStatsThunk(1, "", false, ""));
+  };
+
   const handleRefresh = useCallback(() => {
-    dispatch(fetchEventStatsThunk(1, "", false));
-  }, [dispatch]);
+    dispatch(fetchEventStatsThunk(1, "", false, searchQuery));
+  }, [dispatch, searchQuery]);
 
   const handleLoadMore = useCallback(() => {
     if (loadingMore || loading || currentPage >= totalPages) return;
-    dispatch(fetchEventStatsThunk(currentPage + 1, "", true));
-  }, [dispatch, loadingMore, loading, currentPage, totalPages]);
+    dispatch(fetchEventStatsThunk(currentPage + 1, "", true, searchQuery));
+  }, [dispatch, loadingMore, loading, currentPage, totalPages, searchQuery]);
 
   const handleEventPress = useCallback(
     (item: EventStat) => {
@@ -177,21 +208,13 @@ const EventsScreen: React.FC<EventsScreenProps> = ({ onEventChange }) => {
   );
 
   const ListHeader = (
-    <View>
-      {/* <View style={styles.statsRow}>
-        <StatCard label="Total Events" value={totalCount} />
-        <StatCard label="Active" value={activeCount} accent="#22c55e" />
-        <StatCard label="Cancelled" value={cancelledCount} accent="#ef4444" />
-        <StatCard label="Locations" value={locations} />
-      </View> */}
-      <View style={styles.listHeader}>
-        <Typography weight="700" size={14} color={color.placeholderTxt_24282C}>
-          All Events
-        </Typography>
-        <Typography weight="400" size={12} color={color.grey_87807C}>
-          {totalCount} total
-        </Typography>
-      </View>
+    <View style={styles.listHeader}>
+      <Typography weight="700" size={14} color={color.placeholderTxt_24282C}>
+        All Events
+      </Typography>
+      <Typography weight="400" size={12} color={color.grey_87807C}>
+        {totalCount} total
+      </Typography>
     </View>
   );
 
@@ -206,15 +229,26 @@ const EventsScreen: React.FC<EventsScreenProps> = ({ onEventChange }) => {
   const ListEmpty = !loading ? (
     <View style={styles.emptyState}>
       <Typography weight="400" size={16} color={color.brown_766F6A}>
-        No events available
+        {searchQuery ? "No events found" : "No events available"}
       </Typography>
+      {searchQuery ? (
+        <TouchableOpacity
+          onPress={handleClearSearch}
+          style={styles.clearAllButton}
+        >
+          <Typography weight="600" size={14} color={color.btnBrown_AE6F28}>
+            Clear Search
+          </Typography>
+        </TouchableOpacity>
+      ) : null}
     </View>
   ) : null;
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: topPadding }]}>
+      <View style={[styles.header]}>
         <View style={styles.headerButton} />
+        <Loader isLoading={loading} />
         <Typography
           style={styles.headerTitle}
           weight="700"
@@ -223,26 +257,52 @@ const EventsScreen: React.FC<EventsScreenProps> = ({ onEventChange }) => {
         >
           Events
         </Typography>
-        <TouchableOpacity style={styles.headerButton}>
+        <TouchableOpacity
+          style={styles.headerButton}
+          onPress={() => setSearchVisible((v) => !v)}
+        >
           <SvgIcons.searchIconDark />
         </TouchableOpacity>
       </View>
 
       <View style={styles.headerDivider} />
 
-      <FlatList
-        data={events}
-        keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => (
-          <EventCard item={item} onPress={() => handleEventPress(item)} />
-        )}
-        ListHeaderComponent={ListHeader}
-        ListFooterComponent={ListFooter}
-        ListEmptyComponent={ListEmpty}
-        onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.4}
+      {searchVisible && (
+        <View style={styles.searchBar}>
+          <SvgIcons.searchIconDark width={16} height={16} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search events..."
+            placeholderTextColor={color.grey_87807C}
+            value={searchInput}
+            onChangeText={handleSearchChange}
+            onSubmitEditing={handleSearchSubmit}
+            autoFocus
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+          {searchInput.length > 0 && (
+            <TouchableOpacity
+              onPress={handleClearSearch}
+              style={styles.searchClearButton}
+            >
+              <Typography weight="700" size={14} color={color.grey_87807C}>
+                ✕
+              </Typography>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      <KeyboardAwareScrollView
+        style={{ flex: 1 }}
+        enableOnAndroid
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        extraScrollHeight={40}
+        enableResetScrollToCoords={false}
+        automaticallyAdjustContentInsets={false}
         refreshControl={
           <RefreshControl
             refreshing={loading && events.length === 0}
@@ -250,7 +310,39 @@ const EventsScreen: React.FC<EventsScreenProps> = ({ onEventChange }) => {
             tintColor={color.brown_3C200A}
           />
         }
-      />
+        onMomentumScrollEnd={({ nativeEvent }) => {
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          if (
+            layoutMeasurement.height + contentOffset.y >=
+            contentSize.height - 200
+          ) {
+            handleLoadMore();
+          }
+        }}
+        onScrollEndDrag={({ nativeEvent }) => {
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          if (
+            layoutMeasurement.height + contentOffset.y >=
+            contentSize.height - 200
+          ) {
+            handleLoadMore();
+          }
+        }}
+      >
+        <FlatList
+          data={events}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={({ item }) => (
+            <EventCard item={item} onPress={() => handleEventPress(item)} />
+          )}
+          ListHeaderComponent={ListHeader}
+          ListFooterComponent={ListFooter}
+          ListEmptyComponent={ListEmpty}
+          scrollEnabled={false}
+          contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
+        />
+      </KeyboardAwareScrollView>
     </View>
   );
 };

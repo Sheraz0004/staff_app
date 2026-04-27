@@ -9,9 +9,9 @@ export const EVENT_SERVICES = {
   fetchEventInfo: (eventId: string) =>
     HTTP_CLIENT.get(API_CONFIG.EVENTS.eventInfo(eventId)),
 
-  fetchEventStats: (params: { page: number; pageSize?: number; eventClass?: string }) =>
+  fetchEventStats: (params: { page: number; pageSize?: number; eventClass?: string; search?: string }) =>
     HTTP_CLIENT.get(
-      API_CONFIG.EVENTS.eventStats(params.page, params.pageSize ?? 10, params.eventClass ?? '')
+      API_CONFIG.EVENTS.eventStats(params.page, params.pageSize ?? 10, params.eventClass ?? '', params.search ?? '')
     ),
 
   fetchMyEvents: (params: {

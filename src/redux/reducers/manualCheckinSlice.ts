@@ -2,7 +2,6 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { CHECK_IN_SERVICES } from '../../services/CheckInService';
 import { EVENT_SERVICES } from '../../services/EventService';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface ScannedBy {
   name: string;
@@ -75,6 +74,13 @@ interface ManualCheckinState {
   lookupLoading: boolean;
   lookupError: string | null;
 
+  allOrders: OrderResult[];
+  allOrdersLoading: boolean;
+  allOrdersLoadingMore: boolean;
+  allOrdersRefreshing: boolean;
+  allOrdersPage: number;
+  allOrdersHasMore: boolean;
+
   ticketDetails: LegacyTicket[];
   ticketDetailsLoading: boolean;
   ticketDetailsError: string | null;
@@ -89,10 +95,42 @@ interface ManualCheckinState {
   checkinSuccessCount: number;
 }
 
+const normalizeOrder = (o: any): OrderResult => ({
+  orderId: o.orderId ?? o.id ?? 0,
+  orderNumber: o.orderNumber ?? o.order_number ?? '',
+  status: o.status ?? '',
+  boughtBy: o.boughtBy ?? o.bought_by ?? '',
+  eventId: o.eventId ?? o.event_id ?? 0,
+  eventTitle: o.eventTitle ?? o.event_title ?? '',
+  eventDate: o.eventDate ?? o.event_date ?? '',
+  eventStartTime: o.eventStartTime ?? o.event_start_time ?? '',
+  eventEndTime: o.eventEndTime ?? o.event_end_time ?? '',
+  eventBanner: o.eventBanner ?? o.event_banner ?? null,
+  total: o.total ?? 0,
+  subtotal: o.subtotal ?? 0,
+  totalVat: o.totalVat ?? o.total_vat ?? 0,
+  discountedValue: o.discountedValue ?? o.discounted_value ?? null,
+  currency: o.currency ?? '',
+  paymentMethod: o.paymentMethod ?? o.payment_method ?? null,
+  transactionId: o.transactionId ?? o.transaction_id ?? null,
+  createdAt: o.createdAt ?? o.created_at ?? '',
+  buyerFirstName: o.buyerFirstName ?? o.buyer_first_name ?? null,
+  buyerLastName: o.buyerLastName ?? o.buyer_last_name ?? null,
+  buyerEmail: o.buyerEmail ?? o.buyer_email ?? null,
+  buyerPhone: o.buyerPhone ?? o.buyer_phone ?? null,
+  tickets: o.tickets ?? [],
+});
+
 const initialState: ManualCheckinState = {
   lookupResults: [],
   lookupLoading: false,
   lookupError: null,
+  allOrders: [],
+  allOrdersLoading: false,
+  allOrdersLoadingMore: false,
+  allOrdersRefreshing: false,
+  allOrdersPage: 1,
+  allOrdersHasMore: true,
   ticketDetails: [],
   ticketDetailsLoading: true,
   ticketDetailsError: null,
@@ -104,9 +142,6 @@ const initialState: ManualCheckinState = {
   checkinSuccessCount: 0,
 };
 
-// ─── Normalizer ───────────────────────────────────────────────────────────────
-// Handles both camelCase (lookup API) and snake_case (fetchTicketOrderDetails API)
-// so we never get "No Record" from a field-name mismatch.
 
 const normalizeScannedBy = (s: any): ScannedBy | null => {
   if (!s) return null;
@@ -144,13 +179,44 @@ export const normalizeTicket = (t: any): LegacyTicket => ({
     t.last_scanned_by_name || t.lastScannedByName || t.scannedBy?.name || null,
 });
 
-// ─── Thunks ───────────────────────────────────────────────────────────────────
 
 export const lookupOrdersThunk = createAsyncThunk(
   'manualCheckin/lookupOrders',
   async (searchFor: string) => {
     const res = await CHECK_IN_SERVICES.lookupOrders(searchFor);
     return (res?.data ?? []) as OrderResult[];
+  },
+);
+
+export const fetchAllOrdersThunk = createAsyncThunk(
+  'manualCheckin/fetchAllOrders',
+  async ({
+    eventId,
+    page,
+    isRefresh,
+  }: {
+    eventId: string | number;
+    page: number;
+    isRefresh?: boolean;
+  }, { rejectWithValue }) => {
+    try {
+      const res = await CHECK_IN_SERVICES.fetchOrdersWithTickets(eventId, page, 10);
+      const data = res?.data;
+      const raw: any[] = data?.orders ?? [];
+      const hasMore =
+        data?.hasNextPage === true ||
+        (data?.currentPage != null && data?.totalPages != null
+          ? data.currentPage < data.totalPages
+          : false);
+      return {
+        results: raw.map(normalizeOrder),
+        hasMore,
+        page,
+        isRefresh: isRefresh ?? false,
+      };
+    } catch (e: any) {
+      return rejectWithValue(e?.response?.data?.message ?? e?.message ?? 'Failed to fetch orders');
+    }
   },
 );
 
@@ -187,8 +253,6 @@ export const manualCheckinTicketThunk = createAsyncThunk(
   ) => {
     try {
       const res = await CHECK_IN_SERVICES.manualCheckin(String(eventUuid), code);
-       console.log("res here --->",res?.data)
-      // API returns flat camelCase body: { status, scanCount, scannedBy, ... }
       const ticketData = res?.data?.data ?? res?.data;
       if (!ticketData || ticketData.status !== 'SCANNED') {
         return rejectWithValue('Check-in failed');
@@ -210,7 +274,6 @@ export const checkinAllTicketsThunk = createAsyncThunk(
   ) => {
     try {
        const res = await CHECK_IN_SERVICES.boxOfficeCheckinAll(String(eventUuid), orderNumber);
-       console.log("res--->",res?.data)
     } catch (e: any) {
       return rejectWithValue(
         e?.response?.data?.message ?? e?.message ?? 'Check-in all failed',
@@ -239,7 +302,6 @@ export const fetchEventInfoThunk = createAsyncThunk(
   },
 );
 
-// ─── Slice ────────────────────────────────────────────────────────────────────
 
 const manualCheckinSlice = createSlice({
   name: 'manualCheckin',
@@ -312,6 +374,34 @@ const manualCheckinSlice = createSlice({
       });
 
     builder
+      .addCase(fetchAllOrdersThunk.pending, (state, action) => {
+        if (action.meta.arg.isRefresh) {
+          state.allOrdersRefreshing = true;
+        } else if (action.meta.arg.page === 1) {
+          state.allOrdersLoading = true;
+        } else {
+          state.allOrdersLoadingMore = true;
+        }
+      })
+      .addCase(fetchAllOrdersThunk.fulfilled, (state, action) => {
+        state.allOrdersLoading = false;
+        state.allOrdersLoadingMore = false;
+        state.allOrdersRefreshing = false;
+        if (action.payload.page === 1) {
+          state.allOrders = action.payload.results;
+        } else {
+          state.allOrders = [...state.allOrders, ...action.payload.results];
+        }
+        state.allOrdersHasMore = action.payload.hasMore;
+        state.allOrdersPage = action.payload.page;
+      })
+      .addCase(fetchAllOrdersThunk.rejected, (state) => {
+        state.allOrdersLoading = false;
+        state.allOrdersLoadingMore = false;
+        state.allOrdersRefreshing = false;
+      });
+
+    builder
       .addCase(fetchTicketDetailsThunk.pending, (state) => {
         state.ticketDetailsLoading = true;
         state.ticketDetailsError = null;
@@ -336,9 +426,6 @@ const manualCheckinSlice = createSlice({
       .addCase(manualCheckinTicketThunk.fulfilled, (state, action) => {
         state.checkingInCode = null;
         const { code, data } = action.payload as { code: string; data: any };
-
-        // API returns camelCase: scannedBy { name, email, scannedOn, staffId }
-        // name can be null — fall back to email then staffId for display
         const sb = data.scannedBy ?? data.scanned_by;
         const staffLabel =
           sb?.name || sb?.email || String(sb?.staffId ?? '') || 'No Record';
@@ -346,7 +433,6 @@ const manualCheckinSlice = createSlice({
           sb?.scannedOn || sb?.scanned_on || new Date().toISOString();
         const newScanCount = data.scanCount ?? data.scan_count;
 
-        // ── 1. Update ticketDetails (detail screen) ──────────────────────────
         const idx = state.ticketDetails.findIndex((t) => t.code === code);
         if (idx !== -1) {
           const t = state.ticketDetails[idx];
@@ -367,7 +453,6 @@ const manualCheckinSlice = createSlice({
           };
         }
 
-        // ── 2. Mirror update into lookupResults (search list) ────────────────
         for (const order of state.lookupResults) {
           const tIdx = order.tickets.findIndex((t: any) => t.code === code);
           if (tIdx !== -1) {
@@ -400,15 +485,11 @@ const manualCheckinSlice = createSlice({
       })
       .addCase(checkinAllTicketsThunk.fulfilled, (state) => {
         state.checkingInAll = false;
-
-        // ── 1. Update ticketDetails ──────────────────────────────────────────
         state.ticketDetails = state.ticketDetails.map((t) => ({
           ...t,
           checkin_status: 'SCANNED',
           scan_count: (t.scan_count || 0) + 1,
         }));
-
-        // ── 2. Mirror into lookupResults for the current order ───────────────
         const orderNumber = state.currentOrderNumber;
         if (orderNumber) {
           const order = state.lookupResults.find(

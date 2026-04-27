@@ -7,7 +7,6 @@ export const styles = StyleSheet.create({
   },
 
   wrapper: {
-    flex: 1,
     paddingHorizontal: 10,
   },
   scrollContent:{

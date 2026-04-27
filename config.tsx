@@ -16,8 +16,8 @@ const API_CONFIG = {
     staffEventAccess: (staffId: string) =>
       `/api/staff-event-access/staff/${staffId}/`,
     eventInfo: (eventId: string) => `/api/ticket/event/${eventId}/info/`,
-    eventStats: (page: number = 1, pageSize: number = 10, eventClass: string = '') =>
-      `/api/event/stats/?page=${page}&page_size=${pageSize}&event_class=${eventClass}`,
+    eventStats: (page: number = 1, pageSize: number = 10, eventClass: string = '', search: string = '') =>
+      `/api/event/stats/?page=${page}&page_size=${pageSize}&event_class=${eventClass}${search ? `&search=${encodeURIComponent(search)}` : ''}`,
     myEvents: (params: {
       page?: number;
       page_size?: number;
@@ -97,6 +97,8 @@ const API_CONFIG = {
       `/api/ticket/check-in-all/${eventId}/${orderNumber}/`,
     orderLookup: `/api/orders/lookup/`,
     orderDetails: (orderId: number) => `/api/orders/${orderId}/order-details/`,
+    ordersWithTickets: (eventId: string | number, page: number, pageSize: number) =>
+      `/api/orders/event/${eventId}/with-tickets/?page=${page}&page_size=${pageSize}&status=PAID`,
   },
   TICKETS: {
     ticketStats: (eventId: string) => `/api/ticket/${eventId}/stats/`,

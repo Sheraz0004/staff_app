@@ -52,4 +52,38 @@ export const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   dateSelectorText: { flex: 1, fontSize: 14, color: color.brown_766F6A },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    paddingBottom: 60,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: color.brown_3C200A,
+    marginTop: 20,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  errorSubtitle: {
+    fontSize: 14,
+    color: color.brown_766F6A,
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 28,
+  },
+  retryButton: {
+    backgroundColor: color.btnBrown_AE6F28,
+    paddingHorizontal: 44,
+    paddingVertical: 14,
+    borderRadius: 24,
+  },
+  retryButtonText: {
+    color: color.white_FFFFFF,
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+  },
 });

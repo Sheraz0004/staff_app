@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,11 +6,13 @@ import {
   TouchableOpacity,
   FlatList,
   ListRenderItemInfo,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import Header from "../../components/header";
 import { color } from "../../color/color";
 import { useNavigation, useRoute, useFocusEffect } from "@react-navigation/native";
-import { useCallback } from "react";
 import SvgIcons from "../../components/SvgIcons";
 import NoResults from "../../components/NoResults";
 import Loader from "../../components/Loader/Loader";
@@ -20,6 +22,7 @@ import { AppDispatch } from "../../redux/store";
 import {
   lookupOrdersThunk,
   fetchEventInfoThunk,
+  fetchAllOrdersThunk,
   preloadFromLookup,
   clearLookupResults,
   OrderResult,
@@ -49,14 +52,28 @@ const ManualScan = ({
   const userRole = propUserRole || routeHook?.params?.userRole;
   const finalActiveTab = activeHeaderTab || routeHook?.params?.activeHeaderTab;
   const isFromRootStack = !propEventInfo && !!routeHook?.params?.eventInfo;
+
   const [searchText, setSearchText] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [searchedEventId, setSearchedEventId] = useState<string | null>(null);
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { lookupResults, lookupLoading, eventInfoCache, checkinSuccessCount } =
-    useSelector((state: RootState) => state.manualCheckin);
+
+  const {
+    lookupResults,
+    lookupLoading,
+    eventInfoCache,
+    checkinSuccessCount,
+    allOrders,
+    allOrdersLoading,
+    allOrdersLoadingMore,
+    allOrdersRefreshing,
+    allOrdersPage,
+    allOrdersHasMore,
+  } = useSelector((state: RootState) => state.manualCheckin);
+
   const prevCheckinCount = useRef(checkinSuccessCount);
+  const isLoadingMoreRef = useRef(false);
+  const eventUuid = eventInfo?.eventUuid || eventInfo?.uuid;
 
   useFocusEffect(
     useCallback(() => {
@@ -64,7 +81,10 @@ const ManualScan = ({
       setSearchText("");
       setHasSearched(false);
       setSearchedEventId(null);
-    }, []),
+      if (eventUuid) {
+        dispatch(fetchAllOrdersThunk({ eventId: eventUuid, page: 1 }));
+      }
+    }, [eventUuid]),
   );
 
   useEffect(() => {
@@ -73,8 +93,6 @@ const ManualScan = ({
     }
     prevCheckinCount.current = checkinSuccessCount;
   }, [checkinSuccessCount]);
-
-  const eventUuid = eventInfo?.eventUuid || eventInfo?.uuid;
 
   useEffect(() => {
     if (eventUuid) {
@@ -96,6 +114,9 @@ const ManualScan = ({
       }
     : eventInfo;
 
+  const isSearchActive = hasSearched && searchText.trim().length > 0;
+  const displayData = isSearchActive ? lookupResults : allOrders;
+
   const handleSearch = async (query: string) => {
     const trimmed = query.trim();
     if (!trimmed) return;
@@ -115,16 +136,47 @@ const ManualScan = ({
 
   const handleTextChange = (text: string) => {
     setSearchText(text);
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
     if (!text.trim()) {
       dispatch(clearLookupResults());
       setHasSearched(false);
       setSearchedEventId(null);
-      return;
+      if (eventUuid) {
+        dispatch(fetchAllOrdersThunk({ eventId: eventUuid, page: 1 }));
+      }
     }
-    debounceTimer.current = setTimeout(() => {
-      handleSearch(text);
-    }, 1200);
+  };
+
+  const handleClearSearch = () => {
+    setSearchText("");
+    dispatch(clearLookupResults());
+    setHasSearched(false);
+    setSearchedEventId(null);
+    if (eventUuid) {
+      dispatch(fetchAllOrdersThunk({ eventId: eventUuid, page: 1 }));
+    }
+  };
+
+  const handleRefresh = () => {
+    if (eventUuid) {
+      dispatch(fetchAllOrdersThunk({ eventId: eventUuid, page: 1, isRefresh: true }));
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (
+      !allOrdersHasMore ||
+      allOrdersLoadingMore ||
+      allOrdersLoading ||
+      allOrdersRefreshing ||
+      isSearchActive ||
+      isLoadingMoreRef.current
+    ) return;
+    if (eventUuid) {
+      isLoadingMoreRef.current = true;
+      dispatch(fetchAllOrdersThunk({ eventId: eventUuid, page: allOrdersPage + 1 })).finally(() => {
+        isLoadingMoreRef.current = false;
+      });
+    }
   };
 
   const getBuyerName = (order: OrderResult): string => {
@@ -163,15 +215,16 @@ const ManualScan = ({
     </TouchableOpacity>
   );
 
-  const emptyMessage = lookupLoading
-    ? "Searching..."
-    : hasSearched
-      ? "No Matching Results"
-      : "Search by order number, email, or phone";
+  const emptyMessage =
+    lookupLoading || allOrdersLoading
+      ? "Loading..."
+      : isSearchActive
+        ? "No Matching Results"
+        : "No orders found";
 
   return (
     <View style={styles.mainContainer}>
-      <Loader isLoading={lookupLoading} />
+      <Loader isLoading={lookupLoading || allOrdersLoading} />
       <Header
         eventInfo={headerEventInfo}
         activeTab={finalActiveTab}
@@ -179,13 +232,15 @@ const ManualScan = ({
         userRole={userRole}
         showBackButton={isFromRootStack}
       />
-      <View style={styles.contentContainer}>
-        <View
+              <View
           style={[
             styles.searchContainer,
             isSearchFocused && styles.searchContainerFocused,
           ]}
         >
+          <TouchableOpacity onPress={() => handleSearch(searchText)}>
+            <SvgIcons.searchIcon width={18} height={18} fill="transparent" />
+          </TouchableOpacity>
           <TextInput
             style={[
               styles.searchBar,
@@ -205,19 +260,70 @@ const ManualScan = ({
             autoCapitalize="none"
             autoCorrect={false}
           />
-          <TouchableOpacity onPress={() => handleSearch(searchText)}>
-            <SvgIcons.searchIcon width={20} height={20} fill="transparent" />
-          </TouchableOpacity>
+          {searchText.length > 0 && (
+            <TouchableOpacity onPress={handleClearSearch}>
+              <Text style={styles.clearButton}>✕</Text>
+            </TouchableOpacity>
+          )}
         </View>
+      <KeyboardAwareScrollView
+        style={styles.contentContainer}
+        enableOnAndroid
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        extraScrollHeight={40}
+        enableResetScrollToCoords={false}
+        automaticallyAdjustContentInsets={false}
+        refreshControl={
+          !isSearchActive ? (
+            <RefreshControl
+              refreshing={allOrdersRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={color.btnBrown_AE6F28}
+            />
+          ) : undefined
+        }
+        onMomentumScrollEnd={({ nativeEvent }) => {
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          if (
+            layoutMeasurement.height + contentOffset.y >=
+            contentSize.height - 200
+          ) {
+            handleLoadMore();
+          }
+        }}
+        onScrollEndDrag={({ nativeEvent }) => {
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          if (
+            layoutMeasurement.height + contentOffset.y >=
+            contentSize.height - 200
+          ) {
+            handleLoadMore();
+          }
+        }}
+      >
+
 
         <FlatList
-          data={lookupResults}
+          data={displayData}
           renderItem={renderItem}
-          keyExtractor={(item) => item.orderId.toString()}
+          keyExtractor={(item, index) =>
+            item.orderId ? item.orderId.toString() : index.toString()
+          }
           contentContainerStyle={styles.flatListContent}
           ListEmptyComponent={() => <NoResults message={emptyMessage} />}
+          scrollEnabled={false}
+          ListFooterComponent={
+            !isSearchActive && allOrdersLoadingMore ? (
+              <ActivityIndicator
+                size="small"
+                color={color.btnBrown_AE6F28}
+                style={{ marginVertical: 16 }}
+              />
+            ) : null
+          }
         />
-      </View>
+      </KeyboardAwareScrollView>
     </View>
   );
 };

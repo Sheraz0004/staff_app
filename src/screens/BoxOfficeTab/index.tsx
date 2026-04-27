@@ -631,21 +631,10 @@ const BoxOfficeTab: React.FC<BoxOfficeTabProps> = ({ onScanCountUpdate }) => {
                       paymentOption === "BANK",
                     ),
                   },
-                  !isPaymentEnabled() && { opacity: 0.5 },
+                  { opacity: 0.35 },
                 ]}
-                onPress={() => {
-                  if (!isPaymentEnabled()) return;
-                  setPaymentOption("BANK");
-                  if (activeTab === "Members") {
-                    setWrongPurchaseCodeError("");
-                    setPurchaseError("");
-                    setPurchaseCodeModalVisible(true);
-                  }
-                  if (paymentError) setPaymentError("");
-                  setPinModalVisible(false);
-                  setCashPinModal("");
-                }}
-                disabled={!isPaymentEnabled()}
+                onPress={() => {}}
+                disabled={true}
               >
                 {paymentOption === "BANK" ? (
                   <SvgIcons.cardIconActive width={24} height={24} />

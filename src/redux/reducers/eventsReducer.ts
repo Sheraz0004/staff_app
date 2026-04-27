@@ -29,6 +29,7 @@ interface EventsState {
   activeCount: number;
   cancelledCount: number;
   locations: number;
+  searchQuery: string;
 }
 
 const initialState: EventsState = {
@@ -42,6 +43,7 @@ const initialState: EventsState = {
   activeCount: 0,
   cancelledCount: 0,
   locations: 0,
+  searchQuery: '',
 };
 
 export const eventsSlice = createSlice({
@@ -81,6 +83,9 @@ export const eventsSlice = createSlice({
     setLocations: (state, action: PayloadAction<number>) => {
       state.locations = action.payload;
     },
+    setSearchQuery: (state, action: PayloadAction<string>) => {
+      state.searchQuery = action.payload;
+    },
     resetEvents: () => initialState,
   },
 });
@@ -106,6 +111,8 @@ export const selectEventsCancelledCount = (state: any): number =>
   state.entities.events.cancelledCount ?? 0;
 export const selectEventsLocations = (state: any): number =>
   state.entities.events.locations ?? 0;
+export const selectEventsSearchQuery = (state: any): string =>
+  state.entities.events.searchQuery ?? '';
 
 export const {
   setEvents,
@@ -119,6 +126,7 @@ export const {
   setActiveCount,
   setCancelledCount,
   setLocations,
+  setSearchQuery,
   resetEvents,
 } = eventsSlice.actions;
 

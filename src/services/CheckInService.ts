@@ -62,4 +62,7 @@ export const CHECK_IN_SERVICES = {
 
   fetchOrderDetails: (orderId: number) =>
     HTTP_CLIENT.get(API_CONFIG.CHECK_IN.orderDetails(orderId)),
+
+  fetchOrdersWithTickets: (eventId: string | number, page: number, pageSize: number) =>
+    HTTP_CLIENT.get(API_CONFIG.CHECK_IN.ordersWithTickets(eventId, page, pageSize)),
 };

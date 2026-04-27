@@ -36,7 +36,14 @@ export const styles = StyleSheet.create({
   },
   searchBar: {
     flex: 1,
-    paddingVertical: 10,
+    padding: 10,
+
+  },
+  clearButton: {
+    color: '#87807C',
+    fontWeight: '700',
+    fontSize: 14,
+    paddingHorizontal: 4,
   },
   ticketCard: {
     borderWidth: 1,

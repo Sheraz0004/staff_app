@@ -57,6 +57,7 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: color.grey_DADADA,
     alignSelf: 'flex-start',
+    marginTop:10
   },
   dropdownValue: {
     fontSize: 12.5,

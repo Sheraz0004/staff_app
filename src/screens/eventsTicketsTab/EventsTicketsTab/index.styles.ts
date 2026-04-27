@@ -3,7 +3,9 @@ import { color } from '../../../color/color';
 
 export const styles = StyleSheet.create({
   // ── Main Layout ──
-  container: { flex: 1, backgroundColor: color.white_FFFFFF },
+  container: { flex: 1, 
+    // backgroundColor: color.white_FFFFFF
+   },
   loadingContainer: { justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: 12 },
 
@@ -45,13 +47,48 @@ export const styles = StyleSheet.create({
 
   // ── Event Cards ──
   eventsContainer: { paddingHorizontal: 20 },
-  listContent: { paddingHorizontal: 20, paddingBottom: 40 },
-  largeCard: { marginBottom: 24 },
-  largeImageContainer: { height: 200 },
-  largeImage: { width: '100%', height: '100%', resizeMode: 'cover', borderRadius: 12 },
+  listContent: { paddingBottom: 40 },
+  largeCard: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  largeImage: { width: '100%', height: 180 },
+  statusBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
   bookmarkButton: { position: 'absolute', top: 12, right: 12, padding: 8 },
-  cardContent: { paddingTop: 10 },
-  eventTitle: { marginBottom: 4 },
+  cardContent: { padding: 14 },
+  eventTitle: { marginBottom: 6 },
+  eventCardMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  metaDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#87807C',
+    marginHorizontal: 6,
+  },
+  eventCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   eventDate: { marginBottom: 2 },
   eventTime: { marginBottom: 4 },
   eventLocation: {},
@@ -68,7 +105,7 @@ export const styles = StyleSheet.create({
     marginBottom: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#FFF',
     borderRadius: 24,
     gap: 10,
   },

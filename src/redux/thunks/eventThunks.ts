@@ -18,6 +18,7 @@ export const fetchEventStatsThunk = (
   page: number = 1,
   eventClass: string = '',
   isLoadMore: boolean = false,
+  search: string = '',
 ) =>
   async (dispatch: AppDispatch) => {
     if (isLoadMore) {
@@ -28,7 +29,7 @@ export const fetchEventStatsThunk = (
     }
 
     try {
-      const response = await EVENT_SERVICES.fetchEventStats({ page, pageSize: 10, eventClass });
+      const response = await EVENT_SERVICES.fetchEventStats({ page, pageSize: 10, eventClass, search });
       const data = response.data;
 
       if (isLoadMore) {

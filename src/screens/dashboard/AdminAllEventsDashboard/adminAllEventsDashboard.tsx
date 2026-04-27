@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { View, ScrollView, TouchableOpacity, Image } from "react-native";
+import {
+  View,
+  ScrollView,
+  RefreshControl,
+  TouchableOpacity,
+  Image,
+  Text,
+} from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { getUser } from "../../../redux/reducers/userReducer";
 import SvgIcons from "../../../components/SvgIcons";
@@ -14,7 +21,15 @@ import AdminCouponsCard from "./AdminCouponsCard";
 import Dropdown from "./components/Dropdown";
 import DateRangePicker from "./components/DateRangePicker";
 import { styles } from "./adminAllEventsDashboard.styles";
+import { styles as dashboardStyles } from "../index.styles";
 import { DASHBOARD_SERVICES } from "../../../services/DashboardService";
+import AdminOverallStatistics from "../AdminOverallStatistics";
+import TerminalsComponent from "../TerminalsComponent";
+import StaffListComponent from "../StaffListComponent";
+import { admindashboardterminaltab as originalAdminTabs } from "../../../constants/admindashboardterminaltab";
+import { dashboardsalesscantab } from "../../../constants/dashboardsalesscantab";
+
+const admindashboardterminaltab = [...originalAdminTabs, "Staff"];
 import type {
   EventType,
   TicketingType,
@@ -33,6 +48,7 @@ import {
   selectSelectedCurrencyValue,
   selectSelectedEventFilterValue,
   selectDashboardDataLoading,
+  selectDashboardDataError,
   selectEvents,
   selectEventsPage,
   selectEventsTotalPages,
@@ -66,6 +82,7 @@ import {
   setDashboardDataError,
 } from "../../../redux/reducers/dashboardReducer";
 import Loader from "@components/Loader/Loader";
+import Svg, { Circle, Path, Line } from "react-native-svg";
 
 interface RadioOption {
   label: string;
@@ -78,7 +95,38 @@ interface DateRange {
   year?: number;
 }
 
-const AdminAllEventsDashboard: React.FC = () => {
+interface AdminAllEventsDashboardProps {
+  showEventDashboard?: boolean;
+  eventInfo?: any;
+  dashboardStats?: any;
+  dashboardLoading?: boolean;
+  dashboardError?: string | null;
+  onScanCountUpdate?: any;
+  onEventChange?: any;
+  onTotalTicketsPress?: () => void;
+  onTotalScannedPress?: () => void;
+  onTotalUnscannedPress?: () => void;
+  onAvailableTicketsPress?: () => void;
+  selectedSaleScanTab?: string;
+  onSaleScanTabPress?: (tab: string) => void;
+  renderEventContent?: () => React.ReactNode;
+}
+
+const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
+  showEventDashboard = false,
+  eventInfo,
+  dashboardStats,
+  dashboardLoading = false,
+  dashboardError = null,
+  onEventChange,
+  onTotalTicketsPress,
+  onTotalScannedPress,
+  onTotalUnscannedPress,
+  onAvailableTicketsPress,
+  selectedSaleScanTab,
+  onSaleScanTabPress,
+  renderEventContent,
+}) => {
   const dispatch = useDispatch();
   const currentUser = useSelector(getUser);
   // console.log("currentUser-->",currentUser)
@@ -106,14 +154,20 @@ const AdminAllEventsDashboard: React.FC = () => {
   const selectedEventFilterValue =
     useSelector(selectSelectedEventFilterValue) ?? "all";
   const dashboardDataLoading = useSelector(selectDashboardDataLoading) ?? false;
+  const dashboardDataError = useSelector(selectDashboardDataError) ?? null;
 
+  const [refreshing, setRefreshing] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState("Jan 23, 2026");
-  const [dateRange, setDateRange] = useState<{ start_date: string; end_date: string } | null>(null);
+  const [dateRange, setDateRange] = useState<{
+    start_date: string;
+    end_date: string;
+  } | null>(null);
   const [showEventTypePicker, setShowEventTypePicker] = useState(false);
   const [showTicketingTypePicker, setShowTicketingTypePicker] = useState(false);
   const [showOrganizationPicker, setShowOrganizationPicker] = useState(false);
   const [showEventPicker, setShowEventPicker] = useState(false);
+  const [selectedAdminTab, setSelectedAdminTab] = useState(admindashboardterminaltab[0]);
 
   const eventTypeOptions: RadioOption[] = [
     { label: "All", value: "all" },
@@ -360,6 +414,18 @@ const AdminAllEventsDashboard: React.FC = () => {
     }
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      fetchEventTypes(),
+      fetchTicketingTypes(),
+      fetchOrganizations(),
+      fetchEvents(),
+      fetchDashboardData(),
+    ]);
+    setRefreshing(false);
+  };
+
   const loadMoreEvents = () => {
     const nextPage = (eventsPage ?? 0) + 1;
     if (nextPage < (eventsTotalPages ?? 1) && !eventsLoadingMore) {
@@ -377,7 +443,20 @@ const AdminAllEventsDashboard: React.FC = () => {
     };
 
     const toDisplayDate = (date: Date) => {
-      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
       return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
     };
 
@@ -388,11 +467,16 @@ const AdminAllEventsDashboard: React.FC = () => {
     }
 
     if (startDate && endDate) {
-      setDateRange({ start_date: toApiDate(startDate), end_date: toApiDate(endDate) });
+      setDateRange({
+        start_date: toApiDate(startDate),
+        end_date: toApiDate(endDate),
+      });
       if (startDate.getTime() === endDate.getTime()) {
         setSelectedDate(toDisplayDate(startDate));
       } else {
-        setSelectedDate(`${toDisplayDate(startDate)} - ${toDisplayDate(endDate)}`);
+        setSelectedDate(
+          `${toDisplayDate(startDate)} - ${toDisplayDate(endDate)}`,
+        );
       }
     } else if (startDate) {
       const apiDate = toApiDate(startDate);
@@ -401,11 +485,102 @@ const AdminAllEventsDashboard: React.FC = () => {
     }
   };
 
+  if (showEventDashboard) {
+    return (
+      <View style={dashboardStyles.mainContainer}>
+        <View style={dashboardStyles.adminTabContainer}>
+          <View style={dashboardStyles.adminTabRow}>
+            {admindashboardterminaltab.map((item) => (
+              <TouchableOpacity
+                key={item}
+                style={[
+                  dashboardStyles.adminTabButton,
+                  selectedAdminTab === item && dashboardStyles.selectedAdminTabButton,
+                ]}
+                onPress={() => setSelectedAdminTab(item)}
+              >
+                <Text
+                  style={[
+                    dashboardStyles.adminTabButtonText,
+                    selectedAdminTab === item && dashboardStyles.selectedAdminTabButtonText,
+                  ]}
+                >
+                  {item}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {selectedAdminTab === "Terminals" ? (
+          <TerminalsComponent eventInfo={eventInfo} onEventChange={onEventChange} />
+        ) : selectedAdminTab === "Staff" ? (
+          <StaffListComponent eventInfo={eventInfo} onEventChange={onEventChange} />
+        ) : (
+          <ScrollView contentContainerStyle={dashboardStyles.scrollContainer}>
+            <View style={dashboardStyles.wrapper}>
+              {dashboardLoading ? (
+                <Text style={dashboardStyles.loadingText}>Loading dashboard stats...</Text>
+              ) : dashboardError ? (
+                <Text style={dashboardStyles.errorText}>{dashboardError}</Text>
+              ) : (
+                <>
+                  {selectedAdminTab === "Dashboard" && (
+                    <View style={dashboardStyles.overallStatisticsContainer}>
+                      <AdminOverallStatistics
+                        stats={dashboardStats}
+                        onTotalTicketsPress={onTotalTicketsPress ?? (() => {})}
+                        onTotalScannedPress={onTotalScannedPress ?? (() => {})}
+                        onTotalUnscannedPress={onTotalUnscannedPress ?? (() => {})}
+                        onAvailableTicketsPress={onAvailableTicketsPress ?? (() => {})}
+                      />
+                    </View>
+                  )}
+                  {selectedAdminTab === "Dashboard" && (
+                    <>
+                      <View style={dashboardStyles.saleScanTabContainer}>
+                        <View style={dashboardStyles.saleScanTabRow}>
+                          {dashboardsalesscantab.map((item: string) => (
+                            <TouchableOpacity
+                              key={item}
+                              style={[
+                                dashboardStyles.saleScanTabButton,
+                                selectedSaleScanTab === item &&
+                                  dashboardStyles.selectedSaleScanTabButton,
+                              ]}
+                              onPress={() => onSaleScanTabPress?.(item)}
+                            >
+                              <Text
+                                style={[
+                                  dashboardStyles.saleScanTabButtonText,
+                                  selectedSaleScanTab === item &&
+                                    dashboardStyles.selectedSaleScanTabButtonText,
+                                ]}
+                              >
+                                {item}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                      {renderEventContent?.()}
+                    </>
+                  )}
+                </>
+              )}
+            </View>
+          </ScrollView>
+        )}
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Loader isLoading={dashboardDataLoading} />
 
       <View style={styles.header}>
+
         <View style={styles.headerLeft}>
           {/* <TouchableOpacity>
             <SvgIcons.drawerSvg width={24} height={24} fill="transparent" />
@@ -433,55 +608,84 @@ const AdminAllEventsDashboard: React.FC = () => {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.filters}>
-          <View style={styles.dropdownWrapper}>
-            <Dropdown
-              value={selectedEventTypeLabel}
-              onPress={() => setShowEventTypePicker(true)}
-            />
-          </View>
-          <View style={styles.dropdownWrapper}>
-            <Dropdown
-              value={selectedTicketingTypeLabel}
-              onPress={() => setShowTicketingTypePicker(true)}
-            />
-          </View>
+      {dashboardDataError && !dashboardDataLoading ? (
+        <View style={styles.errorContainer}>
+          <Svg width={80} height={80} viewBox="0 0 80 80" fill="none">
+            <Circle cx="40" cy="40" r="38" fill="#FFF6DF" stroke="#F7E4B6" strokeWidth="1.5" />
+            <Path d="M15 33 Q40 16 65 33" stroke="#E4E4E4" strokeWidth="3" fill="none" strokeLinecap="round" />
+            <Path d="M23 41 Q40 29 57 41" stroke="#CEBCA0" strokeWidth="3" fill="none" strokeLinecap="round" />
+            <Path d="M31 49 Q40 43 49 49" stroke="#AE6F28" strokeWidth="3" fill="none" strokeLinecap="round" />
+            <Circle cx="40" cy="57" r="3.5" fill="#AE6F28" />
+            <Line x1="20" y1="20" x2="60" y2="60" stroke="#EF3E32" strokeWidth="3.5" strokeLinecap="round" />
+          </Svg>
+          <Text style={styles.errorTitle}>Network Error</Text>
+          <Text style={styles.errorSubtitle}>
+            Unable to load dashboard data.{"\n"}Check your connection and try again.
+          </Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={fetchDashboardData}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.retryButtonText}>Reload</Text>
+          </TouchableOpacity>
         </View>
-
-        <View style={styles.filtersRow2}>
-          <View style={styles.dropdownWrapper}>
-            <Dropdown
-              value={selectedOrganizationLabel}
-              onPress={() => setShowOrganizationPicker(true)}
-            />
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          <View style={styles.filters}>
+            <View style={styles.dropdownWrapper}>
+              <Dropdown
+                value={selectedEventTypeLabel}
+                onPress={() => setShowEventTypePicker(true)}
+              />
+            </View>
+            <View style={styles.dropdownWrapper}>
+              <Dropdown
+                value={selectedTicketingTypeLabel}
+                onPress={() => setShowTicketingTypePicker(true)}
+              />
+            </View>
           </View>
-          <View style={styles.dropdownWrapper}>
-            <TouchableOpacity
-              style={styles.dateSelectorInRow}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <SvgIcons.calendarIcon />
-              <Typography
-                style={styles.dateSelectorText}
-                weight="400"
-                size={14}
-                color={color.brown_766F6A}
-                numberOfLines={1}
+
+          <View style={styles.filtersRow2}>
+            <View style={styles.dropdownWrapper}>
+              <Dropdown
+                value={selectedOrganizationLabel}
+                onPress={() => setShowOrganizationPicker(true)}
+              />
+            </View>
+            <View style={styles.dropdownWrapper}>
+              <TouchableOpacity
+                style={styles.dateSelectorInRow}
+                onPress={() => setShowDatePicker(true)}
               >
-                {selectedDate}
-              </Typography>
-              <SvgIcons.downArrow />
-            </TouchableOpacity>
+                <SvgIcons.calendarIcon />
+                <Typography
+                  style={styles.dateSelectorText}
+                  weight="400"
+                  size={14}
+                  color={color.brown_766F6A}
+                  numberOfLines={1}
+                >
+                  {selectedDate}
+                </Typography>
+                <SvgIcons.downArrow />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
 
-        <AdminEarningCard />
-        <AdminAttendeesCard />
-        <AdminEventCard />
-        <AdminStatisticsCard />
-        <AdminCouponsCard />
-      </ScrollView>
+          <AdminEarningCard />
+          <AdminAttendeesCard />
+          <AdminEventCard />
+          <AdminStatisticsCard />
+          <AdminCouponsCard />
+        </ScrollView>
+      )}
 
       <DateRangePicker
         visible={showDatePicker}

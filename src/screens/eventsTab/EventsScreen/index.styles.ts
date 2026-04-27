@@ -1,4 +1,4 @@
-import { Dimensions, StyleSheet } from "react-native";
+import { Dimensions, Platform, StyleSheet } from "react-native";
 import { color } from "../../../color/color";
 
 const { width } = Dimensions.get("window");
@@ -15,6 +15,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingBottom: 2,
+    paddingTop:Platform.OS=='android'?40:60
   },
   headerDivider: {
     height: 1.5,
@@ -211,4 +212,26 @@ export const styles = StyleSheet.create({
 
   // Load more
   loadMoreIndicator: { paddingVertical: 20 },
+
+  // Search bar
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: "#FFF",
+    borderRadius: 24,
+    gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: "#2F251D",
+    paddingVertical: 0,
+  },
+  searchClearButton: { padding: 4 },
+
+  clearAllButton: { marginTop: 12, paddingVertical: 8, paddingHorizontal: 16 },
 });

@@ -1,51 +1,62 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Platform, TouchableOpacity, SafeAreaView, FlatList, ScrollView, Alert, Dimensions, Text, StatusBar } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { color } from '../../color/color';
-import OverallStatistics from './OverallStatistics';
-import AdminOverallStatistics from './AdminOverallStatistics';
-import BoxOfficeSales from './BoxOfficeSales';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import SvgIcons from '../../components/SvgIcons';
-import { dashboardstatuslist } from '../../constants/dashboardstatuslist';
-import CheckInSoldTicketsCard from './CheckInSolidTicketsCard';
-import AttendeesComponent from './AttendeesComponent';
-import { dashboardsalesscantab } from '../../constants/dashboardsalesscantab';
-import AnalyticsChart from './AnalyticsChart';
-import { ticketService, userService } from '../../api/apiService';
+import React, { useState, useEffect, useRef } from "react";
+import {
+  View,
+  Platform,
+  TouchableOpacity,
+  SafeAreaView,
+  FlatList,
+  ScrollView,
+  Alert,
+  Dimensions,
+  Text,
+  StatusBar,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { color } from "../../color/color";
+import OverallStatistics from "./OverallStatistics";
+import AdminOverallStatistics from "./AdminOverallStatistics";
+import BoxOfficeSales from "./BoxOfficeSales";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import SvgIcons from "../../components/SvgIcons";
+import { dashboardstatuslist } from "../../constants/dashboardstatuslist";
+import CheckInSoldTicketsCard from "./CheckInSolidTicketsCard";
+import AttendeesComponent from "./AttendeesComponent";
+import { dashboardsalesscantab } from "../../constants/dashboardsalesscantab";
+import AnalyticsChart from "./AnalyticsChart";
+import { ticketService, userService } from "../../api/apiService";
 
-import AvailableTicketsCard from './AvailableTicketsCard';
-import ScanAnalytics from './ScanAnalytics';
-import ScanCategories from './ScanCategories';
-import ScanCategoriesDetails from './ScanCategoriesDetails';
-import ScanListComponent from './ScanListComponent';
-import EventsModal from '../../components/EventsModal';
-import TerminalsComponent from './TerminalsComponent';
-import StaffListComponent from './StaffListComponent';
-import AdminAllSales from './AdminAllSales';
-import AdminOnlineSales from './AdminOnlineSales';
-import AdminBoxOfficeSales from './AdminBoxOfficeSales';
-import AdminBoxOfficePaymentChannel from './AdminBoxOfficePaymentChannel';
-import TotalPaymentChannelCard from './TotalPaymentChannelCard';
-import PaymentChannelAnalytics from './PaymentChannelAnalytics';
-import { admindashboardterminaltab as originalAdminTabs } from '../../constants/admindashboardterminaltab';
+import AvailableTicketsCard from "./AvailableTicketsCard";
+import ScanAnalytics from "./ScanAnalytics";
+import ScanCategories from "./ScanCategories";
+import ScanCategoriesDetails from "./ScanCategoriesDetails";
+import ScanListComponent from "./ScanListComponent";
+import EventsModal from "../../components/EventsModal";
+import TerminalsComponent from "./TerminalsComponent";
+import StaffListComponent from "./StaffListComponent";
+import AdminAllSales from "./AdminAllSales";
+import AdminOnlineSales from "./AdminOnlineSales";
+import AdminBoxOfficeSales from "./AdminBoxOfficeSales";
+import AdminBoxOfficePaymentChannel from "./AdminBoxOfficePaymentChannel";
+import TotalPaymentChannelCard from "./TotalPaymentChannelCard";
+import PaymentChannelAnalytics from "./PaymentChannelAnalytics";
+import { admindashboardterminaltab as originalAdminTabs } from "../../constants/admindashboardterminaltab";
 
 // Extend admin tabs to include Staff
-const admindashboardterminaltab = [...originalAdminTabs, 'Staff'];
-import { adminonlineboxofficetab } from '../../constants/adminonlineboxofficetab';
-import { truncateCityName } from '../../utils/stringUtils';
-import { truncateEventName } from '../../utils/stringUtils';
-import { formatDateWithMonthName } from '../../constants/dateAndTime';
-import { logger } from '../../utils/logger';
-import AdminAllEventsDashboard from '../dashboard/AdminAllEventsDashboard/adminAllEventsDashboard';
-import TerminalDashboard from './TerminalDashboardPortal/TerminalDashboard';
-import TicketsTab from '../TicketsTab';
-import BoxOfficeTab from '../BoxOfficeTab';
-import Svg, { Circle, Text as SvgText } from 'react-native-svg';
-import { styles } from './index.styles';
+const admindashboardterminaltab = [...originalAdminTabs, "Staff"];
+import { adminonlineboxofficetab } from "../../constants/adminonlineboxofficetab";
+import { truncateCityName } from "../../utils/stringUtils";
+import { truncateEventName } from "../../utils/stringUtils";
+import { formatDateWithMonthName } from "../../constants/dateAndTime";
+import { logger } from "../../utils/logger";
+import AdminAllEventsDashboard from "../dashboard/AdminAllEventsDashboard/adminAllEventsDashboard";
+import TerminalDashboard from "./TerminalDashboardPortal/TerminalDashboard";
+import TicketsTab from "../TicketsTab";
+import BoxOfficeTab from "../BoxOfficeTab";
+import Svg, { Circle, Text as SvgText } from "react-native-svg";
+import { styles } from "./index.styles";
 
 // ── AGENT tab definitions ──
-const AGENT_TABS = ['Sales', 'Sold Tix', 'New Tix'];
+const AGENT_TABS = ["Sales", "Sold Tix", "New Tix"];
 
 interface CircularProgressProps {
   value: number;
@@ -54,9 +65,13 @@ interface CircularProgressProps {
 }
 
 // Circular Progress for Available Tickets
-const CircularProgress: React.FC<CircularProgressProps> = ({ value, total, size = 40 }) => {
+const CircularProgress: React.FC<CircularProgressProps> = ({
+  value,
+  total,
+  size = 40,
+}) => {
   const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-  const radius = (size / 2) - 3;
+  const radius = size / 2 - 3;
   const strokeWidth = 3;
   const circumference = 2 * Math.PI * radius;
   const progress = (percentage / 100) * circumference;
@@ -66,18 +81,32 @@ const CircularProgress: React.FC<CircularProgressProps> = ({ value, total, size 
 
   return (
     <Svg width={size} height={size} viewBox={viewBox}>
-      <Circle cx={center} cy={center} r={radius} stroke="#E0E0E0" strokeWidth={strokeWidth} fill="none" />
       <Circle
-        cx={center} cy={center} r={radius}
-        stroke={color.btnBrown_AE6F28} strokeWidth={strokeWidth} fill="none"
+        cx={center}
+        cy={center}
+        r={radius}
+        stroke="#E0E0E0"
+        strokeWidth={strokeWidth}
+        fill="none"
+      />
+      <Circle
+        cx={center}
+        cy={center}
+        r={radius}
+        stroke={color.btnBrown_AE6F28}
+        strokeWidth={strokeWidth}
+        fill="none"
         strokeDasharray={`${circumference}`}
         strokeDashoffset={`${circumference - progress}`}
         strokeLinecap="round"
       />
       <SvgText
-        x={center} y={center + fontSize / 3}
-        textAnchor="middle" fontSize={fontSize}
-        fill={color.placeholderTxt_24282C} fontWeight="500"
+        x={center}
+        y={center + fontSize / 3}
+        textAnchor="middle"
+        fontSize={fontSize}
+        fill={color.placeholderTxt_24282C}
+        fontWeight="500"
       >
         {`${percentage}%`}
       </SvgText>
@@ -92,29 +121,41 @@ interface DashboardScreenProps {
   showEventDashboard?: any;
 }
 
-const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventInfo, onScanCountUpdate, onEventChange, showEventDashboard }) => {
+const DashboardScreen: React.FC<DashboardScreenProps> = ({
+  eventInfo: propEventInfo,
+  onScanCountUpdate,
+  onEventChange,
+  showEventDashboard,
+}) => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const scrollViewRef = useRef<any>(null);
 
   // Get eventInfo from props or route params (route params take precedence for navigation updates)
-  const isFromRootStack = route?.name === 'DashboardDetail';
-  const initialEventInfo = isFromRootStack ? ((route.params as any)?.eventInfo || propEventInfo) : propEventInfo;
+  const isFromRootStack = route?.name === "DashboardDetail";
+  const initialEventInfo = isFromRootStack
+    ? (route.params as any)?.eventInfo || propEventInfo
+    : propEventInfo;
 
   // Local state to track event changes from dropdown when in root stack
   const [localEventInfo, setLocalEventInfo] = useState<any>(null);
-  const eventInfo = localEventInfo || (isFromRootStack ? initialEventInfo : propEventInfo);
+  const eventInfo =
+    localEventInfo || (isFromRootStack ? initialEventInfo : propEventInfo);
 
   // Calculate top padding: use safe area insets, or StatusBar height on Android
-  const topPadding = Platform.OS === 'android'
-    ? (StatusBar.currentHeight || 0)
-    : insets.top;
+  const topPadding =
+    Platform.OS === "android" ? StatusBar.currentHeight || 0 : insets.top;
 
   const [selectedTab, setSelectedTab] = useState("Check-Ins");
-  const [selectedSaleScanTab, setSelectedSaleScanTab] = useState(dashboardsalesscantab[0]);
-  const [selectedAdminTab, setSelectedAdminTab] = useState(admindashboardterminaltab[0]);
-  const [selectedAdminOnlineBoxOfficeTab, setSelectedAdminOnlineBoxOfficeTab] = useState(adminonlineboxofficetab[0]);
+  const [selectedSaleScanTab, setSelectedSaleScanTab] = useState(
+    dashboardsalesscantab[0],
+  );
+  const [selectedAdminTab, setSelectedAdminTab] = useState(
+    admindashboardterminaltab[0],
+  );
+  const [selectedAdminOnlineBoxOfficeTab, setSelectedAdminOnlineBoxOfficeTab] =
+    useState(adminonlineboxofficetab[0]);
 
   // ── AGENT tab state ──
   const [selectedAgentTab, setSelectedAgentTab] = useState(AGENT_TABS[0]);
@@ -128,29 +169,45 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [currentSalesType, setCurrentSalesType] = useState<string | null>(null);
   const [analyticsData, setAnalyticsData] = useState<any>(null);
-  const [analyticsTitle, setAnalyticsTitle] = useState('');
+  const [analyticsTitle, setAnalyticsTitle] = useState("");
   const [activeAnalytics, setActiveAnalytics] = useState<string | null>(null);
 
   // Separate analytics states for Check-Ins
   const [checkInAnalyticsData, setCheckInAnalyticsData] = useState<any>(null);
-  const [checkInAnalyticsTitle, setCheckInAnalyticsTitle] = useState('');
-  const [activeCheckInAnalytics, setActiveCheckInAnalytics] = useState<string | null>(null);
+  const [checkInAnalyticsTitle, setCheckInAnalyticsTitle] = useState("");
+  const [activeCheckInAnalytics, setActiveCheckInAnalytics] = useState<
+    string | null
+  >(null);
   const [scanAnalyticsData, setScanAnalyticsData] = useState<any>(null);
-  const [scanAnalyticsTitle, setScanAnalyticsTitle] = useState('');
-  const [activeScanAnalytics, setActiveScanAnalytics] = useState<string | null>(null);
-  const [activePaymentChannel, setActivePaymentChannel] = useState<string | null>(null);
+  const [scanAnalyticsTitle, setScanAnalyticsTitle] = useState("");
+  const [activeScanAnalytics, setActiveScanAnalytics] = useState<string | null>(
+    null,
+  );
+  const [activePaymentChannel, setActivePaymentChannel] = useState<
+    string | null
+  >(null);
 
   // Get available tickets count for the top card
   const getAvailableCount = () => {
-    const terminalStats = dashboardStats?.data?.terminal_statistics || dashboardStats?.data?.overall_statistics || {};
+    const terminalStats =
+      dashboardStats?.data?.terminal_statistics ||
+      dashboardStats?.data?.overall_statistics ||
+      {};
     const raw = terminalStats?.available_tickets || 0;
-    return typeof raw === 'object' && raw !== null ? (raw.total || raw.count || 0) : (raw || 0);
+    return typeof raw === "object" && raw !== null
+      ? raw.total || raw.count || 0
+      : raw || 0;
   };
 
   const getTotalTicketsCount = () => {
-    const terminalStats = dashboardStats?.data?.terminal_statistics || dashboardStats?.data?.overall_statistics || {};
+    const terminalStats =
+      dashboardStats?.data?.terminal_statistics ||
+      dashboardStats?.data?.overall_statistics ||
+      {};
     const raw = terminalStats?.total_tickets || 0;
-    return typeof raw === 'object' && raw !== null ? (raw.total || raw.count || 0) : (raw || 0);
+    return typeof raw === "object" && raw !== null
+      ? raw.total || raw.count || 0
+      : raw || 0;
   };
 
   useEffect(() => {
@@ -158,18 +215,19 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
       try {
         setUserProfileLoading(true);
         const profile = await userService.getProfile();
-        const role = profile?.role ||
+        const role =
+          profile?.role ||
           profile?.user_role ||
           profile?.type ||
           profile?.permission ||
           profile?.user_type ||
           profile?.data?.role ||
           profile?.user?.role;
-        logger.log('Final role value:', role);
+        logger.log("Final role value:", role);
 
         setUserRole(role || null);
       } catch (err: any) {
-        logger.error('Error fetching user profile:', err);
+        logger.error("Error fetching user profile:", err);
         setUserRole(null);
       } finally {
         setUserProfileLoading(false);
@@ -193,38 +251,37 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
     const fetchStats = async () => {
       try {
         // if (eventInfo?.eventUuid) {
-          setLoading(true);
+        setLoading(true);
 
-          let salesParam: string | null = null;
-          if (userRole === 'ADMIN') {
-            if (selectedAdminOnlineBoxOfficeTab === 'Online') {
-              salesParam = 'online';
-            } else if (selectedAdminOnlineBoxOfficeTab === 'Box Office') {
-              salesParam = 'box_office';
-            }
+        let salesParam: string | null = null;
+        if (userRole === "ADMIN") {
+          if (selectedAdminOnlineBoxOfficeTab === "Online") {
+            salesParam = "online";
+          } else if (selectedAdminOnlineBoxOfficeTab === "Box Office") {
+            salesParam = "box_office";
           }
+        }
 
-          const stats = await ticketService.fetchDashboardStats();
-            // logger.log('📊 Dashboard Stats for ORGANIZER:', JSON.stringify(stats, null, 2));
+        const stats = await ticketService.fetchDashboardStats();
+        // logger.log('📊 Dashboard Stats for ORGANIZER:', JSON.stringify(stats, null, 2));
 
+        // if (userRole === 'ORGANIZER') {
+        //   logger.log('📊 Dashboard Stats for ORGANIZER:', JSON.stringify(stats, null, 2));
+        // }
 
-          // if (userRole === 'ORGANIZER') {
-          //   logger.log('📊 Dashboard Stats for ORGANIZER:', JSON.stringify(stats, null, 2));
-          // }
-
-          setDashboardStats(stats);
-          setCurrentSalesType(salesParam);
-          setError(null);
+        setDashboardStats(stats);
+        setCurrentSalesType(salesParam);
+        setError(null);
         // }
       } catch (err: any) {
-        logger.error('Error fetching dashboard stats:', err);
-        setError(err.message || 'Failed to fetch dashboard stats');
+        logger.error("Error fetching dashboard stats:", err);
+        setError(err.message || "Failed to fetch dashboard stats");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchStats();
+    // fetchStats();
   }, [eventInfo?.eventUuid, userRole, selectedAdminOnlineBoxOfficeTab]);
 
   const handleTabPress = (tab: string) => {
@@ -232,11 +289,14 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
   };
 
   const handleTotalTicketsPress = () => {
-    navigation.navigate('Tickets' as never, { initialTab: 'All', eventInfo } as never);
+    navigation.navigate(
+      "Tickets" as never,
+      { initialTab: "All", eventInfo } as never,
+    );
   };
 
   const handlePaymentChannelPress = (paymentChannel: string) => {
-    logger.log('Payment channel pressed:', paymentChannel);
+    logger.log("Payment channel pressed:", paymentChannel);
     if (activePaymentChannel === paymentChannel) {
       setActivePaymentChannel(null);
     } else {
@@ -245,16 +305,22 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
   };
 
   const handleTotalScannedPress = () => {
-    navigation.navigate('Tickets' as never, { initialTab: 'Scanned', eventInfo } as never);
+    navigation.navigate(
+      "Tickets" as never,
+      { initialTab: "Scanned", eventInfo } as never,
+    );
   };
 
   const handleTotalUnscannedPress = () => {
-    navigation.navigate('Tickets' as never, { initialTab: 'Unscanned', eventInfo } as never);
+    navigation.navigate(
+      "Tickets" as never,
+      { initialTab: "Unscanned", eventInfo } as never,
+    );
   };
 
   const handleAvailableTicketsPress = () => {
-    setSelectedSaleScanTab('Sales');
-    setSelectedTab('Available');
+    setSelectedSaleScanTab("Sales");
+    setSelectedTab("Available");
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
@@ -273,7 +339,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
   };
 
   const getTabList = () => {
-    if (userRole === 'ADMIN') {
+    if (userRole === "ADMIN") {
       return ["Attendees", "Check-Ins", "Available"];
     } else {
       return ["Check-Ins", "Available"];
@@ -284,35 +350,58 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
     return null;
   };
 
-  const handleAnalyticsPress = async (ticketType: string, title: string, ticketUuid: string | null = null, subitemLabel: string | null = null) => {
-    if (!eventInfo?.eventUuid || (userRole !== 'ADMIN' && userRole !== 'ORGANIZER' && userRole !== 'STAFF')) return;
+  const handleAnalyticsPress = async (
+    ticketType: string,
+    title: string,
+    ticketUuid: string | null = null,
+    subitemLabel: string | null = null,
+  ) => {
+    if (
+      !eventInfo?.eventUuid ||
+      (userRole !== "ADMIN" && userRole !== "ORGANIZER" && userRole !== "STAFF")
+    )
+      return;
 
-    const analyticsKey = ticketUuid ? `${title}-${ticketUuid}` : `${title}-${ticketType}`;
+    const analyticsKey = ticketUuid
+      ? `${title}-${ticketUuid}`
+      : `${title}-${ticketType}`;
 
     if (activeAnalytics === analyticsKey) {
       setActiveAnalytics(null);
       setAnalyticsData(null);
-      setAnalyticsTitle('');
+      setAnalyticsTitle("");
       return;
     }
 
     try {
       let salesParam = null;
-      logger.log('handleAnalyticsPress params:', { ticketType, title, ticketUuid, subitemLabel });
+      logger.log("handleAnalyticsPress params:", {
+        ticketType,
+        title,
+        ticketUuid,
+        subitemLabel,
+      });
 
-      const response = await ticketService.fetchDashboardStats(eventInfo.eventUuid, salesParam, ticketType, ticketUuid);
+      const response = await ticketService.fetchDashboardStats(
+        eventInfo.eventUuid,
+        salesParam,
+        ticketType,
+        ticketUuid,
+      );
 
       if (response?.data?.sold_tickets_analytics?.data) {
         const analyticsData = response.data.sold_tickets_analytics.data;
-        const analyticsTitle = subitemLabel ? `${subitemLabel} Sales` : `${ticketType} Sales`;
+        const analyticsTitle = subitemLabel
+          ? `${subitemLabel} Sales`
+          : `${ticketType} Sales`;
 
         const chartData = Object.entries(analyticsData)
           .filter(([hour, value]) => (value as number) > 0)
           .map(([hour, value]) => {
             let formattedTime = hour;
-            if (hour.includes(':00 ')) {
-              const [time, period] = hour.split(' ');
-              const [hours] = time.split(':');
+            if (hour.includes(":00 ")) {
+              const [time, period] = hour.split(" ");
+              const [hours] = time.split(":");
               formattedTime = `${hours}${period.toLowerCase()}`;
             }
             return { time: formattedTime, value: value || 0 };
@@ -323,39 +412,62 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
         setActiveAnalytics(analyticsKey);
       }
     } catch (error) {
-      logger.error('Error fetching analytics for', ticketType, error);
+      logger.error("Error fetching analytics for", ticketType, error);
     }
   };
 
-  const handleCheckInAnalyticsPress = async (ticketType: string, title: string, ticketUuid: string | null = null, subitemLabel: string | null = null) => {
-    if (!eventInfo?.eventUuid || (userRole !== 'ADMIN' && userRole !== 'ORGANIZER' && userRole !== 'STAFF')) return;
+  const handleCheckInAnalyticsPress = async (
+    ticketType: string,
+    title: string,
+    ticketUuid: string | null = null,
+    subitemLabel: string | null = null,
+  ) => {
+    if (
+      !eventInfo?.eventUuid ||
+      (userRole !== "ADMIN" && userRole !== "ORGANIZER" && userRole !== "STAFF")
+    )
+      return;
 
-    const analyticsKey = ticketUuid ? `${title}-${ticketUuid}` : `${title}-${ticketType}`;
+    const analyticsKey = ticketUuid
+      ? `${title}-${ticketUuid}`
+      : `${title}-${ticketType}`;
 
     if (activeCheckInAnalytics === analyticsKey) {
       setActiveCheckInAnalytics(null);
       setCheckInAnalyticsData(null);
-      setCheckInAnalyticsTitle('');
+      setCheckInAnalyticsTitle("");
       return;
     }
 
     try {
       let salesParam = null;
-      logger.log('handleCheckInAnalyticsPress params:', { ticketType, title, ticketUuid, subitemLabel });
+      logger.log("handleCheckInAnalyticsPress params:", {
+        ticketType,
+        title,
+        ticketUuid,
+        subitemLabel,
+      });
 
-      const response = await ticketService.fetchDashboardStats(eventInfo.eventUuid, salesParam, ticketType, ticketUuid);
+      const response = await ticketService.fetchDashboardStats(
+        eventInfo.eventUuid,
+        salesParam,
+        ticketType,
+        ticketUuid,
+      );
 
       if (response?.data?.checkin_analytics?.data) {
         const analyticsData = response.data.checkin_analytics.data;
-        const analyticsTitle = subitemLabel ? `${subitemLabel} Check-Ins` : `${ticketType} Check-Ins`;
+        const analyticsTitle = subitemLabel
+          ? `${subitemLabel} Check-Ins`
+          : `${ticketType} Check-Ins`;
 
         const chartData = Object.entries(analyticsData)
           .filter(([hour, value]) => (value as number) > 0)
           .map(([hour, value]) => {
             let formattedTime = hour;
-            if (hour.includes(':00 ')) {
-              const [time, period] = hour.split(' ');
-              const [hours] = time.split(':');
+            if (hour.includes(":00 ")) {
+              const [time, period] = hour.split(" ");
+              const [hours] = time.split(":");
               formattedTime = `${hours}${period.toLowerCase()}`;
             }
             return { time: formattedTime, value: value || 0 };
@@ -366,39 +478,56 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
         setActiveCheckInAnalytics(analyticsKey);
       }
     } catch (error) {
-      logger.error('Error fetching check-in analytics for', ticketType, error);
+      logger.error("Error fetching check-in analytics for", ticketType, error);
     }
   };
 
-  const handleScanAnalyticsPress = async (scanType: string, parentCategory: string, ticketUuid: string | null = null) => {
+  const handleScanAnalyticsPress = async (
+    scanType: string,
+    parentCategory: string,
+    ticketUuid: string | null = null,
+  ) => {
     if (!eventInfo?.eventUuid) return;
 
-    const analyticsKey = ticketUuid ? `Scan-${parentCategory}-${ticketUuid}` : `Scan-${parentCategory}-${scanType}`;
+    const analyticsKey = ticketUuid
+      ? `Scan-${parentCategory}-${ticketUuid}`
+      : `Scan-${parentCategory}-${scanType}`;
 
     if (activeScanAnalytics === analyticsKey) {
       setActiveScanAnalytics(null);
       setScanAnalyticsData(null);
-      setScanAnalyticsTitle('');
+      setScanAnalyticsTitle("");
       return;
     }
 
     try {
-      logger.log('🔍 Fetching scan analytics for:', { scanType, parentCategory, ticketUuid });
+      logger.log("🔍 Fetching scan analytics for:", {
+        scanType,
+        parentCategory,
+        ticketUuid,
+      });
 
       let salesParam = null;
-      const response = await ticketService.fetchDashboardStats(eventInfo.eventUuid, salesParam, parentCategory, ticketUuid);
+      const response = await ticketService.fetchDashboardStats(
+        eventInfo.eventUuid,
+        salesParam,
+        parentCategory,
+        ticketUuid,
+      );
 
       if (response?.data?.scan_analytics?.data) {
         const analyticsData = response.data.scan_analytics.data;
-        const analyticsTitle = ticketUuid ? `${scanType} Scans` : `${parentCategory} Scans`;
+        const analyticsTitle = ticketUuid
+          ? `${scanType} Scans`
+          : `${parentCategory} Scans`;
 
         const chartData = Object.entries(analyticsData)
           .filter(([hour, value]) => (value as number) > 0)
           .map(([hour, value]) => {
             let formattedTime = hour;
-            if (hour.includes(':00 ')) {
-              const [time, period] = hour.split(' ');
-              const [hours] = time.split(':');
+            if (hour.includes(":00 ")) {
+              const [time, period] = hour.split(" ");
+              const [hours] = time.split(":");
               formattedTime = `${hours}${period.toLowerCase()}`;
             }
             return { time: formattedTime, value: value || 0 };
@@ -408,16 +537,16 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
         setScanAnalyticsTitle(analyticsTitle);
         setActiveScanAnalytics(analyticsKey);
       } else {
-        logger.warn('⚠️ No scan analytics data found in response');
+        logger.warn("⚠️ No scan analytics data found in response");
       }
     } catch (error) {
-      logger.error('❌ Error fetching scan analytics for', scanType, error);
+      logger.error("❌ Error fetching scan analytics for", scanType, error);
     }
   };
 
   const handleEventSelect = (event: any) => {
     setSelectedEvent(event);
-    logger.log('Selected event:', event);
+    logger.log("Selected event:", event);
 
     if (event.uuid !== eventInfo?.eventUuid) {
       const eventUuid = event.uuid || event.eventUuid;
@@ -443,7 +572,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
       dashboardStats?.data?.check_ins?.total_checkins === undefined ||
       dashboardStats?.data?.check_ins?.total_tickets === undefined
     ) {
-      return [{ label: "Total Checked In", checkedIn: 0, total: 0, percentage: 0 }];
+      return [
+        { label: "Total Checked In", checkedIn: 0, total: 0, percentage: 0 },
+      ];
     }
 
     const totalCheckedIn = dashboardStats?.data?.check_ins?.total_checkins;
@@ -452,7 +583,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
     let typeRows: any[] = [];
 
     if (byCategory) {
-      typeRows = Object.keys(byCategory || {}).map(type => {
+      typeRows = Object.keys(byCategory || {}).map((type) => {
         const categoryData = byCategory[type];
         const checkedIn = categoryData?.scanned_tickets || 0;
         const total = categoryData?.total_tickets || 0;
@@ -470,7 +601,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
         label: "Total Checked In",
         checkedIn: totalCheckedIn,
         total: totalTickets,
-        percentage: totalTickets ? Math.round((totalCheckedIn / totalTickets) * 100) : 0,
+        percentage: totalTickets
+          ? Math.round((totalCheckedIn / totalTickets) * 100)
+          : 0,
       },
       ...typeRows,
     ];
@@ -478,13 +611,16 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
 
   const getSoldTicketsData = () => {
     let dataSource: any;
-    if (userRole === 'ADMIN') {
+    if (userRole === "ADMIN") {
       dataSource = dashboardStats?.data?.sold_tickets;
     } else {
       dataSource = dashboardStats?.data?.box_office_sales?.ticket_wise;
     }
 
-    if (dataSource?.total_tickets === undefined || dataSource?.sold_tickets === undefined) {
+    if (
+      dataSource?.total_tickets === undefined ||
+      dataSource?.sold_tickets === undefined
+    ) {
       return [{ label: "Total Sold", checkedIn: 0, total: 0, percentage: 0 }];
     }
 
@@ -494,10 +630,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
     let typeRows: any[] = [];
 
     if (byCategory) {
-      typeRows = Object.keys(byCategory || {}).map(type => {
+      typeRows = Object.keys(byCategory || {}).map((type) => {
         const categoryData = byCategory[type];
         let sold, total;
-        if (userRole === 'ADMIN') {
+        if (userRole === "ADMIN") {
           sold = categoryData?.sold_tickets || 0;
           total = categoryData?.total_tickets || 0;
         } else {
@@ -514,7 +650,14 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
     }
 
     return [
-      { label: "Total Sold", checkedIn: totalSold, total: totalTickets, percentage: totalTickets ? Math.round((totalSold / totalTickets) * 100) : 0 },
+      {
+        label: "Total Sold",
+        checkedIn: totalSold,
+        total: totalTickets,
+        percentage: totalTickets
+          ? Math.round((totalSold / totalTickets) * 100)
+          : 0,
+      },
       ...typeRows,
     ];
   };
@@ -525,7 +668,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
     }
 
     const byCategory = dashboardStats?.data?.available_tickets;
-    const typeRows = Object.keys(byCategory || {}).map(type => {
+    const typeRows = Object.keys(byCategory || {}).map((type) => {
       const categoryData = byCategory[type];
       const available = categoryData?.available_tickets || 0;
       const total = categoryData?.total_tickets || 0;
@@ -533,8 +676,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
       const subItems: any[] = [];
       const ticketWise = categoryData;
       if (ticketWise) {
-        Object.keys(ticketWise).forEach(ticketName => {
-          if (ticketName !== 'total_tickets' && ticketName !== 'available_tickets') {
+        Object.keys(ticketWise).forEach((ticketName) => {
+          if (
+            ticketName !== "total_tickets" &&
+            ticketName !== "available_tickets"
+          ) {
             const ticketInfo = ticketWise[ticketName];
             const ticketAvailable = ticketInfo.available || 0;
             const ticketTotal = ticketInfo.total || 0;
@@ -542,7 +688,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
               label: ticketName,
               checkedIn: ticketAvailable,
               total: ticketTotal,
-              percentage: ticketTotal > 0 ? Math.round((ticketAvailable / ticketTotal) * 100) : 0,
+              percentage:
+                ticketTotal > 0
+                  ? Math.round((ticketAvailable / ticketTotal) * 100)
+                  : 0,
               ticketUuid: ticketInfo.ticket_uuid,
               subItems: [],
             });
@@ -563,9 +712,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
   };
 
   function formatHourLabel(hourStr: string) {
-    if (!hourStr || typeof hourStr !== 'string') {
-      logger.warn('formatHourLabel: Invalid input', hourStr);
-      return '';
+    if (!hourStr || typeof hourStr !== "string") {
+      logger.warn("formatHourLabel: Invalid input", hourStr);
+      return "";
     }
     const parts = hourStr.split(":");
     if (parts.length < 2) return hourStr;
@@ -573,7 +722,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
     if (!minutePart) return hour;
     const minuteAndPeriod = minutePart.split(" ");
     if (minuteAndPeriod.length < 2) {
-      return `${parseInt(hour, 10)}${hourStr.includes('PM') ? 'pm' : 'am'}`;
+      return `${parseInt(hour, 10)}${hourStr.includes("PM") ? "pm" : "am"}`;
     }
     const [minute, period] = minuteAndPeriod;
     return `${parseInt(hour, 10)}${period.toLowerCase()}`;
@@ -588,12 +737,17 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
     return formatHourLabel(entries[entries.length - 1][0]);
   }
 
-  function getCheckinAnalyticsChartData(checkinAnalytics: any, highlightHour: string | null = null) {
+  function getCheckinAnalyticsChartData(
+    checkinAnalytics: any,
+    highlightHour: string | null = null,
+  ) {
     if (!checkinAnalytics?.data) return [];
     return Object.entries(checkinAnalytics.data).map(([hour, value]) => ({
       time: formatHourLabel(hour),
       value,
-      isHighlighted: highlightHour ? formatHourLabel(hour) === highlightHour : false,
+      isHighlighted: highlightHour
+        ? formatHourLabel(hour) === highlightHour
+        : false,
     }));
   }
 
@@ -616,13 +770,17 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
 
     if (selectedSaleScanTab === "Sales") {
       const soldTicketsData = getSoldTicketsData();
-      const remainingTicketsData = soldTicketsData.filter((item) => item.label !== "Total Sold");
-      const soldTicketsChartData = mapSoldTicketsAnalytics(dashboardStats?.data?.sold_tickets_analytics?.data);
+      const remainingTicketsData = soldTicketsData.filter(
+        (item) => item.label !== "Total Sold",
+      );
+      const soldTicketsChartData = mapSoldTicketsAnalytics(
+        dashboardStats?.data?.sold_tickets_analytics?.data,
+      );
 
       return (
         <>
           {/* Admin Online Box Office Tab */}
-          {userRole === 'ADMIN' && (
+          {userRole === "ADMIN" && (
             <View style={styles.adminOnlineBoxOfficeTabContainer}>
               <View style={styles.adminOnlineBoxOfficeTabRow}>
                 {adminonlineboxofficetab.map((item) => (
@@ -630,14 +788,16 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
                     key={item}
                     style={[
                       styles.adminOnlineBoxOfficeTabButton,
-                      selectedAdminOnlineBoxOfficeTab === item && styles.selectedAdminOnlineBoxOfficeTabButton,
+                      selectedAdminOnlineBoxOfficeTab === item &&
+                        styles.selectedAdminOnlineBoxOfficeTabButton,
                     ]}
                     onPress={() => handleAdminOnlineBoxOfficeTabPress(item)}
                   >
                     <Text
                       style={[
                         styles.adminOnlineBoxOfficeTabButtonText,
-                        selectedAdminOnlineBoxOfficeTab === item && styles.selectedAdminOnlineBoxOfficeTabButtonText,
+                        selectedAdminOnlineBoxOfficeTab === item &&
+                          styles.selectedAdminOnlineBoxOfficeTabButtonText,
                       ]}
                     >
                       {item}
@@ -649,11 +809,15 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
           )}
 
           {/* Admin Sales Components */}
-          {userRole === 'ADMIN' && (
+          {userRole === "ADMIN" && (
             <>
-              {selectedAdminOnlineBoxOfficeTab === 'All' && <AdminAllSales stats={dashboardStats} />}
-              {selectedAdminOnlineBoxOfficeTab === 'Online' && <AdminOnlineSales stats={dashboardStats} />}
-              {selectedAdminOnlineBoxOfficeTab === 'Box Office' && (
+              {selectedAdminOnlineBoxOfficeTab === "All" && (
+                <AdminAllSales stats={dashboardStats} />
+              )}
+              {selectedAdminOnlineBoxOfficeTab === "Online" && (
+                <AdminOnlineSales stats={dashboardStats} />
+              )}
+              {selectedAdminOnlineBoxOfficeTab === "Box Office" && (
                 <>
                   <AdminBoxOfficeSales stats={dashboardStats} />
                   <CheckInSoldTicketsCard
@@ -671,8 +835,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
             </>
           )}
 
-          {userRole !== 'ADMIN' && <BoxOfficeSales stats={dashboardStats} />}
-          {(userRole !== 'ADMIN' || (userRole === 'ADMIN' && selectedAdminOnlineBoxOfficeTab !== 'Box Office')) && (
+          {userRole !== "ADMIN" && <BoxOfficeSales stats={dashboardStats} />}
+          {(userRole !== "ADMIN" ||
+            (userRole === "ADMIN" &&
+              selectedAdminOnlineBoxOfficeTab !== "Box Office")) && (
             <CheckInSoldTicketsCard
               title="Sold Tickets"
               data={soldTicketsData}
@@ -685,36 +851,51 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
             />
           )}
           {analyticsData && activeAnalytics ? (
-            <AnalyticsChart title={analyticsTitle} data={analyticsData} dataType="sold" />
+            <AnalyticsChart
+              title={analyticsTitle}
+              data={analyticsData}
+              dataType="sold"
+            />
           ) : (
-            <AnalyticsChart title="Sold Tickets" data={soldTicketsChartData} dataType="sold" />
+            <AnalyticsChart
+              title="Sold Tickets"
+              data={soldTicketsChartData}
+              dataType="sold"
+            />
           )}
 
-          {userRole === 'ADMIN' && selectedAdminOnlineBoxOfficeTab === 'Box Office' && (
-            <AdminBoxOfficePaymentChannel stats={dashboardStats} />
-          )}
-          {userRole === 'ORGANIZER' && (() => {
-            logger.log('🔍 ORGANIZER Payment Channels Debug:');
-            const paymentChannelData = dashboardStats?.data?.payment_channels
-              || dashboardStats?.data?.payment_channel
-              || dashboardStats?.data?.box_office_sales?.payment_channels
-              || dashboardStats?.data?.box_office_sales?.payment_channel;
+          {userRole === "ADMIN" &&
+            selectedAdminOnlineBoxOfficeTab === "Box Office" && (
+              <AdminBoxOfficePaymentChannel stats={dashboardStats} />
+            )}
+          {userRole === "ORGANIZER" &&
+            (() => {
+              logger.log("🔍 ORGANIZER Payment Channels Debug:");
+              const paymentChannelData =
+                dashboardStats?.data?.payment_channels ||
+                dashboardStats?.data?.payment_channel ||
+                dashboardStats?.data?.box_office_sales?.payment_channels ||
+                dashboardStats?.data?.box_office_sales?.payment_channel;
 
-            return (
-              <AdminBoxOfficePaymentChannel stats={{
-                ...dashboardStats,
-                data: {
-                  ...dashboardStats?.data,
-                  box_office_sales: {
-                    ...dashboardStats?.data?.box_office_sales,
-                    payment_channel: paymentChannelData,
-                  },
-                },
-              }} />
-            );
-          })()}
+              return (
+                <AdminBoxOfficePaymentChannel
+                  stats={{
+                    ...dashboardStats,
+                    data: {
+                      ...dashboardStats?.data,
+                      box_office_sales: {
+                        ...dashboardStats?.data?.box_office_sales,
+                        payment_channel: paymentChannelData,
+                      },
+                    },
+                  }}
+                />
+              );
+            })()}
 
-          {((userRole === 'ADMIN' && selectedAdminOnlineBoxOfficeTab === 'Box Office') || userRole === 'ORGANIZER') && (
+          {((userRole === "ADMIN" &&
+            selectedAdminOnlineBoxOfficeTab === "Box Office") ||
+            userRole === "ORGANIZER") && (
             <TotalPaymentChannelCard
               stats={dashboardStats}
               onPaymentChannelPress={handlePaymentChannelPress}
@@ -722,7 +903,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
             />
           )}
 
-          {((userRole === 'ADMIN' && selectedAdminOnlineBoxOfficeTab === 'Box Office') || userRole === 'ORGANIZER') && (
+          {((userRole === "ADMIN" &&
+            selectedAdminOnlineBoxOfficeTab === "Box Office") ||
+            userRole === "ORGANIZER") && (
             <PaymentChannelAnalytics
               stats={dashboardStats}
               selectedPaymentChannel={activePaymentChannel}
@@ -736,11 +919,17 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
               {getTabList().map((item) => (
                 <TouchableOpacity
                   key={item}
-                  style={[styles.tabButton, selectedTab === item && styles.selectedTabButton]}
+                  style={[
+                    styles.tabButton,
+                    selectedTab === item && styles.selectedTabButton,
+                  ]}
                   onPress={() => handleTabPress(item)}
                 >
                   <Text
-                    style={[styles.tabButtonText, selectedTab === item && styles.selectedTabButtonText]}
+                    style={[
+                      styles.tabButtonText,
+                      selectedTab === item && styles.selectedTabButtonText,
+                    ]}
                     numberOfLines={2}
                   >
                     {item}
@@ -763,21 +952,34 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
                 activeAnalytics={activeCheckInAnalytics}
               />
               {checkInAnalyticsData && activeCheckInAnalytics ? (
-                <AnalyticsChart title={checkInAnalyticsTitle} data={checkInAnalyticsData} dataType="checked in" />
+                <AnalyticsChart
+                  title={checkInAnalyticsTitle}
+                  data={checkInAnalyticsData}
+                  dataType="checked in"
+                />
               ) : (
                 <AnalyticsChart
                   title="Check In"
-                  data={getCheckinAnalyticsChartData(dashboardStats?.data?.checkin_analytics, highlightHour)}
+                  data={getCheckinAnalyticsChartData(
+                    dashboardStats?.data?.checkin_analytics,
+                    highlightHour,
+                  )}
                   dataType="checked in"
                 />
               )}
             </>
           )}
           {selectedTab === "Available" && (
-            <AvailableTicketsCard data={getAvailableTicketsData()} stats={dashboardStats} />
+            <AvailableTicketsCard
+              data={getAvailableTicketsData()}
+              stats={dashboardStats}
+            />
           )}
           {selectedTab === "Attendees" && (
-            <AttendeesComponent eventInfo={eventInfo} onScanCountUpdate={onScanCountUpdate} />
+            <AttendeesComponent
+              eventInfo={eventInfo}
+              onScanCountUpdate={onScanCountUpdate}
+            />
           )}
         </>
       );
@@ -791,32 +993,59 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
             activeScanAnalytics={activeScanAnalytics}
           />
           {scanAnalyticsData && activeScanAnalytics ? (
-            <ScanAnalytics title={scanAnalyticsTitle} data={scanAnalyticsData} dataType="checked in" />
+            <ScanAnalytics
+              title={scanAnalyticsTitle}
+              data={scanAnalyticsData}
+              dataType="checked in"
+            />
           ) : (
             <ScanAnalytics
               title="Scans"
-              data={getCheckinAnalyticsChartData(dashboardStats?.data?.scan_analytics)}
+              data={getCheckinAnalyticsChartData(
+                dashboardStats?.data?.scan_analytics,
+              )}
               dataType="checked in"
             />
           )}
-          <ScanListComponent eventInfo={eventInfo} onScanCountUpdate={onScanCountUpdate} />
+          <ScanListComponent
+            eventInfo={eventInfo}
+            onScanCountUpdate={onScanCountUpdate}
+          />
         </>
       );
     }
 
     if (selectedTab === "Attendees") {
-      return <AttendeesComponent eventInfo={eventInfo} onScanCountUpdate={onScanCountUpdate} />;
-    } else if (selectedTab === "Check-Ins" || selectedTab === "Sold Tickets" || selectedTab === "Available") {
-      const data = selectedTab === "Check-Ins" ? getCheckInData()
-        : selectedTab === "Sold Tickets" ? getSoldTicketsData()
-          : getAvailableTicketsData();
+      return (
+        <AttendeesComponent
+          eventInfo={eventInfo}
+          onScanCountUpdate={onScanCountUpdate}
+        />
+      );
+    } else if (
+      selectedTab === "Check-Ins" ||
+      selectedTab === "Sold Tickets" ||
+      selectedTab === "Available"
+    ) {
+      const data =
+        selectedTab === "Check-Ins"
+          ? getCheckInData()
+          : selectedTab === "Sold Tickets"
+            ? getSoldTicketsData()
+            : getAvailableTicketsData();
 
-      const remainingTicketsData = selectedTab === "Sold Tickets"
-        ? data.filter((item: any) => item.label !== "Total Sold")
-        : [];
+      const remainingTicketsData =
+        selectedTab === "Sold Tickets"
+          ? data.filter((item: any) => item.label !== "Total Sold")
+          : [];
 
-      const checkedInChartData = getCheckinAnalyticsChartData(dashboardStats?.data?.checkin_analytics, highlightHour);
-      const soldTicketsChartData = mapSoldTicketsAnalytics(dashboardStats?.data?.sold_tickets_analytics?.data);
+      const checkedInChartData = getCheckinAnalyticsChartData(
+        dashboardStats?.data?.checkin_analytics,
+        highlightHour,
+      );
+      const soldTicketsChartData = mapSoldTicketsAnalytics(
+        dashboardStats?.data?.sold_tickets_analytics?.data,
+      );
 
       return (
         <>
@@ -827,23 +1056,45 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
             showRemaining={selectedTab === "Sold Tickets"}
             userRole={userRole}
             stats={dashboardStats}
-            onAnalyticsPress={selectedTab === "Check-Ins" ? handleCheckInAnalyticsPress : handleAnalyticsPress}
-            activeAnalytics={selectedTab === "Check-Ins" ? activeCheckInAnalytics : activeAnalytics}
+            onAnalyticsPress={
+              selectedTab === "Check-Ins"
+                ? handleCheckInAnalyticsPress
+                : handleAnalyticsPress
+            }
+            activeAnalytics={
+              selectedTab === "Check-Ins"
+                ? activeCheckInAnalytics
+                : activeAnalytics
+            }
           />
           {selectedTab !== "Available" && (
             <>
               {selectedTab === "Check-Ins" ? (
                 checkInAnalyticsData && activeCheckInAnalytics ? (
-                  <AnalyticsChart title={checkInAnalyticsTitle} data={checkInAnalyticsData} dataType="checked in" />
+                  <AnalyticsChart
+                    title={checkInAnalyticsTitle}
+                    data={checkInAnalyticsData}
+                    dataType="checked in"
+                  />
                 ) : (
-                  <AnalyticsChart title="Check In" data={checkedInChartData} dataType="checked in" />
+                  <AnalyticsChart
+                    title="Check In"
+                    data={checkedInChartData}
+                    dataType="checked in"
+                  />
                 )
+              ) : analyticsData && activeAnalytics ? (
+                <AnalyticsChart
+                  title={analyticsTitle}
+                  data={analyticsData}
+                  dataType="sold"
+                />
               ) : (
-                analyticsData && activeAnalytics ? (
-                  <AnalyticsChart title={analyticsTitle} data={analyticsData} dataType="sold" />
-                ) : (
-                  <AnalyticsChart title="Sold Tickets" data={soldTicketsChartData} dataType="sold" />
-                )
+                <AnalyticsChart
+                  title="Sold Tickets"
+                  data={soldTicketsChartData}
+                  dataType="sold"
+                />
               )}
             </>
           )}
@@ -862,7 +1113,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
   // ── AGENT inline tab content renderer ──
   const renderAgentTabContent = () => {
     switch (selectedAgentTab) {
-      case 'Sales':
+      case "Sales":
         return (
           <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
             {loading || userProfileLoading ? (
@@ -875,10 +1126,18 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
                 <View style={styles.availableTicketsContainer}>
                   <View style={styles.availableTicketsOuterWrapper}>
                     <View style={styles.availableTicketsCard}>
-                      <CircularProgress value={getAvailableCount()} total={getTotalTicketsCount()} size={40} />
+                      <CircularProgress
+                        value={getAvailableCount()}
+                        total={getTotalTicketsCount()}
+                        size={40}
+                      />
                       <View style={styles.availableTicketsTextContainer}>
-                        <Text style={styles.availableTicketsTitle}>Available Tickets</Text>
-                        <Text style={styles.availableTicketsValue}>{getAvailableCount()}</Text>
+                        <Text style={styles.availableTicketsTitle}>
+                          Available Tickets
+                        </Text>
+                        <Text style={styles.availableTicketsValue}>
+                          {getAvailableCount()}
+                        </Text>
                       </View>
                     </View>
                   </View>
@@ -887,13 +1146,18 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
                   stats={dashboardStats}
                   title="Sales"
                   onDebugData={(data: any) => {
-                    logger.log('BoxOfficeSales - Backend Data:', JSON.stringify(data, null, 2));
+                    logger.log(
+                      "BoxOfficeSales - Backend Data:",
+                      JSON.stringify(data, null, 2),
+                    );
                   }}
                 />
                 <CheckInSoldTicketsCard
                   title="Sold Tickets"
                   data={getSoldTicketsData()}
-                  remainingTicketsData={getSoldTicketsData().filter((i: any) => i.label !== 'Total Sold')}
+                  remainingTicketsData={getSoldTicketsData().filter(
+                    (i: any) => i.label !== "Total Sold",
+                  )}
                   showRemaining={true}
                   userRole={userRole}
                   stats={dashboardStats}
@@ -901,11 +1165,17 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
                   activeAnalytics={activeAnalytics}
                 />
                 {analyticsData && activeAnalytics ? (
-                  <AnalyticsChart title={analyticsTitle} data={analyticsData} dataType="sold" />
+                  <AnalyticsChart
+                    title={analyticsTitle}
+                    data={analyticsData}
+                    dataType="sold"
+                  />
                 ) : (
                   <AnalyticsChart
                     title="Sold Tickets"
-                    data={mapSoldTicketsAnalytics(dashboardStats?.data?.sold_tickets_analytics?.data)}
+                    data={mapSoldTicketsAnalytics(
+                      dashboardStats?.data?.sold_tickets_analytics?.data,
+                    )}
                     dataType="sold"
                   />
                 )}
@@ -913,16 +1183,13 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
             )}
           </ScrollView>
         );
-      case 'Sold Tix':
+      case "Sold Tix":
         return (
           <View style={{ flex: 1 }}>
-            <TicketsTab
-              eventInfo={eventInfo}
-              initialTab="All"
-            />
+            <TicketsTab eventInfo={eventInfo} initialTab="All" />
           </View>
         );
-      case 'New Tix':
+      case "New Tix":
         return (
           <View style={{ flex: 1 }}>
             <BoxOfficeTab
@@ -936,17 +1203,29 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
     }
   };
 
-  const highlightHour = getLatestNonZeroHour(dashboardStats?.data?.checkin_analytics);
+  const highlightHour = getLatestNonZeroHour(
+    dashboardStats?.data?.checkin_analytics,
+  );
 
   const soldTicketsData = getSoldTicketsData();
-  const remainingTicketsData = soldTicketsData.filter((item: any) => item.label !== "Total Sold");
+  const remainingTicketsData = soldTicketsData.filter(
+    (item: any) => item.label !== "Total Sold",
+  );
 
   const renderTab = ({ item }: { item: string }) => (
     <TouchableOpacity
-      style={[styles.tabButton, selectedTab === item && styles.selectedTabButton]}
+      style={[
+        styles.tabButton,
+        selectedTab === item && styles.selectedTabButton,
+      ]}
       onPress={() => handleTabPress(item)}
     >
-      <Text style={[styles.tabButtonText, selectedTab === item && styles.selectedTabButtonText]}>
+      <Text
+        style={[
+          styles.tabButtonText,
+          selectedTab === item && styles.selectedTabButtonText,
+        ]}
+      >
         {item}
       </Text>
     </TouchableOpacity>
@@ -954,53 +1233,71 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
 
   const renderSaleScanTab = ({ item }: { item: string }) => (
     <TouchableOpacity
-      style={[styles.saleScanTabButton, selectedSaleScanTab === item && styles.selectedSaleScanTabButton]}
+      style={[
+        styles.saleScanTabButton,
+        selectedSaleScanTab === item && styles.selectedSaleScanTabButton,
+      ]}
       onPress={() => handleSaleScanTabPress(item)}
     >
-      <Text style={[styles.saleScanTabButtonText, selectedSaleScanTab === item && styles.selectedSaleScanTabButtonText]}>
+      <Text
+        style={[
+          styles.saleScanTabButtonText,
+          selectedSaleScanTab === item && styles.selectedSaleScanTabButtonText,
+        ]}
+      >
         {item}
       </Text>
     </TouchableOpacity>
   );
 
   // ── Role-based early returns ──
-  const shouldShowEventDashboard = showEventDashboard || isFromRootStack || (route.params as any)?.showEventDashboard;
+  const shouldShowEventDashboard =
+    showEventDashboard ||
+    isFromRootStack ||
+    (route.params as any)?.showEventDashboard;
 
   // ADMIN: show AdminAllEventsDashboard until an event is selected
-  if (userRole === 'ADMIN' && !shouldShowEventDashboard) {
+  if (userRole === "ADMIN") {
     return <AdminAllEventsDashboard />;
   }
 
   // AGENT: show TerminalDashboard until an event is selected from TerminalEventsTab
-  if (userRole === 'AGENT' && !shouldShowEventDashboard) {
+  if (userRole === "AGENT" && !shouldShowEventDashboard) {
     return <TerminalDashboard />;
   }
 
   // ── AGENT event detail view (after selecting an event) ──
-  if (userRole === 'AGENT' && shouldShowEventDashboard) {
+  if (userRole === "AGENT" && shouldShowEventDashboard) {
     return (
       <View style={styles.mainContainer}>
         <SafeAreaView style={[{ paddingTop: topPadding }]}>
           {/* Brown event info bar */}
           <View style={styles.header}>
             {shouldShowBackButton && (
-              <TouchableOpacity onPress={handleBackPress} style={styles.headerBackButton}>
+              <TouchableOpacity
+                onPress={handleBackPress}
+                style={styles.headerBackButton}
+              >
                 <SvgIcons.whiteArrow />
               </TouchableOpacity>
             )}
             <View style={styles.headerContent}>
               <View style={styles.headerLeft}>
-                <Text style={styles.eventName} numberOfLines={1} ellipsizeMode="tail">
-                  {truncateEventName(eventInfo?.event_title) || 'OUTMOSPHERE'}
+                <Text
+                  style={styles.eventName}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {truncateEventName(eventInfo?.event_title) || "OUTMOSPHERE"}
                 </Text>
               </View>
               <View style={styles.headerSpacer} />
               <Text style={styles.date} numberOfLines={1} ellipsizeMode="tail">
-                {formatDateWithMonthName(eventInfo?.date) || '30 Oct 2025'}
+                {formatDateWithMonthName(eventInfo?.date) || "30 Oct 2025"}
               </Text>
               <Text style={styles.separator}>at</Text>
               <Text style={styles.time} numberOfLines={1} ellipsizeMode="tail">
-                {eventInfo?.time || '7:00 PM'}
+                {eventInfo?.time || "7:00 PM"}
               </Text>
             </View>
           </View>
@@ -1021,7 +1318,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
                 <Text
                   style={[
                     styles.agentTabButtonText,
-                    selectedAgentTab === tab && styles.selectedAgentTabButtonText,
+                    selectedAgentTab === tab &&
+                      styles.selectedAgentTabButtonText,
                   ]}
                   numberOfLines={1}
                 >
@@ -1033,9 +1331,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
         </View>
 
         {/* ── AGENT tab content rendered inline ── */}
-        <View style={{ flex: 1 }}>
-          {renderAgentTabContent()}
-        </View>
+        <View style={{ flex: 1 }}>{renderAgentTabContent()}</View>
       </View>
     );
   }
@@ -1044,47 +1340,75 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
   return (
     <View style={styles.mainContainer}>
       <SafeAreaView style={[{ paddingTop: topPadding }]}>
-
-        <View style={styles.header}>
+        {
+          userRole === "AGENT" && 
+          <View style={styles.header}>
           {shouldShowBackButton && (
-            <TouchableOpacity onPress={handleBackPress} style={styles.headerBackButton}>
+            <TouchableOpacity
+              onPress={handleBackPress}
+              style={styles.headerBackButton}
+            >
               <SvgIcons.whiteArrow />
             </TouchableOpacity>
           )}
           <View style={styles.headerContent}>
             <View style={styles.headerLeft}>
-              <Text style={styles.eventName} numberOfLines={1} ellipsizeMode="tail">
-                {truncateEventName(eventInfo?.event_title) || 'OUTMOSPHERE'}
+              <Text
+                style={styles.eventName}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {truncateEventName(eventInfo?.event_title) || "OUTMOSPHERE"}
               </Text>
-              {userRole === 'ADMIN' && (
-                <TouchableOpacity style={styles.dropdownButton} onPress={() => setEventsModalVisible(true)}>
-                  <SvgIcons.downArrowWhite width={12} height={12} fill={color.white_FFFFFF} stroke={color.white_FFFFFF} strokeWidth={0} />
+              {userRole === "ADMIN" && (
+                <TouchableOpacity
+                  style={styles.dropdownButton}
+                  onPress={() => setEventsModalVisible(true)}
+                >
+                  <SvgIcons.downArrowWhite
+                    width={12}
+                    height={12}
+                    fill={color.white_FFFFFF}
+                    stroke={color.white_FFFFFF}
+                    strokeWidth={0}
+                  />
                 </TouchableOpacity>
               )}
             </View>
             <View style={styles.headerSpacer} />
             <Text style={styles.date} numberOfLines={1} ellipsizeMode="tail">
-              {formatDateWithMonthName(eventInfo?.date) || '30 Oct 2025'}
+              {formatDateWithMonthName(eventInfo?.date) || "30 Oct 2025"}
             </Text>
             <Text style={styles.separator}>at</Text>
             <Text style={styles.time} numberOfLines={1} ellipsizeMode="tail">
-              {eventInfo?.time || '7:00 PM'}
+              {eventInfo?.time || "7:00 PM"}
             </Text>
           </View>
         </View>
+        }
+        
       </SafeAreaView>
 
       {/* Admin Dashboard Terminal Tab */}
-      {userRole === 'ADMIN' && (
+      {userRole === "ADMIN" && (
         <View style={styles.adminTabContainer}>
           <View style={styles.adminTabRow}>
             {admindashboardterminaltab.map((item) => (
               <TouchableOpacity
                 key={item}
-                style={[styles.adminTabButton, selectedAdminTab === item && styles.selectedAdminTabButton]}
+                style={[
+                  styles.adminTabButton,
+                  selectedAdminTab === item && styles.selectedAdminTabButton,
+                ]}
                 onPress={() => handleAdminTabPress(item)}
               >
-                <Text style={[styles.adminTabButtonText, selectedAdminTab === item && styles.selectedAdminTabButtonText]}>
+                <Text
+                  style={[
+                    styles.adminTabButtonText,
+                    selectedAdminTab === item &&
+                      styles.selectedAdminTabButtonText,
+                  ]}
+                >
                   {item}
                 </Text>
               </TouchableOpacity>
@@ -1093,25 +1417,40 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
         </View>
       )}
 
-      {userRole === 'ADMIN' && selectedAdminTab === 'Terminals' ? (
-        <TerminalsComponent eventInfo={eventInfo} onEventChange={onEventChange} />
-      ) : userRole === 'ADMIN' && selectedAdminTab === 'Staff' ? (
-        <StaffListComponent eventInfo={eventInfo} onEventChange={onEventChange} />
+      {userRole === "ADMIN" && selectedAdminTab === "Terminals" ? (
+        <TerminalsComponent
+          eventInfo={eventInfo}
+          onEventChange={onEventChange}
+        />
+      ) : userRole === "ADMIN" && selectedAdminTab === "Staff" ? (
+        <StaffListComponent
+          eventInfo={eventInfo}
+          onEventChange={onEventChange}
+        />
       ) : (
-        <ScrollView contentContainerStyle={styles.scrollContainer} ref={scrollViewRef}>
-          <View style={styles.wrapper}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          ref={scrollViewRef}
+        >
+          <AdminAllEventsDashboard/>
+          {/* <View style={styles.wrapper}>
             {loading || userProfileLoading ? (
               <Text style={styles.loadingText}>
-                {loading ? 'Loading dashboard stats...' : 'Loading user profile...'}
+                {loading
+                  ? "Loading dashboard stats..."
+                  : "Loading user profile..."}
               </Text>
             ) : error ? (
               <Text style={styles.errorText}>{error}</Text>
             ) : (
               <>
-                {userRole === 'ADMIN' ? (
-                  selectedAdminTab === 'Dashboard' ? (
+                {userRole === "ADMIN" ? (
+                  selectedAdminTab === "Dashboard" ? (
                     <>
-                      {logger.log('Rendering AdminOverallStatistics for role:', userRole)}
+                      {logger.log(
+                        "Rendering AdminOverallStatistics for role:",
+                        userRole,
+                      )}
                       <View style={styles.overallStatisticsContainer}>
                         <AdminOverallStatistics
                           stats={dashboardStats}
@@ -1125,7 +1464,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
                   ) : null
                 ) : (
                   <>
-                    {logger.log('Rendering OverallStatistics for role:', userRole)}
+                    {logger.log(
+                      "Rendering OverallStatistics for role:",
+                      userRole,
+                    )}
                     <View style={styles.overallStatisticsContainer}>
                       <OverallStatistics
                         stats={dashboardStats}
@@ -1138,17 +1480,27 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
                   </>
                 )}
 
-                {(userRole !== 'ADMIN' || selectedAdminTab === 'Dashboard') && (
+                {(userRole !== "ADMIN" || selectedAdminTab === "Dashboard") && (
                   <>
                     <View style={styles.saleScanTabContainer}>
                       <View style={styles.saleScanTabRow}>
                         {dashboardsalesscantab.map((item) => (
                           <TouchableOpacity
                             key={item}
-                            style={[styles.saleScanTabButton, selectedSaleScanTab === item && styles.selectedSaleScanTabButton]}
+                            style={[
+                              styles.saleScanTabButton,
+                              selectedSaleScanTab === item &&
+                                styles.selectedSaleScanTabButton,
+                            ]}
                             onPress={() => handleSaleScanTabPress(item)}
                           >
-                            <Text style={[styles.saleScanTabButtonText, selectedSaleScanTab === item && styles.selectedSaleScanTabButtonText]}>
+                            <Text
+                              style={[
+                                styles.saleScanTabButtonText,
+                                selectedSaleScanTab === item &&
+                                  styles.selectedSaleScanTabButtonText,
+                              ]}
+                            >
                               {item}
                             </Text>
                           </TouchableOpacity>
@@ -1156,35 +1508,44 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
                       </View>
                     </View>
 
-                    {selectedSaleScanTab !== "Sales" && selectedSaleScanTab !== "Scans" && (
-                      <>
-                        <BoxOfficeSales stats={dashboardStats} />
-                        <View style={styles.tabContainer}>
-                          <View style={styles.tabRow}>
-                            {getTabList().map((item) => (
-                              <TouchableOpacity
-                                key={item}
-                                style={[styles.tabButton, selectedTab === item && styles.selectedTabButton]}
-                                onPress={() => handleTabPress(item)}
-                              >
-                                <Text
-                                  style={[styles.tabButtonText, selectedTab === item && styles.selectedTabButtonText]}
-                                  numberOfLines={2}
+                    {selectedSaleScanTab !== "Sales" &&
+                      selectedSaleScanTab !== "Scans" && (
+                        <>
+                          <BoxOfficeSales stats={dashboardStats} />
+                          <View style={styles.tabContainer}>
+                            <View style={styles.tabRow}>
+                              {getTabList().map((item) => (
+                                <TouchableOpacity
+                                  key={item}
+                                  style={[
+                                    styles.tabButton,
+                                    selectedTab === item &&
+                                      styles.selectedTabButton,
+                                  ]}
+                                  onPress={() => handleTabPress(item)}
                                 >
-                                  {item}
-                                </Text>
-                              </TouchableOpacity>
-                            ))}
+                                  <Text
+                                    style={[
+                                      styles.tabButtonText,
+                                      selectedTab === item &&
+                                        styles.selectedTabButtonText,
+                                    ]}
+                                    numberOfLines={2}
+                                  >
+                                    {item}
+                                  </Text>
+                                </TouchableOpacity>
+                              ))}
+                            </View>
                           </View>
-                        </View>
-                      </>
-                    )}
+                        </>
+                      )}
                     {renderContent()}
                   </>
                 )}
               </>
             )}
-          </View>
+          </View> */}
         </ScrollView>
       )}
 
@@ -1197,7 +1558,5 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ eventInfo: propEventI
     </View>
   );
 };
-
-
 
 export default DashboardScreen;
