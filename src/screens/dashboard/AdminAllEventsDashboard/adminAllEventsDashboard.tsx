@@ -129,8 +129,6 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
 }) => {
   const dispatch = useDispatch();
   const currentUser = useSelector(getUser);
-  // console.log("currentUser-->",currentUser)
-
   const eventTypes = useSelector(selectEventTypes) ?? [];
   const ticketingTypes = useSelector(selectTicketingTypes) ?? [];
   const organizations = useSelector(selectOrganizations) ?? [];

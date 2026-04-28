@@ -67,7 +67,6 @@ function AdminTabs({
     >
       <Tab.Screen name="Dashboard" options={commonTabOptions}>
         {() => (
-          // <AdminAllEventsDashboard/>
           <DashboardScreen
             eventInfo={eventInformation}
             onScanCountUpdate={updateScanCount}
