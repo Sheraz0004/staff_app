@@ -58,7 +58,7 @@ function MyTabs(): React.ReactElement {
     insets,
   };
 
-  if (userRole === 'ADMIN') return <AdminTabs {...tabProps} />;
+  if (userRole === 'ADMIN' || userRole === 'ORGANIZER') return <AdminTabs {...tabProps} />;
   if (userRole === 'AGENT') return <AgentTabs {...tabProps} />;
   return <StaffTabs {...tabProps} />;
 }

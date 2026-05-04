@@ -31,7 +31,7 @@ interface CustomIconProps {
 export const CustomIcon: React.FC<CustomIconProps> = ({ route, focused, userRole }) => {
   let IconComponent: any;
 
-  if (userRole === 'ADMIN') {
+  if (userRole === 'ADMIN' || userRole === 'ORGANIZER') {
     const map: Record<string, any> = {
       Dashboard: focused ? SvgIcons.adminDashboardActiveTab : SvgIcons.adminDashboardInactiveTab,
       Events: focused ? SvgIcons.adminEventsActiveTab : SvgIcons.adminEventsInactiveTab,

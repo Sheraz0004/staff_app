@@ -1,48 +1,41 @@
-import React from 'react';
-import { View, Text } from 'react-native';
-import Svg, { Defs, ClipPath, Circle, Path, G, Stop, RadialGradient } from "react-native-svg";
+import React, { useRef, useEffect } from 'react';
+import { View, Text, Animated, Easing } from 'react-native';
+import Svg, { Defs, Circle, Stop, RadialGradient } from "react-native-svg";
 import { color } from '../../../color/color';
-import Typography, { Body1, Heading5 } from '../../../components/Typography';
 import { formatValue } from '../../../constants/formatValue';
-import { logger } from '../../../utils/logger';
 import { styles } from './index.styles';
 
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+const NoDataMessage: React.FC<{ message: string; subtext: string }> = ({ message, subtext }) => (
+    <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 28 }}>
+        <Svg width={44} height={44} viewBox="0 0 44 44" style={{ marginBottom: 12 }}>
+            <Circle cx={22} cy={22} r={18} stroke="#CEBCA0" strokeWidth={2} fill="none" strokeDasharray="5 4" />
+            <Circle cx={22} cy={22} r={10} stroke="#CEBCA0" strokeWidth={1.5} fill="none" strokeDasharray="3 3" />
+        </Svg>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: '#24282C', marginBottom: 6, textAlign: 'center' }}>
+            {message}
+        </Text>
+        <Text style={{ fontSize: 12, color: '#87807C', textAlign: 'center', lineHeight: 18, paddingHorizontal: 16 }}>
+            {subtext}
+        </Text>
+    </View>
+);
+
 interface AdminBoxOfficePaymentChannelProps {
-  stats: any;
+    stats: any;
 }
 
 const AdminBoxOfficePaymentChannel: React.FC<AdminBoxOfficePaymentChannelProps> = ({ stats }) => {
-    // Comprehensive logging for backend response structure
-    logger.log('================================================');
-    logger.log('💰 AdminBoxOfficePaymentChannel - COMPLETE BACKEND RESPONSE:');
-    logger.log('💰 Full stats object:', JSON.stringify(stats, null, 2));
-    logger.log('💰 stats.data keys:', Object.keys(stats?.data || {}));
-    logger.log('💰 Box Office Sales Data:', JSON.stringify(stats?.data?.box_office_sales, null, 2));
-    logger.log('💰 Payment Channels (plural):', JSON.stringify(stats?.data?.box_office_sales?.payment_channels, null, 2));
-    logger.log('💰 Payment Channel (singular):', JSON.stringify(stats?.data?.box_office_sales?.payment_channel, null, 2));
-    logger.log('💰 Payment Channels at root level:', JSON.stringify(stats?.data?.payment_channels, null, 2));
-    logger.log('💰 Payment Channel at root level:', JSON.stringify(stats?.data?.payment_channel, null, 2));
+    const PAYMENT_METHOD_KEYS = ['CARD', 'MOBILE_MONEY', 'CASH', 'BANK_TRANSFER', 'WALLET', 'POS'];
+    const salesData = stats?.sales || {};
+    const paymentChannel: Record<string, number> = {};
+    PAYMENT_METHOD_KEYS.forEach(key => {
+        if (salesData[key] !== undefined) {
+            paymentChannel[key.toLowerCase()] = salesData[key];
+        }
+    });
 
-    // Check for analytics data
-    logger.log('💰 Payment Analytics Data:', JSON.stringify(stats?.data?.payment_analytics, null, 2));
-    logger.log('💰 Payment Channel Analytics:', JSON.stringify(stats?.data?.payment_channel_analytics, null, 2));
-    logger.log('💰 Box Office Payment Analytics:', JSON.stringify(stats?.data?.box_office_sales?.payment_analytics, null, 2));
-    logger.log('💰 Box Office Payment Channel Analytics:', JSON.stringify(stats?.data?.box_office_sales?.payment_channel_analytics, null, 2));
-
-    // Check for total amount data
-    logger.log('💰 Total Amount Data:', JSON.stringify(stats?.data?.total_amount, null, 2));
-    logger.log('💰 Box Office Total Amount:', JSON.stringify(stats?.data?.box_office_sales?.total_amount, null, 2));
-    logger.log('💰 Box Office Sales Total:', JSON.stringify(stats?.data?.box_office_sales?.total, null, 2));
-    logger.log('================================================');
-
-    const boxOfficeSalesData = stats?.data?.box_office_sales || {};
-    // Try both payment_channels (plural) and payment_channel (singular) for backward compatibility
-    const paymentChannel = boxOfficeSalesData?.payment_channels || boxOfficeSalesData?.payment_channel || {};
-
-    logger.log('💰 AdminBoxOfficePaymentChannel - Payment Channel Keys:', Object.keys(paymentChannel));
-    logger.log('💰 AdminBoxOfficePaymentChannel - Payment Channel Values:', paymentChannel);
-
-    // Map payment methods to colors
     const paymentMethodColors: Record<string, string> = {
         "Cash": "#AE6F28",
         "Card": "#87807C",
@@ -52,77 +45,44 @@ const AdminBoxOfficePaymentChannel: React.FC<AdminBoxOfficePaymentChannelProps> 
         "POS": "#945F22",
         "Wallet": "#F4A261",
         "Bank Transfer": "#CEBCA0",
-        "Free": "#2A9D8F"
+        "Free": "#2A9D8F",
     };
 
-    // Transform the data into the required format for pie chart
-    let values: Array<{ label: string; value: number; color: string }> = [];
+    let values: Array<{ label: string; value: number; color: string }> = Object.entries(paymentChannel)
+        .filter(([key]) => !['wallet', 'bank_transfer', 'free', 'total'].includes(key.toLowerCase()))
+        .map(([key, value]) => {
+            const label = key === 'mobile_money' ? 'MoMo'
+                : key === 'pos' ? 'P.O.S.'
+                : key.charAt(0).toUpperCase() + key.slice(1).replace('_', ' ');
+            return { label, value: value || 0, color: paymentMethodColors[label] || "#87807C" };
+        });
 
-    if (Object.keys(paymentChannel).length >= 0) {
-        values = Object.entries(paymentChannel)
-            .filter(([key, value]) => {
-                // Filter out unwanted payment methods or zero values
-                const lowerKey = key.toLowerCase();
-                const shouldExclude = ['wallet', 'bank_transfer', 'free', 'total'].includes(lowerKey);
-                const hasValue = parseFloat(value as string) >= 0;
-                logger.log(`💰 Checking ${key}: value=${value}, exclude=${shouldExclude}, hasValue=${hasValue}`);
-                return !shouldExclude && hasValue;
-            })
-            .map(([key, value], index) => {
-                const label = key === 'mobile_money' ? 'MoMo' :
-                    key === 'pos' ? 'P.O.S.' :
-                        key.charAt(0).toUpperCase() + key.slice(1).replace('_', ' '); // Capitalize and replace underscore
+    const total = values.reduce((sum, item) => sum + item.value, 0);
+    const hasData = total > 0;
 
-                return {
-                    label: label,
-                    value: parseFloat(value as string) || 0,
-                    color: paymentMethodColors[label] || "#87807C" // Fallback color
-                };
-            });
+    if (!hasData) {
+        values = [{ label: "No Data", value: 1, color: "#E0E0E0" }];
     }
 
-    // If no values after filtering, show "No Data"
-    if (values.length === 0) {
-        logger.log(' No payment channel data found, showing No Data');
-        values = [{
-            label: "No Data",
-            value: 0,
-            color: "#87807C"
-        }];
-    }
-
-    logger.log('💰 Final values array:', values);
-
-    // Sort values in desired order
     const paymentOrder = ["Cash", "P.O.S.", "Card", "MoMo"];
-    const sortedValues = paymentOrder
-        .map(type => values.find(v => v.label === type))
-        .filter(Boolean) as Array<{ label: string; value: number; color: string }>;
-
-    // Add any remaining values not in the order list
-    const remainingValues = values.filter(v => !paymentOrder.includes(v.label));
-    const allValues = [...sortedValues, ...remainingValues];
-
-    const total = allValues.reduce((sum, item) => sum + item.value, 0);
+    const sortedValues = [
+        ...paymentOrder.map(type => values.find(v => v.label === type)).filter(Boolean),
+        ...values.filter(v => !paymentOrder.includes(v.label)),
+    ] as Array<{ label: string; value: number; color: string }>;
 
     const radius = 50;
     const strokeWidth = 10;
     const circumference = 2 * Math.PI * radius;
     const gapSize = 15;
-    const totalGap = gapSize * allValues.length;
+    const totalGap = gapSize * sortedValues.length;
+    const totalValue = sortedValues.reduce((sum, item) => sum + item.value, 0);
 
-    // Calculate segments for the circle with visible gaps and no overlap
     const calculateSegments = () => {
         let currentOffset = 0;
-        return allValues.map((item) => {
-            const percentage = total > 0 ? item.value / total : 0;
-            // Distribute the circumference minus total gap among the arcs
+        return sortedValues.map((item) => {
+            const percentage = totalValue > 0 ? item.value / totalValue : 0;
             const dashLength = (circumference - totalGap) * percentage;
-            const segment = {
-                ...item,
-                dashLength: dashLength > 0 ? dashLength : 0,
-                dashOffset: currentOffset
-            };
+            const segment = { ...item, dashLength: dashLength > 0 ? dashLength : 0, dashOffset: currentOffset };
             currentOffset += dashLength + gapSize;
             return segment;
         });
@@ -130,93 +90,83 @@ const AdminBoxOfficePaymentChannel: React.FC<AdminBoxOfficePaymentChannelProps> 
 
     const segments = calculateSegments();
 
+    const animProgress = useRef(new Animated.Value(0)).current;
+    useEffect(() => {
+        animProgress.setValue(0);
+        Animated.timing(animProgress, {
+            toValue: segments.length,
+            duration: Math.max(700, segments.length * 280),
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: false,
+        }).start();
+    }, [segments.length, hasData]);
+
     return (
         <View style={styles.container}>
             <View style={styles.wrapper}>
                 <Text style={styles.heading}>Payment Channels</Text>
-                <View style={styles.row}>
-                    <View style={styles.chartContainer}>
-                        <Svg height="140" width="140" viewBox="0 0 120 120">
-                            <Defs>
-                                {/* 1. Define a single, light radial gradient for the entire inner area */}
-                                <RadialGradient
-                                    id="lightInnerGlow"
-                                    cx="50%"
-                                    cy="50%"
-                                    r="70%"
-                                >
-                                    {/* Using a light, slightly warm color for the center glow */}
-                                    <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.8" />
-                                    {/* Fading to white/off-white towards the edge */}
-                                    <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.9" />
-                                </RadialGradient>
 
-                                {/* 2. ClipPath logic removed (was for multi-colored inner glows) */}
-                            </Defs>
-
-                            {/* 3. Single inner circle using the new light gradient */}
-                            <Circle
-                                cx="60"
-                                cy="60"
-                                r={radius} // Use full radius to fill the space
-                                fill="url(#lightInnerGlow)"
-                            />
-
-                            {/* Base circle outline (might be removed or changed to a background disc) */}
-                            {/* Based on the image, the outer edge of the inner fill is not a distinct line.
-                                We'll keep the full circle fill above and remove the base circle outline to
-                                match the desired look where the arcs sit directly on top of the gradient.
-                                However, if you want a light grey line, uncomment the next block. */}
-
-                            {/* Optional: Add a subtle light stroke underneath the arcs if needed. */}
-                            {/* <Circle
-                                cx="60"
-                                cy="60"
-                                r={radius}
-                                stroke="#EFEFEF" // Very light gray stroke
-                                strokeWidth={strokeWidth}
-                                fill="none"
-                            />
-                            */}
-
-                            {/* Colored arcs - remains the same */}
-                            {segments.map((segment, index) => (
-                                <Circle
-                                    key={index}
-                                    cx="60"
-                                    cy="60"
-                                    r={radius}
-                                    stroke={segment.color}
-                                    strokeWidth={strokeWidth}
-                                    fill="none"
-                                    strokeDasharray={`${segment.dashLength} ${circumference - segment.dashLength}`}
-                                    strokeDashoffset={-segment.dashOffset}
-                                    strokeLinecap="round"
-                                />
+                {!hasData ? (
+                    <NoDataMessage
+                        message="No Payment Data"
+                        subtext="Payment channel breakdown will appear once transactions have been processed."
+                    />
+                ) : (
+                    <View style={styles.row}>
+                        <View style={styles.chartContainer}>
+                            <Svg height="140" width="140" viewBox="0 0 120 120">
+                                <Defs>
+                                    <RadialGradient id="paymentGlow" cx="50%" cy="50%" r="70%">
+                                        <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.8" />
+                                        <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.9" />
+                                    </RadialGradient>
+                                </Defs>
+                                <Circle cx="60" cy="60" r={radius} fill="url(#paymentGlow)" />
+                                {segments.map((segment, index) => {
+                                    const startOff = -segment.dashOffset + segment.dashLength;
+                                    const endOff = -segment.dashOffset;
+                                    const animOffset = animProgress.interpolate({
+                                        inputRange: [index, Math.min(index + 1, segments.length)],
+                                        outputRange: [startOff, endOff],
+                                        extrapolate: 'clamp',
+                                    });
+                                    return (
+                                        <AnimatedCircle
+                                            key={index}
+                                            cx="60" cy="60" r={radius}
+                                            stroke={segment.color}
+                                            strokeWidth={strokeWidth}
+                                            fill="none"
+                                            strokeDasharray={`${segment.dashLength} ${circumference - segment.dashLength}`}
+                                            strokeDashoffset={animOffset}
+                                            strokeLinecap="round"
+                                        />
+                                    );
+                                })}
+                            </Svg>
+                            <View style={styles.centerText}>
+                                <Text style={styles.amountText}>GHS {formatValue(total)}</Text>
+                                <Text style={styles.totalText}>Total</Text>
+                            </View>
+                        </View>
+                        <View style={styles.paymentMethod}>
+                            {sortedValues.map((item, index) => (
+                                <View style={styles.paymentItem} key={index}>
+                                    <View style={styles.colorBoxWrapper}>
+                                        <View style={[styles.colorBox, { backgroundColor: item.color }]} />
+                                    </View>
+                                    <View style={styles.paymentLabel}>
+                                        <Text style={styles.paymentText}>{item.label}</Text>
+                                    </View>
+                                    <View style={styles.paymentValueWrapper}>
+                                        <Text style={styles.labelGHS}>GHS</Text>
+                                        <Text style={styles.paymentValue}>{formatValue(item.value)}</Text>
+                                    </View>
+                                </View>
                             ))}
-                        </Svg>
-                        <View style={styles.centerText}>
-                            <Text style={styles.amountText}>GHS {formatValue(total)}</Text>
-                            <Text style={styles.totalText}>Total</Text>
                         </View>
                     </View>
-                    <View style={styles.paymentMethod}>
-                        {allValues.map((item, index) => (
-                            <View style={styles.paymentItem} key={index}>
-                                <View style={styles.colorBoxWrapper}>
-                                    <View style={[styles.colorBox, { backgroundColor: item.color }]} />
-                                </View>
-                                <View style={styles.paymentLabel}>
-                                    <Text style={styles.paymentText}>{item.label}</Text>
-                                </View>
-                                <View style={styles.paymentValueWrapper}>
-                                    <Text style={styles.labelGHS}>GHS</Text>
-                                    <Text style={styles.paymentValue}>{formatValue(item.value)}</Text>
-                                </View>
-                            </View>
-                        ))}
-                    </View>
-                </View>
+                )}
             </View>
         </View>
     );

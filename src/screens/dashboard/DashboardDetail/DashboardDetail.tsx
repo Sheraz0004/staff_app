@@ -1,5 +1,5 @@
 import { useNavigation, useRoute } from "@react-navigation/native";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Platform,
   SafeAreaView,
@@ -11,19 +11,30 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { color } from "../../../color/color";
+
+import { useApi } from "../../../services/useApi";
+import { DASHBOARD_SERVICES } from "../../../services/DashboardService";
 import SvgIcons from "../../../components/SvgIcons";
 import EventsModal from "../../../components/EventsModal";
 import { admindashboardterminaltab as originalAdminTabs } from "../../../constants/admindashboardterminaltab";
+import { dashboardsalesscantab } from "../../../constants/dashboardsalesscantab";
 import { formatDateWithMonthName } from "../../../constants/dateAndTime";
 import { logger } from "../../../utils/logger";
 import { truncateEventName } from "../../../utils/stringUtils";
-import AdminAllEventsDashboard from "../AdminAllEventsDashboard/adminAllEventsDashboard";
-import { styles } from "../index.styles";
+import AdminOverallStatistics from "../AdminOverallStatistics";
+import AnalyticsChart from "../AnalyticsChart";
+import AdminBoxOfficePaymentChannel from "../AdminBoxOfficePaymentChannel";
+import BoxOfficeSales from "../BoxOfficeSales";
+import CheckInSoldTicketsCard from "../CheckInSolidTicketsCard";
+import PaymentChannelAnalytics from "../PaymentChannelAnalytics";
+import ScanAnalytics from "../ScanAnalytics";
+import ScanCategories from "../ScanCategories";
+import ScanCategoriesDetails from "../ScanCategoriesDetails";
+import ScanListComponent from "../ScanListComponent";
 import StaffListComponent from "../StaffListComponent";
 import TerminalsComponent from "../TerminalsComponent";
-import OverallStatistics from "../OverallStatistics";
-import AdminOverallStatistics from "../AdminOverallStatistics";
-import StaffDashboard from "../StaffDashboard";
+import TotalPaymentChannelCard from "../TotalPaymentChannelCard";
+import { styles } from "../index.styles";
 
 const admindashboardterminaltab = [...originalAdminTabs, "Staff"];
 
@@ -62,6 +73,36 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
   const [eventsModalVisible, setEventsModalVisible] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
 
+  // Sale/Scan tab state
+  const [selectedSaleScanTab, setSelectedSaleScanTab] = useState(dashboardsalesscantab[0]);
+  const [dashboardStats, setDashboardStats] = useState<any>(null);
+
+  const [error, setError] = useState<any>(null);
+
+  const { loading, requestCall: fetchStatsOverview } = useApi(
+    DASHBOARD_SERVICES.fetchEventStatsOverview,
+    false,
+    true,
+  );
+
+  useEffect(() => {
+    const eventId = eventInfo?.eventUuid;
+    if (!eventId) return;
+    fetchStatsOverview(eventId).then((res: any) => {
+      const data = res?.data;
+      console.log('[DashboardDetail] stats-overview response:', JSON.stringify(data, null, 2));
+      setDashboardStats(data);
+    }).catch((err: any) => { setError(err?.message || 'Failed to load stats'); });
+  }, [eventInfo?.eventUuid]);
+
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [analyticsTitle, setAnalyticsTitle] = useState('');
+  const [activeAnalytics, setActiveAnalytics] = useState<any>(null);
+  const [scanAnalyticsData, setScanAnalyticsData] = useState<any>(null);
+  const [scanAnalyticsTitle, setScanAnalyticsTitle] = useState('');
+  const [activeScanAnalytics, setActiveScanAnalytics] = useState<any>(null);
+  const [activePaymentChannel, setActivePaymentChannel] = useState<any>(null);
+
   const shouldShowBackButton = isFromRootStack;
 
   const handleBackPress = () => {
@@ -70,6 +111,18 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
 
   const handleAdminTabPress = (tab: string) => {
     setSelectedAdminTab(tab);
+  };
+
+  const handleSaleScanTabPress = (tab: any) => {
+    setSelectedSaleScanTab(tab);
+  };
+
+  const handlePaymentChannelPress = (paymentChannel: any) => {
+    if (activePaymentChannel === paymentChannel) {
+      setActivePaymentChannel(null);
+    } else {
+      setActivePaymentChannel(paymentChannel);
+    }
   };
 
   const handleEventSelect = (event: any) => {
@@ -93,6 +146,203 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
 
       setEventsModalVisible(false);
     }
+  };
+
+  const handleAnalyticsPress = (ticketType: any, title: any, ticketUuid: any = null, subitemLabel: any = null) => {
+    const analyticsKey = ticketUuid ? `${title}-${ticketUuid}` : `${title}-${ticketType}`;
+
+    if (activeAnalytics === analyticsKey) {
+      setActiveAnalytics(null);
+      setAnalyticsData(null);
+      setAnalyticsTitle('');
+      return;
+    }
+
+    const saleAnalytics = dashboardStats?.sales?.saleAnalytics || {};
+    const titleStr = subitemLabel ? `${subitemLabel} Sales` : `${ticketType} Sales`;
+    const chartData = Object.entries(saleAnalytics).map(([hour, value]) => ({
+      time: hour,
+      value: (value as number) || 0,
+    }));
+
+    setAnalyticsData(chartData);
+    setAnalyticsTitle(titleStr);
+    setActiveAnalytics(analyticsKey);
+  };
+
+  const handleScanAnalyticsPress = (scanType: any, parentCategory: any, ticketUuid: any = null) => {
+    const analyticsKey = ticketUuid ? `Scan-${parentCategory}-${ticketUuid}` : `Scan-${parentCategory}-${scanType}`;
+
+    if (activeScanAnalytics === analyticsKey) {
+      setActiveScanAnalytics(null);
+      setScanAnalyticsData(null);
+      setScanAnalyticsTitle('');
+      return;
+    }
+
+    const scanAnalytics = dashboardStats?.scans?.scanAnalytics || {};
+    const title = ticketUuid ? `${scanType} Scans` : `${parentCategory} Scans`;
+    const chartData = Object.entries(scanAnalytics)
+      .filter(([, value]) => (value as number) > 0)
+      .map(([hour, value]) => ({ time: hour, value: (value as number) || 0 }));
+
+    setScanAnalyticsData(chartData);
+    setScanAnalyticsTitle(title);
+    setActiveScanAnalytics(analyticsKey);
+  };
+
+  function formatHourLabel(hourStr: any): string {
+    if (!hourStr || typeof hourStr !== 'string') return '';
+    // Handle "YYYY-MM-DD HH" format from saleAnalytics
+    if (hourStr.includes('-') && hourStr.includes(' ')) {
+      const spaceIdx = hourStr.lastIndexOf(' ');
+      const hour = parseInt(hourStr.slice(spaceIdx + 1), 10);
+      const period = hour >= 12 ? 'pm' : 'am';
+      const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+      return `${displayHour}${period}`;
+    }
+    // Handle "HH:MM AM/PM" format
+    const parts = hourStr.split(':');
+    if (parts.length < 2) return hourStr;
+    const [hour, minutePart] = parts;
+    if (!minutePart) return hour;
+    const minuteAndPeriod = minutePart.split(' ');
+    if (minuteAndPeriod.length < 2) {
+      return `${parseInt(hour, 10)}${hourStr.includes('PM') ? 'pm' : 'am'}`;
+    }
+    const [, period] = minuteAndPeriod;
+    return `${parseInt(hour, 10)}${period.toLowerCase()}`;
+  }
+
+  function mapSoldTicketsAnalytics(analyticsData: any): { time: string; value: number }[] {
+    if (!analyticsData) return [];
+    return Object.entries(analyticsData).map(([hour, value]) => ({
+      time: formatHourLabel(hour),
+      value: (value as number) || 0,
+    }));
+  }
+
+  function getScanAnalyticsChartData(scanAnalytics: any): { time: string; value: number }[] {
+    if (!scanAnalytics) return [];
+    return Object.entries(scanAnalytics).map(([hour, value]) => ({
+      time: formatHourLabel(hour),
+      value: (value as number) || 0,
+    }));
+  }
+
+  const getSoldTicketsData = () => {
+    const salesTickets = dashboardStats?.sales?.tickets;
+    const totalSold = salesTickets?.totalSold || 0;
+    const totalTickets = dashboardStats?.tickets?.totalTickets || 0;
+    const classes = salesTickets?.classes || {};
+    const availableByClass = dashboardStats?.availableTickets || {};
+
+    const typeRows = Object.entries(classes).map(([name, classData]: [string, any]) => {
+      const sold = classData?.total || 0;
+      const available = availableByClass[name]?.total || 0;
+      const total = sold + available;
+
+      const subClasses = classData?.subClasses || {};
+      const availableSubClasses = availableByClass[name]?.subClasses || {};
+      const subItems: any[] = Object.entries(subClasses).map(([subName, subSold]) => {
+        const subSoldCount = typeof subSold === 'number' ? subSold : 0;
+        const subAvailable = typeof availableSubClasses[subName] === 'number' ? availableSubClasses[subName] : 0;
+        const subTotal = subSoldCount + subAvailable;
+        return {
+          label: subName,
+          checkedIn: subSoldCount,
+          total: subTotal,
+          percentage: subTotal > 0 ? Math.round((subSoldCount / subTotal) * 100) : 0,
+        };
+      });
+
+      return {
+        label: name,
+        checkedIn: sold,
+        total,
+        percentage: total > 0 ? Math.round((sold / total) * 100) : 0,
+        subItems: subItems.length > 0 ? subItems : undefined,
+      };
+    });
+
+    return [
+      {
+        label: 'Total Sold',
+        checkedIn: totalSold,
+        total: totalTickets,
+        percentage: totalTickets ? Math.round((totalSold / totalTickets) * 100) : 0,
+      },
+      ...typeRows,
+    ];
+  };
+
+  const renderDashboardContent = () => {
+    if (loading) {
+      return <Text style={styles.loadingText}>Loading dashboard stats...</Text>;
+    }
+    if (error) {
+      return <Text style={styles.errorText}>{error}</Text>;
+    }
+    if (!dashboardStats) return null;
+
+    if (selectedSaleScanTab === 'Sales') {
+      const soldTicketsData = getSoldTicketsData();
+      const remainingTicketsData = soldTicketsData.filter(item => item.label !== 'Total Sold');
+      const soldTicketsChartData = mapSoldTicketsAnalytics(dashboardStats?.sales?.saleAnalytics);
+
+      return (
+        <>
+          <BoxOfficeSales
+            stats={dashboardStats}
+            onDebugData={(data: any) => {
+              logger.log('BoxOfficeSales - Backend Data:', JSON.stringify(data, null, 2));
+            }}
+          />
+          <CheckInSoldTicketsCard
+            title="Sold Tickets"
+            data={soldTicketsData}
+            remainingTicketsData={remainingTicketsData}
+            showRemaining={true}
+            userRole="ADMIN"
+            stats={dashboardStats}
+            onAnalyticsPress={handleAnalyticsPress}
+            activeAnalytics={activeAnalytics}
+          />
+          {analyticsData && activeAnalytics ? (
+            <AnalyticsChart title={analyticsTitle} data={analyticsData} dataType="sold" />
+          ) : (
+            <AnalyticsChart title="Sold Tickets" data={soldTicketsChartData} dataType="sold" />
+          )}
+          <AdminBoxOfficePaymentChannel stats={dashboardStats} />
+         
+        </>
+      );
+    }
+
+    if (selectedSaleScanTab === 'Scans') {
+      return (
+        <>
+          <ScanCategories stats={dashboardStats} />
+          <ScanCategoriesDetails
+            stats={dashboardStats}
+            onScanAnalyticsPress={handleScanAnalyticsPress}
+            activeScanAnalytics={activeScanAnalytics}
+          />
+          {scanAnalyticsData && activeScanAnalytics ? (
+            <ScanAnalytics title={scanAnalyticsTitle} data={scanAnalyticsData} dataType="checked in" />
+          ) : (
+            <ScanAnalytics
+              title="Scans"
+              data={getScanAnalyticsChartData(dashboardStats?.scans?.scanAnalytics)}
+              dataType="checked in"
+            />
+          )}
+          <ScanListComponent eventInfo={eventInfo} staffUuid={null} onScanCountUpdate={onScanCountUpdate} />
+        </>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -180,9 +430,39 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
           contentContainerStyle={styles.scrollContainer}
           ref={scrollViewRef}
         >
-          <AdminOverallStatistics />
-        
-          
+          <AdminOverallStatistics
+            stats={dashboardStats}
+            onTotalTicketsPress={() => {}}
+            onTotalScannedPress={() => {}}
+            onTotalUnscannedPress={() => {}}
+            onAvailableTicketsPress={() => {}}
+          />
+
+          <View style={styles.saleScanTabContainer}>
+            <View style={styles.saleScanTabRow}>
+              {dashboardsalesscantab.map((item) => (
+                <TouchableOpacity
+                  key={item}
+                  style={[
+                    styles.saleScanTabButton,
+                    selectedSaleScanTab === item && styles.selectedSaleScanTabButton,
+                  ]}
+                  onPress={() => handleSaleScanTabPress(item)}
+                >
+                  <Text
+                    style={[
+                      styles.saleScanTabButtonText,
+                      selectedSaleScanTab === item && styles.selectedSaleScanTabButtonText,
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {renderDashboardContent()}
         </ScrollView>
       )}
 

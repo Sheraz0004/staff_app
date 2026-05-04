@@ -109,7 +109,7 @@ const ProfileScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <Loader isLoading={fetchLoading || saveLoading} />
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {userRole === 'ADMIN' && (
+        {(userRole === 'ADMIN' || userRole === 'ORGANIZER')&& (
           <View style={styles.backRow}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
               <SvgIcons.backArrow />

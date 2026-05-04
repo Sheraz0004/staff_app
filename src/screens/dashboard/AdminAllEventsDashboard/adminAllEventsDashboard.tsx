@@ -82,7 +82,7 @@ import {
   setDashboardDataError,
 } from "../../../redux/reducers/dashboardReducer";
 import Loader from "@components/Loader/Loader";
-import Svg, { Circle, Path, Line } from "react-native-svg";
+import Svg, { Circle, Path, Line, Rect } from "react-native-svg";
 
 interface RadioOption {
   label: string;
@@ -129,6 +129,7 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
 }) => {
   const dispatch = useDispatch();
   const currentUser = useSelector(getUser);
+  // console.log("currentUser--->",currentUser)
   const eventTypes = useSelector(selectEventTypes) ?? [];
   const ticketingTypes = useSelector(selectTicketingTypes) ?? [];
   const organizations = useSelector(selectOrganizations) ?? [];
@@ -267,9 +268,10 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
       // console.log("response dasboard--->",response)
       dispatch(setDashboardData(response?.data ?? {}));
     } catch (error: any) {
+      const status = error?.response?.status;
       dispatch(
         setDashboardDataError(
-          error?.message ?? "Failed to fetch dashboard data",
+          status === 502 ? "502" : (error?.message ?? "Failed to fetch dashboard data"),
         ),
       );
     } finally {
@@ -608,17 +610,35 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
 
       {dashboardDataError && !dashboardDataLoading ? (
         <View style={styles.errorContainer}>
-          <Svg width={80} height={80} viewBox="0 0 80 80" fill="none">
-            <Circle cx="40" cy="40" r="38" fill="#FFF6DF" stroke="#F7E4B6" strokeWidth="1.5" />
-            <Path d="M15 33 Q40 16 65 33" stroke="#E4E4E4" strokeWidth="3" fill="none" strokeLinecap="round" />
-            <Path d="M23 41 Q40 29 57 41" stroke="#CEBCA0" strokeWidth="3" fill="none" strokeLinecap="round" />
-            <Path d="M31 49 Q40 43 49 49" stroke="#AE6F28" strokeWidth="3" fill="none" strokeLinecap="round" />
-            <Circle cx="40" cy="57" r="3.5" fill="#AE6F28" />
-            <Line x1="20" y1="20" x2="60" y2="60" stroke="#EF3E32" strokeWidth="3.5" strokeLinecap="round" />
-          </Svg>
-          <Text style={styles.errorTitle}>Network Error</Text>
+          {dashboardDataError === "502" ? (
+            <Svg width={80} height={80} viewBox="0 0 80 80" fill="none">
+              <Circle cx="40" cy="40" r="38" fill="#FFF6DF" stroke="#F7E4B6" strokeWidth="1.5" />
+              <Rect x="18" y="16" width="44" height="13" rx="3" fill="#E4D5C0" stroke="#CEBCA0" strokeWidth="1.5" />
+              <Circle cx="25" cy="22.5" r="2.5" fill="#AE6F28" />
+              <Rect x="30" y="20" width="16" height="5" rx="1.5" fill="#CEBCA0" />
+              <Rect x="18" y="32" width="44" height="13" rx="3" fill="#E4D5C0" stroke="#CEBCA0" strokeWidth="1.5" />
+              <Circle cx="25" cy="38.5" r="2.5" fill="#CEBCA0" />
+              <Rect x="30" y="36" width="16" height="5" rx="1.5" fill="#E4D5C0" stroke="#CEBCA0" strokeWidth="1" />
+              <Rect x="37.5" y="50" width="5" height="14" rx="2.5" fill="#EF3E32" />
+              <Circle cx="40" cy="69" r="3" fill="#EF3E32" />
+            </Svg>
+          ) : (
+            <Svg width={80} height={80} viewBox="0 0 80 80" fill="none">
+              <Circle cx="40" cy="40" r="38" fill="#FFF6DF" stroke="#F7E4B6" strokeWidth="1.5" />
+              <Path d="M15 33 Q40 16 65 33" stroke="#E4E4E4" strokeWidth="3" fill="none" strokeLinecap="round" />
+              <Path d="M23 41 Q40 29 57 41" stroke="#CEBCA0" strokeWidth="3" fill="none" strokeLinecap="round" />
+              <Path d="M31 49 Q40 43 49 49" stroke="#AE6F28" strokeWidth="3" fill="none" strokeLinecap="round" />
+              <Circle cx="40" cy="57" r="3.5" fill="#AE6F28" />
+              <Line x1="20" y1="20" x2="60" y2="60" stroke="#EF3E32" strokeWidth="3.5" strokeLinecap="round" />
+            </Svg>
+          )}
+          <Text style={styles.errorTitle}>
+            {dashboardDataError === "502" ? "Server Unavailable" : "Network Error"}
+          </Text>
           <Text style={styles.errorSubtitle}>
-            Unable to load dashboard data.{"\n"}Check your connection and try again.
+            {dashboardDataError === "502"
+              ? "The server is temporarily unavailable.\nPlease try again in a few moments."
+              : "Unable to load dashboard data.\nCheck your connection and try again."}
           </Text>
           <TouchableOpacity
             style={styles.retryButton}

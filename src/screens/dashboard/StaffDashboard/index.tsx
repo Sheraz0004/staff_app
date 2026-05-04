@@ -23,6 +23,7 @@ import { truncateCityName } from '../../../utils/stringUtils';
 import { truncateEventName } from '../../../utils/stringUtils';
 import { formatDateWithMonthName } from '../../../constants/dateAndTime';
 import { logger } from '../../../utils/logger';
+import { DASHBOARD_SERVICES } from '../../../services/DashboardService';
 import { styles } from './index.styles';
 
 const StaffDashboard: React.FC = () => {
@@ -55,6 +56,21 @@ const StaffDashboard: React.FC = () => {
   const [checkInAnalyticsTitle, setCheckInAnalyticsTitle] = useState('');
   const [activeCheckInAnalytics, setActiveCheckInAnalytics] = useState<any>(null);
   const [activePaymentChannel, setActivePaymentChannel] = useState<any>(null);
+  const [staffEventStats, setStaffEventStats] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchStaffEventStats = async () => {
+      if (!staffUuid) return;
+      try {
+        const res = await DASHBOARD_SERVICES.fetchStaffEventStats(staffUuid);
+        logger.log('[StaffDashboard] event-stats response:', JSON.stringify(res?.data, null, 2));
+        setStaffEventStats(res?.data);
+      } catch (err: any) {
+        logger.error('[StaffDashboard] event-stats error:', err.response.data);
+      }
+    };
+    fetchStaffEventStats();
+  }, [staffUuid]);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -646,6 +662,23 @@ const StaffDashboard: React.FC = () => {
         </TouchableOpacity>
         <Text style={styles.staffName}>{staffName}</Text>
       </View>
+
+      {/* Staff Event Stats */}
+      {staffEventStats && (
+        <View style={styles.overallStatisticsContainer}>
+          {Object.entries(staffEventStats).map(([key, value]) => {
+            if (value === null || value === undefined) return null;
+            const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            const displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
+            return (
+              <View key={key} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, paddingHorizontal: 8 }}>
+                <Text style={{ fontWeight: '600', color: '#444', fontSize: 13 }}>{displayKey}</Text>
+                <Text style={{ color: '#222', fontSize: 13 }}>{displayValue}</Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
 
       {/* Overall Statistics */}
       <View style={styles.overallStatisticsContainer}>

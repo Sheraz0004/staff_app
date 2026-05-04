@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity } from "react-native";
+import Svg, { Circle } from "react-native-svg";
 import { styles } from "./index.styles";
 
 // Utility function to format large numbers
@@ -34,13 +35,12 @@ interface AnalyticsChartProps {
 const AnalyticsChart: React.FC<AnalyticsChartProps> = ({ title, data, dataType }) => {
     const [selectedBar, setSelectedBar] = useState<number | null>(null);
     const totalValue = data.reduce((sum, item) => sum + item.value, 0);
-    let yAxisMax = Math.max(...data.map(d => d.value), 0);
+    const hasData = totalValue > 0;
 
-    // Calculate Y-axis max dynamically based on the highest value
+    let yAxisMax = Math.max(...data.map(d => d.value), 0);
     if (yAxisMax === 0) {
-        yAxisMax = 10; // Default for no data
+        yAxisMax = 10;
     } else {
-        // Add 50% buffer to the highest value and round up to nearest 10
         yAxisMax = Math.ceil(yAxisMax * 1.5 / 120) * 120;
     }
 
@@ -65,11 +65,32 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({ title, data, dataType }
         return dots;
     };
 
+    if (!hasData) {
+        return (
+            <View style={styles.wrapper}>
+                <Text style={styles.title}>{title} Analytics</Text>
+                <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 32 }}>
+                    <Svg width={44} height={44} viewBox="0 0 44 44" style={{ marginBottom: 12 }}>
+                        <Circle cx={22} cy={22} r={18} stroke="#CEBCA0" strokeWidth={2} fill="none" strokeDasharray="5 4" />
+                        <Circle cx={22} cy={22} r={10} stroke="#CEBCA0" strokeWidth={1.5} fill="none" strokeDasharray="3 3" />
+                    </Svg>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#24282C', marginBottom: 6, textAlign: 'center' }}>
+                        No Analytics Data
+                    </Text>
+                    <Text style={{ fontSize: 12, color: '#87807C', textAlign: 'center', lineHeight: 18, paddingHorizontal: 16 }}>
+                        {dataType === 'sold'
+                            ? 'Sales activity will appear here once tickets have been sold.'
+                            : 'Scan activity will appear here once attendees begin checking in.'}
+                    </Text>
+                </View>
+            </View>
+        );
+    }
+
     return (
         <View style={styles.wrapper}>
             <Text style={styles.title}>{title} Analytics</Text>
             <View style={styles.chartRow}>
-                {/* Chart Area with Grid Lines and Y-Axis Labels */}
                 <View style={styles.chartArea}>
                     {/* Grid Lines and Y-Axis Labels */}
                     {yAxisLabels.map((label, idx) => {

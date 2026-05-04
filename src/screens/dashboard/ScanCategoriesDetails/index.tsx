@@ -1,11 +1,13 @@
-import React, { useState } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import React, { useState, useRef, useEffect } from "react";
+import { View, Text, TouchableOpacity, Animated, Easing } from "react-native";
 import Svg, { Circle, Text as SvgText } from "react-native-svg";
 import { color } from "../../../color/color";
 import SvgIcons from "../../../components/SvgIcons";
 import { useNavigation } from '@react-navigation/native';
 import { formatValueWithPad } from "../../../constants/formatValue";
 import { styles } from "./index.styles";
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 interface CircularProgressProps {
   value: any;
@@ -18,41 +20,34 @@ const CircularProgress: React.FC<CircularProgressProps> = ({ value, total, perce
   const strokeWidth = 4;
   const circumference = 2 * Math.PI * radius;
   const progressPercentage = percentage !== undefined ? percentage : (total > 0 ? (value / total) * 100 : 0);
-  const progress = (progressPercentage / 100) * circumference;
-
-  // Adjust font size and position based on percentage value
   const fontSize = progressPercentage >= 100 ? 9 : 11;
   const textY = progressPercentage >= 100 ? 27 : 28;
 
+  const animOffset = useRef(new Animated.Value(circumference)).current;
+
+  useEffect(() => {
+    animOffset.setValue(circumference);
+    Animated.timing(animOffset, {
+      toValue: circumference - (progressPercentage / 100) * circumference,
+      duration: 900,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [progressPercentage]);
+
   return (
     <Svg width={60} height={60} viewBox="0 0 50 50">
-      <Circle
-        cx="25"
-        cy="25"
-        r={radius}
-        stroke="#E0E0E0"
-        strokeWidth={strokeWidth}
-        fill="none"
-      />
-      <Circle
-        cx="25"
-        cy="25"
-        r={radius}
+      <Circle cx="25" cy="25" r={radius} stroke="#E0E0E0" strokeWidth={strokeWidth} fill="none" />
+      <AnimatedCircle
+        cx="25" cy="25" r={radius}
         stroke={color.btnBrown_AE6F28}
         strokeWidth={strokeWidth}
         fill="none"
         strokeDasharray={`${circumference}`}
-        strokeDashoffset={`${circumference - progress}`}
+        strokeDashoffset={animOffset}
         strokeLinecap="round"
       />
-      <SvgText
-        x="25"
-        y={textY}
-        textAnchor="middle"
-        fontSize={fontSize}
-        fill={color.placeholderTxt_24282C}
-        fontWeight="500"
-      >
+      <SvgText x="25" y={textY} textAnchor="middle" fontSize={fontSize} fill={color.placeholderTxt_24282C} fontWeight="500">
         {`${Math.round(progressPercentage)}%`}
       </SvgText>
     </Svg>
@@ -67,7 +62,7 @@ interface ScanCategoriesDetailsProps {
 
 const ScanCategoriesDetails: React.FC<ScanCategoriesDetailsProps> = ({ stats, onScanAnalyticsPress, activeScanAnalytics }) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const scanCategoriesData = stats?.data?.scan_categories?.ticket_wise || {};
+  const scanCategoriesData = stats?.scans?.classes || {};
   const navigation = useNavigation();
 
   const toggle = (label: string) => {
@@ -168,31 +163,22 @@ const ScanCategoriesDetails: React.FC<ScanCategoriesDetailsProps> = ({ stats, on
     );
   };
 
-  // Transform the data into the required format
   const transformData = () => {
-    const categories = Object.keys(scanCategoriesData);
-    return categories.map(category => {
-      const categoryData = scanCategoriesData[category];
-      const totalTickets = categoryData.total_tickets || 0;
-      const scannedTickets = categoryData.scanned_tickets || 0;
+    return Object.entries(scanCategoriesData).map(([category, categoryData]: [string, any]) => {
+      const scannedTickets = categoryData?.scanned || 0;
+      const subClasses = categoryData?.subClasses || {};
+      const totalTickets = categoryData?.total || Object.values(subClasses).reduce((sum: number, v) => sum + (typeof v === 'number' ? v : 0), 0) as number;
 
-      // Create subItems from the ticket types
-      const subItems: any[] = [];
-      Object.keys(categoryData).forEach(key => {
-        if (key !== 'total_tickets' && key !== 'scanned_tickets') {
-          const ticketData = categoryData[key];
-          const total = ticketData.total || 0;
-          const scanned = ticketData.scanned || 0;
-
-          subItems.push({
-            label: key,
-            scanned: scanned,
-            total: total,
-            percentage: total > 0 ? Math.round((scanned / total) * 100) : 0,
-            ticketUuid: ticketData.ticket_uuid,
-            subItems: []
-          });
-        }
+      const subItems: any[] = Object.entries(subClasses).map(([subName, subScanned]) => {
+        const scanned = typeof subScanned === 'number' ? subScanned : 0;
+        return {
+          label: subName,
+          scanned,
+          total: scanned,
+          percentage: 100,
+          ticketUuid: null,
+          subItems: [],
+        };
       });
 
       return {
@@ -200,20 +186,36 @@ const ScanCategoriesDetails: React.FC<ScanCategoriesDetailsProps> = ({ stats, on
         scanned: scannedTickets,
         total: totalTickets,
         percentage: totalTickets > 0 ? Math.round((scannedTickets / totalTickets) * 100) : 0,
-        subItems: subItems
+        subItems,
       };
     });
   };
 
   const listData = transformData();
-
-  // Calculate total scanned tickets
   const totalScanned = listData.reduce((sum, item) => sum + item.scanned, 0);
   const totalTickets = listData.reduce((sum, item) => sum + item.total, 0);
 
+  if (listData.length === 0) {
+    return (
+      <View style={[styles.card, { paddingVertical: 8 }]}>
+        <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 28 }}>
+          <Svg width={44} height={44} viewBox="0 0 44 44" style={{ marginBottom: 12 }}>
+            <Circle cx={22} cy={22} r={18} stroke="#CEBCA0" strokeWidth={2} fill="none" strokeDasharray="5 4" />
+            <Circle cx={22} cy={22} r={10} stroke="#CEBCA0" strokeWidth={1.5} fill="none" strokeDasharray="3 3" />
+          </Svg>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: '#24282C', marginBottom: 6, textAlign: 'center' }}>
+            No Scan Records Yet
+          </Text>
+          <Text style={{ fontSize: 12, color: '#87807C', textAlign: 'center', lineHeight: 18, paddingHorizontal: 16 }}>
+            Detailed scan breakdown will appear once attendees begin checking in.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.card}>
-      {/* Total Scanned Tickets Row */}
       <TouchableOpacity style={styles.totalRow}>
         <CircularProgress value={totalScanned} total={totalTickets} percentage={totalTickets > 0 ? Math.round((totalScanned / totalTickets) * 100) : 0} />
         <View style={styles.textContainer}>

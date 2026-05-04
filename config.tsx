@@ -16,6 +16,8 @@ const API_CONFIG = {
     staffEventAccess: (staffId: string) =>
       `/api/staff-event-access/staff/${staffId}/`,
     eventInfo: (eventId: string) => `/api/ticket/event/${eventId}/info/`,
+    eventStatsOverview: (eventId: string) =>
+      `/api/event/${eventId}/stats-overview/`,
     eventStats: (page: number = 1, pageSize: number = 10, eventClass: string = '', search: string = '') =>
       `/api/event/stats/?page=${page}&page_size=${pageSize}&event_class=${eventClass}${search ? `&search=${encodeURIComponent(search)}` : ''}`,
     myEvents: (params: {
@@ -99,6 +101,21 @@ const API_CONFIG = {
     orderDetails: (orderId: number) => `/api/orders/${orderId}/order-details/`,
     ordersWithTickets: (eventId: string | number, page: number, pageSize: number) =>
       `/api/orders/event/${eventId}/with-tickets/?page=${page}&page_size=${pageSize}&status=PAID`,
+  },
+  ORGANIZATION_STAFF: {
+    salesStats: (params?: {
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      sort_dir?: string;
+    }) => {
+      const { page = 1, page_size = 10, sort_by, sort_dir = 'desc' } = params || {};
+      let url = `/api/organization-staff/sales-stats?page=${page}&page_size=${page_size}&sort_dir=${sort_dir}`;
+      if (sort_by) url += `&sort_by=${sort_by}`;
+      return url;
+    },
+    staffEventStats: (staffId: string) =>
+      `/api/organization-staff/${staffId}/event-stats/`,
   },
   TICKETS: {
     ticketStats: (eventId: string) => `/api/ticket/${eventId}/stats/`,

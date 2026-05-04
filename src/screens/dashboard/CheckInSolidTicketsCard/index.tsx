@@ -1,11 +1,13 @@
-import React, { useState } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import React, { useState, useRef, useEffect } from "react";
+import { View, Text, TouchableOpacity, Animated, Easing } from "react-native";
 import Svg, { Circle, Text as SvgText } from "react-native-svg";
 import { color } from "../../../color/color";
 import { useNavigation } from "@react-navigation/native";
 import SvgIcons from "../../../components/SvgIcons";
 import { formatValueWithPad } from "../../../constants/formatValue";
 import { styles } from "./index.styles";
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 interface CircularProgressProps {
   value: number;
@@ -18,41 +20,34 @@ const CircularProgress: React.FC<CircularProgressProps> = ({ value, total, perce
   const strokeWidth = 4;
   const circumference = 2 * Math.PI * radius;
   const progressPercentage = percentage !== undefined ? percentage : (total > 0 ? (value / total) * 100 : 0);
-  const progress = (progressPercentage / 100) * circumference;
-
-  // Adjust font size and position based on percentage value
   const fontSize = progressPercentage >= 50 ? 9 : 11;
   const textY = progressPercentage >= 50 ? 27 : 28;
 
+  const animOffset = useRef(new Animated.Value(circumference)).current;
+
+  useEffect(() => {
+    animOffset.setValue(circumference);
+    Animated.timing(animOffset, {
+      toValue: circumference - (progressPercentage / 100) * circumference,
+      duration: 900,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [progressPercentage]);
+
   return (
     <Svg width={60} height={60} viewBox="0 0 50 50">
-      <Circle
-        cx="25"
-        cy="25"
-        r={radius}
-        stroke="#E0E0E0"
-        strokeWidth={strokeWidth}
-        fill="none"
-      />
-      <Circle
-        cx="25"
-        cy="25"
-        r={radius}
+      <Circle cx="25" cy="25" r={radius} stroke="#E0E0E0" strokeWidth={strokeWidth} fill="none" />
+      <AnimatedCircle
+        cx="25" cy="25" r={radius}
         stroke={color.btnBrown_AE6F28}
         strokeWidth={strokeWidth}
         fill="none"
         strokeDasharray={`${circumference}`}
-        strokeDashoffset={`${circumference - progress}`}
+        strokeDashoffset={animOffset}
         strokeLinecap="round"
       />
-      <SvgText
-        x="25"
-        y={textY}
-        textAnchor="middle"
-        fontSize={fontSize}
-        fill={color.placeholderTxt_24282C}
-        fontWeight="500"
-      >
+      <SvgText x="25" y={textY} textAnchor="middle" fontSize={fontSize} fill={color.placeholderTxt_24282C} fontWeight="500">
         {`${Math.round(progressPercentage)}%`}
       </SvgText>
     </Svg>
@@ -95,21 +90,13 @@ const CheckInSoldTicketsCard: React.FC<CheckInSoldTicketsCardProps> = ({ title, 
 
       // Handle special cases where parent label might not match tab name exactly
       if (parentLabel === 'Total Sold') {
-        // For "Total Sold", we need to find the actual category from the data
-        if (stats?.data?.sold_tickets?.by_category) {
-          const byCategory = stats.data.sold_tickets.by_category;
-          // Find the first category that has this sub-item
-          for (const [categoryName, categoryData] of Object.entries(byCategory)) {
-            if (categoryData && typeof categoryData === 'object') {
-              // Check if this category contains the sub-item
-              if ((categoryData as any)[subItemLabel] ||
-                Object.keys(categoryData as any).some((key: string) =>
-                  key.toLowerCase() === subItemLabel.toLowerCase()
-                )) {
-                selectedTab = categoryName;
-                break;
-              }
-            }
+        const classes = stats?.sales?.tickets?.classes || {};
+        for (const [categoryName, categoryData] of Object.entries(classes)) {
+          const subClasses = (categoryData as any)?.subClasses || {};
+          if (subClasses[subItemLabel] !== undefined ||
+            Object.keys(subClasses).some(k => k.toLowerCase() === subItemLabel.toLowerCase())) {
+            selectedTab = categoryName;
+            break;
           }
         }
       }
@@ -131,56 +118,35 @@ const CheckInSoldTicketsCard: React.FC<CheckInSoldTicketsCardProps> = ({ title, 
       return null;
     }
 
-    let byCategory: any = null;
-    let dataSource: string | null = null;
+    let classes: any = null;
+    let isCheckIn = false;
 
-    // Determine the correct data source based on title
-    if (title === 'Check-Ins' && stats?.data?.check_ins?.by_category) {
-      byCategory = stats.data.check_ins.by_category;
-      dataSource = 'check_ins';
-    } else if (stats?.data?.sold_tickets?.by_category) {
-      byCategory = stats.data.sold_tickets.by_category;
-      dataSource = 'sold_tickets';
+    if (title === 'Check-Ins' && stats?.checkIns?.classes) {
+      classes = stats.checkIns.classes;
+      isCheckIn = true;
+    } else if (stats?.sales?.tickets?.classes) {
+      classes = stats.sales.tickets.classes;
     }
 
-    if (!byCategory) {
-      return null;
-    }
+    if (!classes) return null;
 
-    const categoryData = byCategory[item.label];
+    const categoryData = classes[item.label];
+    if (!categoryData) return null;
 
-    if (!categoryData || Object.keys(categoryData).length === 0) {
-      return null;
-    }
+    const subClasses = categoryData.subClasses || {};
+    const availableSubClasses = stats?.availableTickets?.[item.label]?.subClasses || {};
 
-    // Extract sub-items (like "Standard" from VIP Ticket category)
-    const subItems: any[] = [];
-    Object.keys(categoryData).forEach(key => {
-      if (key !== 'total_tickets' && key !== 'sold_tickets' && key !== 'scanned_tickets' && categoryData[key]) {
-        const subData = categoryData[key];
-
-        // Use the correct field based on data source
-        let checkedInValue = 0;
-        let totalValue = 0;
-
-        if (dataSource === 'check_ins') {
-          checkedInValue = subData.scanned || 0;
-          totalValue = subData.total || 0;
-        } else if (dataSource === 'sold_tickets') {
-          checkedInValue = subData.sold || 0;
-          totalValue = subData.total || 0;
-        }
-
-        if (totalValue !== undefined && checkedInValue !== undefined) {
-          subItems.push({
-            label: key,
-            checkedIn: checkedInValue,
-            total: totalValue,
-            percentage: totalValue > 0 ? Math.round((checkedInValue / totalValue) * 100) : 0,
-            ticketUuid: subData.ticket_uuid
-          });
-        }
-      }
+    const subItems: any[] = Object.entries(subClasses).map(([subName, soldCount]) => {
+      const sold = typeof soldCount === 'number' ? soldCount : 0;
+      const available = isCheckIn ? 0 : (typeof availableSubClasses[subName] === 'number' ? availableSubClasses[subName] : 0);
+      const total = sold + available;
+      return {
+        label: subName,
+        checkedIn: sold,
+        total,
+        percentage: total > 0 ? Math.round((sold / total) * 100) : 0,
+        ticketUuid: null,
+      };
     });
 
     return subItems.length > 0 ? subItems : null;
