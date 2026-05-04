@@ -3,12 +3,12 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   Platform,
   SafeAreaView,
-  ScrollView,
   StatusBar,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { color } from "../../../color/color";
 
@@ -30,11 +30,11 @@ import PaymentChannelAnalytics from "../PaymentChannelAnalytics";
 import ScanAnalytics from "../ScanAnalytics";
 import ScanCategories from "../ScanCategories";
 import ScanCategoriesDetails from "../ScanCategoriesDetails";
-import ScanListComponent from "../ScanListComponent";
+import ScanListComponent, { ScanListHandle } from "../ScanListComponent";
 import StaffListComponent from "../StaffListComponent";
-import TerminalsComponent from "../TerminalsComponent";
 import TotalPaymentChannelCard from "../TotalPaymentChannelCard";
 import { styles } from "../index.styles";
+import Loader from "../../../components/Loader/Loader";
 
 const admindashboardterminaltab = [...originalAdminTabs, "Staff"];
 
@@ -55,6 +55,7 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const scrollViewRef = useRef<any>(null);
+  const scanListRef = useRef<ScanListHandle>(null);
 
   const isFromRootStack = route?.name === "DashboardDetail";
   const initialEventInfo = isFromRootStack
@@ -90,7 +91,7 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
     if (!eventId) return;
     fetchStatsOverview(eventId).then((res: any) => {
       const data = res?.data;
-      console.log('[DashboardDetail] stats-overview response:', JSON.stringify(data, null, 2));
+      // console.log('[DashboardDetail] stats-overview response:', JSON.stringify(data, null, 2));
       setDashboardStats(data);
     }).catch((err: any) => { setError(err?.message || 'Failed to load stats'); });
   }, [eventInfo?.eventUuid]);
@@ -161,7 +162,7 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
     const saleAnalytics = dashboardStats?.sales?.saleAnalytics || {};
     const titleStr = subitemLabel ? `${subitemLabel} Sales` : `${ticketType} Sales`;
     const chartData = Object.entries(saleAnalytics).map(([hour, value]) => ({
-      time: hour,
+      time: formatHourLabel(hour),
       value: (value as number) || 0,
     }));
 
@@ -184,7 +185,7 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
     const title = ticketUuid ? `${scanType} Scans` : `${parentCategory} Scans`;
     const chartData = Object.entries(scanAnalytics)
       .filter(([, value]) => (value as number) > 0)
-      .map(([hour, value]) => ({ time: hour, value: (value as number) || 0 }));
+      .map(([hour, value]) => ({ time: formatHourLabel(hour), value: (value as number) || 0 }));
 
     setScanAnalyticsData(chartData);
     setScanAnalyticsTitle(title);
@@ -278,7 +279,7 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
 
   const renderDashboardContent = () => {
     if (loading) {
-      return <Text style={styles.loadingText}>Loading dashboard stats...</Text>;
+      return null;
     }
     if (error) {
       return <Text style={styles.errorText}>{error}</Text>;
@@ -337,7 +338,6 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
               dataType="checked in"
             />
           )}
-          <ScanListComponent eventInfo={eventInfo} staffUuid={null} onScanCountUpdate={onScanCountUpdate} />
         </>
       );
     }
@@ -416,9 +416,10 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
       </View>
 
       {selectedAdminTab === "Terminals" ? (
-        <TerminalsComponent
+        <StaffListComponent
           eventInfo={eventInfo}
           onEventChange={onEventChange}
+          hideCheckIns={true}
         />
       ) : selectedAdminTab === "Staff" ? (
         <StaffListComponent
@@ -426,9 +427,21 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
           onEventChange={onEventChange}
         />
       ) : (
-        <ScrollView
+        <KeyboardAwareScrollView
           contentContainerStyle={styles.scrollContainer}
-          ref={scrollViewRef}
+          showsVerticalScrollIndicator={false}
+          innerRef={(ref: any) => { scrollViewRef.current = ref; }}
+          enableOnAndroid
+          keyboardShouldPersistTaps="handled"
+          extraScrollHeight={40}
+          scrollEventThrottle={400}
+          onScroll={({ nativeEvent }: { nativeEvent: any }) => {
+            const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+            const nearBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 300;
+            if (nearBottom && selectedSaleScanTab === 'Scans') {
+              scanListRef.current?.loadMore();
+            }
+          }}
         >
           <AdminOverallStatistics
             stats={dashboardStats}
@@ -463,7 +476,19 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
           </View>
 
           {renderDashboardContent()}
-        </ScrollView>
+
+          {dashboardStats && (
+            <View style={{ display: selectedSaleScanTab === 'Scans' ? 'flex' : 'none' }}>
+              <ScanListComponent
+                ref={scanListRef}
+                isActive={selectedSaleScanTab === 'Scans'}
+                eventInfo={eventInfo}
+                staffUuid={null}
+                onScanCountUpdate={onScanCountUpdate}
+              />
+            </View>
+          )}
+        </KeyboardAwareScrollView>
       )}
 
       <EventsModal
@@ -472,6 +497,8 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
         onEventSelect={handleEventSelect}
         currentEventUuid={eventInfo?.eventUuid}
       />
+
+      <Loader isLoading={loading} />
     </View>
   );
 };

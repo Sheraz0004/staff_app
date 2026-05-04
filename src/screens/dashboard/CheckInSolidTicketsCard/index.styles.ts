@@ -9,13 +9,12 @@ export const styles = StyleSheet.create({
     marginVertical: 8,
     marginHorizontal: 16,
   },
-  // title: {
-  //   fontSize: 16,
-  //   fontWeight: "500",
-  //   color: color.black_2F251D,
-  //   marginLeft: 5,
-  //   marginBottom: 10,
-  // },
+  title: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: color.placeholderTxt_24282C,
+    marginBottom: 10,
+  },
   row: {
     flexDirection: "row",
     alignItems: "center",

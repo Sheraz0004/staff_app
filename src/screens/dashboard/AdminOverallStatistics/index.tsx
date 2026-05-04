@@ -79,6 +79,7 @@ interface AdminOverallStatisticsProps {
     onTotalScannedPress: () => void;
     onTotalUnscannedPress: () => void;
     onAvailableTicketsPress: () => void;
+    showOnlyTopRow?: boolean;
 }
 
 const AdminOverallStatistics: React.FC<AdminOverallStatisticsProps> = ({
@@ -86,7 +87,8 @@ const AdminOverallStatistics: React.FC<AdminOverallStatisticsProps> = ({
     onTotalTicketsPress,
     onTotalScannedPress,
     onTotalUnscannedPress,
-    onAvailableTicketsPress
+    onAvailableTicketsPress,
+    showOnlyTopRow = false,
 }) => {
     const ticketStats = stats?.tickets || {};
     const totalTickets = ticketStats?.totalTickets || 0;
@@ -109,7 +111,7 @@ const AdminOverallStatistics: React.FC<AdminOverallStatisticsProps> = ({
                         <View style={styles.row}>
                             <View style={styles.statContainer}>
                                 <TouchableOpacity style={styles.statContent} onPress={onTotalTicketsPress}>
-                                    <CircularProgress value={totalTickets} total={totalTickets} size={40} />
+                                    <CircularProgress value={totalScanned + totalUnscanned} total={totalTickets} size={40} />
                                     <View style={styles.statTextContainer}>
                                         <Text style={styles.statTitle} numberOfLines={1}>Total Tickets</Text>
                                         <Text style={styles.statValue}>{totalTickets}</Text>
@@ -126,6 +128,7 @@ const AdminOverallStatistics: React.FC<AdminOverallStatisticsProps> = ({
                                 </TouchableOpacity>
                             </View>
                         </View>
+                        {!showOnlyTopRow && (
                         <View style={styles.row}>
                             <View style={styles.statContainer}>
                                 <TouchableOpacity style={styles.statContent} onPress={onTotalUnscannedPress}>
@@ -146,6 +149,7 @@ const AdminOverallStatistics: React.FC<AdminOverallStatisticsProps> = ({
                                 </TouchableOpacity>
                             </View>
                         </View>
+                        )}
                     </>
                 )}
             </View>

@@ -155,7 +155,7 @@ const CheckInSoldTicketsCard: React.FC<CheckInSoldTicketsCardProps> = ({ title, 
   return (
     <View>
       <View style={styles.card}>
-        {/* <Text style={styles.title}>{title}</Text> */}
+        <Text style={styles.title}>{title}</Text>
         {data.map((item, index) => {
           const subItems = getSubItems(item, index);
           const isExpanded = expandedItems[index];

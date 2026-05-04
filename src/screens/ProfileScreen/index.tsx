@@ -10,6 +10,7 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
 import { logout } from '../../redux/reducers/userReducer';
+import { persistor } from '../../redux/store';
 import { color } from '../../color/color';
 import SvgIcons from '../../components/SvgIcons';
 import * as ImagePicker from 'expo-image-picker';
@@ -103,6 +104,7 @@ const ProfileScreen: React.FC = () => {
 
   const handleLogout = (): void => {
     dispatch(logout());
+    persistor.purge();
   };
 
   return (

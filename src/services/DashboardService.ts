@@ -19,6 +19,8 @@ export const DASHBOARD_SERVICES = {
   }) => HTTP_CLIENT.get(API_CONFIG.ORGANIZATION_STAFF.salesStats(params)),
   fetchStaffEventStats: (staffId: string) =>
     HTTP_CLIENT.get(API_CONFIG.ORGANIZATION_STAFF.staffEventStats(staffId)),
+  fetchStaffStatsOverview: (params: { eventId: string; staffUuid: string }) =>
+    HTTP_CLIENT.get(`/api/event/${params.eventId}/stats-overview/?staff_uuid=${params.staffUuid}`),
   fetchDashboardStats: (params?: {
     organization_uuid?: string;
     ticketing_type?: string;

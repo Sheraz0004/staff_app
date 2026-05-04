@@ -1,333 +1,527 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity, Modal, ActivityIndicator } from 'react-native';
-import { color } from '../../../color/color';
-import { dashboardattendeestab } from '../../../constants/dashboardattendeestab';
-import SvgIcons from '../../../components/SvgIcons';
-import { ticketService, BASE_URL } from '../../../api/apiService';
-import QRCode from 'react-native-qrcode-svg';
-import { useNavigation } from '@react-navigation/native';
-import NoResults from '../../../components/NoResults';
-import { logger } from '../../../utils/logger';
-import { styles } from './index.styles';
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useImperativeHandle,
+  forwardRef,
+} from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Modal,
+  ActivityIndicator,
+  FlatList,
+} from "react-native";
+import { color } from "../../../color/color";
+import SvgIcons from "../../../components/SvgIcons";
+import { ticketService, BASE_URL } from "../../../api/apiService";
+import QRCode from "react-native-qrcode-svg";
+import { useNavigation } from "@react-navigation/native";
+import NoResults from "../../../components/NoResults";
+import { useApi } from "../../../services/useApi";
+import { styles } from "./index.styles";
 
-interface ScanListComponentProps {
-    eventInfo: any;
-    onScanCountUpdate: any;
-    staffUuid: any;
+const PAGE_SIZE = 10;
+
+interface FilterState {
+  checkinStatus: "SCANNED" | "UNSCANNED" | null;
+  ticketTypes: string[];
+  status: "PAID" | "CANCELLED" | null;
 }
 
-const ScanListComponent: React.FC<ScanListComponentProps> = ({ eventInfo, onScanCountUpdate, staffUuid }) => {
-    const navigation = useNavigation();
-    const [searchText, setSearchText] = useState('');
-    const [isSearchFocused, setIsSearchFocused] = useState(false);
-    const [fetchedTickets, setFetchedTickets] = useState<any[]>([]);
-    const [hasMore, setHasMore] = useState(true);
-    const [isLoading, setIsLoading] = useState(false);
-    const [isModalVisible, setModalVisible] = useState(false);
-    const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
-    const [availableTicketTypes, setAvailableTicketTypes] = useState<string[]>([]);
+const DEFAULT_FILTERS: FilterState = {
+  checkinStatus: "SCANNED",
+  ticketTypes: [],
+  status: "PAID",
+};
 
-    useEffect(() => {
-        if (eventInfo?.eventUuid) {
-            fetchTicketList(eventInfo.eventUuid);
+export interface ScanListHandle {
+  loadMore: () => void;
+}
+
+interface ScanListComponentProps {
+  eventInfo: any;
+  onScanCountUpdate: any;
+  staffUuid: any;
+  isActive: boolean;
+}
+
+const ScanListComponent = forwardRef<ScanListHandle, ScanListComponentProps>(
+  ({ eventInfo, onScanCountUpdate, staffUuid, isActive }, ref) => {
+    const navigation = useNavigation();
+    const { loading: isLoading, requestCall: callFetch } = useApi(
+      ticketService.fetchUserTickets,
+      false,
+      false,
+    );
+    const { loading: isLoadingMore, requestCall: callFetchMore } = useApi(
+      ticketService.fetchUserTickets,
+      false,
+      false,
+    );
+
+    const [searchInput, setSearchInput] = useState("");
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
+    const [tickets, setTickets] = useState<any[]>([]);
+    const [isModalVisible, setModalVisible] = useState(false);
+    const [pendingFilters, setPendingFilters] =
+      useState<FilterState>(DEFAULT_FILTERS);
+    const [appliedFilters, setAppliedFilters] =
+      useState<FilterState>(DEFAULT_FILTERS);
+    const [availableTicketTypes, setAvailableTicketTypes] = useState<string[]>(
+      [],
+    );
+
+    const pageRef = useRef(1);
+    const totalPagesRef = useRef(1);
+    const isFetchingRef = useRef(false);
+    const hasFetchedRef = useRef(false);
+
+    const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
+      null,
+    );
+    const appliedFiltersRef = useRef<FilterState>(DEFAULT_FILTERS);
+    const searchTextRef = useRef("");
+    const eventUuidRef = useRef<string | undefined>(undefined);
+    eventUuidRef.current = eventInfo?.eventUuid;
+
+    const mapTicket = (ticket: any) => ({
+      id: ticket.ticketNumber || "No Record",
+      type: ticket.ticketType || "No Record",
+      price: ticket.ticketPrice || "No Record",
+      date: ticket.formattedDate || ticket.eventDate || "No Record",
+      status: ticket.checkinStatus,
+      note: ticket.note || "No Note",
+      uuid: String(ticket.id || "No Record"),
+      ticketHolder: ticket.ticketHolder || "No Record",
+      lastScannedByName:
+        ticket.scannedBy?.name ||
+        ticket.scannedBy?.email ||
+        ticket.scannedBy?.staffId ||
+        "No Record",
+      scanCount: ticket.scanCount ?? 0,
+      lastScannedOn: ticket.scannedBy?.scannedOn || "No Record",
+      qrCodeUrl: `${BASE_URL}/api/ticket/scan/${ticket.eventId}/${ticket.code}/`,
+      currency: ticket.currency || "No Record",
+      userfirstname: ticket.userFirstName,
+      name:
+        `${ticket.userFirstName || ""} ${ticket.userLastName || ""}`.trim() ||
+        ticket.ticketHolder ||
+        "No Record",
+      user_email: ticket.userEmail || "No Record",
+      category: ticket.category || "No Record",
+      ticketClass: ticket.ticketClass || "No Record",
+      scannedBy:
+        ticket.scannedBy?.name || ticket.scannedBy?.email || "No Record",
+      staffId: ticket.scannedBy?.staffId || "No Record",
+      scannedOn: ticket.scannedBy?.scannedOn || "No Record",
+      orderNumber: ticket.orderNumber || "No Record",
+      eventName: ticket.eventName || "No Record",
+      eventDate: ticket.eventDate || "No Record",
+      eventTime: ticket.eventTime || "No Record",
+      location: ticket.location || "No Record",
+      vat: ticket.vat ?? 0,
+    });
+
+    const buildParams = (
+      eventUuid: string,
+      currentPage: number,
+      search: string,
+      filters: FilterState,
+    ) => ({
+      eventId: eventUuid,
+      page: currentPage,
+      pageSize: PAGE_SIZE,
+      status: filters.status || undefined,
+      checkinStatus: filters.checkinStatus || undefined,
+      search: search.trim() || undefined,
+      ticketTypes:
+        filters.ticketTypes.length > 0
+          ? filters.ticketTypes.join(",")
+          : undefined,
+      scannedBy: staffUuid || undefined,
+    });
+
+    const fetchTickets = useCallback(
+      async (
+        eventUuid: string,
+        currentPage: number,
+        search: string,
+        filters: FilterState,
+        append: boolean,
+      ) => {
+        if (isFetchingRef.current) return;
+        isFetchingRef.current = true;
+
+        try {
+          const caller = append ? callFetchMore : callFetch;
+          const res = await caller(buildParams(eventUuid, currentPage, search, filters));
+          const body = res || {};
+          const list: any[] = body.data || [];
+          const resolvedPage: number = body.currentPage || currentPage;
+          const totalPages: number = body.totalPages || 1;
+          const totalElements: number = body.totalElements ?? list.length;
+          const mapped = list.map(mapTicket);
+
+          pageRef.current = resolvedPage;
+          totalPagesRef.current = totalPages;
+
+          if (append) {
+            setTickets((prev) => [...prev, ...mapped]);
+          } else {
+            setTickets(mapped);
+
+            const types = [
+              ...new Set(
+                mapped
+                  .map((t: any) => (t.type as string).replace(/\s*Pricing$/, ""))
+                  .filter((t: any) => t !== "No Record"),
+              ),
+            ] as string[];
+            setAvailableTicketTypes(types);
+
+            if (onScanCountUpdate) onScanCountUpdate(totalElements);
+          }
+        } catch (err) {
+          console.log("[ScanListComponent] fetchTickets error:", err);
+        } finally {
+          isFetchingRef.current = false;
         }
+      },
+      [callFetch, callFetchMore, staffUuid, onScanCountUpdate],
+    );
+
+    // Reset pagination refs when event changes
+    useEffect(() => {
+      hasFetchedRef.current = false;
+      pageRef.current = 1;
+      totalPagesRef.current = 1;
     }, [eventInfo?.eventUuid]);
 
-    const fetchTicketList = async (eventUuid: any) => {
-        try {
-            setIsLoading(true);
-            // If staffUuid is provided, we need to filter tickets for that specific staff
-            const res = await ticketService.ticketStatsListing(eventUuid, staffUuid,'PAID');
-            const list = res?.data || [];
-            const mappedTickets = list.map((ticket: any) => {
-                const qrCodeUrl = `${BASE_URL}ticket/scan/${ticket.event}/${ticket.code}/`;
-                return {
-                    id: ticket.ticket_number || 'No Record',
-                    type: ticket.ticket_type || 'No Record',
-                    price: ticket.ticket_price || 'No Record',
-                    date: ticket.formatted_date || 'No Record',
-                    status: ticket.checkin_status,
-                    note: ticket.note || 'No Record',
-                    imageUrl: null,
-                    uuid: ticket.uuid || 'No Record',
-                    ticketHolder: ticket.ticket_holder || 'No Record',
-                    lastScannedByName: ticket.last_scanned_by_name || 'No Record',
-                    scanCount: ticket.scan_count || 'No Record',
-                    lastScannedOn: ticket.last_scanned_on || 'No Record',
-                    qrCodeUrl: qrCodeUrl,
-                    currency: ticket.currency || 'No Record',
-                    userfirstname: ticket.user_first_name,
-                    name: `${ticket.user_first_name || ''} ${ticket.user_last_name || ''}`.trim() || 'No Record',
-                    user_email: ticket.user_email || 'No Record',
-                    category: ticket.category || 'No Record',
-                    ticketClass: ticket.ticket_class || 'No Record',
-                    scannedBy: ticket.scanned_by?.name || 'No Record',
-                    staffId: ticket.scanned_by?.staff_id || 'No Record',
-                    scannedOn: ticket.scanned_by?.scanned_on || 'No Record',
-                };
-            });
+    // Fetch only the first time the Scans tab becomes active
+    useEffect(() => {
+      if (!isActive || !eventInfo?.eventUuid || hasFetchedRef.current) return;
+      hasFetchedRef.current = true;
+      fetchTickets(eventInfo.eventUuid, 1, "", DEFAULT_FILTERS, false);
+    }, [isActive, eventInfo?.eventUuid]);
 
-            setFetchedTickets(mappedTickets);
+    const triggerSearch = useCallback(
+      (text: string, filters: FilterState) => {
+        if (!eventUuidRef.current) return;
+        pageRef.current = 1;
+        totalPagesRef.current = 1;
+        fetchTickets(eventUuidRef.current, 1, text, filters, false);
+      },
+      [fetchTickets],
+    );
 
-            // Extract unique ticket types and remove "Pricing" from the end
-            const uniqueTypes = [...new Set(mappedTickets.map((ticket: any) => ticket.type))].filter((type: any) => type !== 'No Record');
-            const cleanedTypes = (uniqueTypes as string[]).map(type => type.replace(/\s*Pricing$/, ''));
-            setAvailableTicketTypes(cleanedTypes);
-        } catch (err) {
-            logger.error('Error fetching ticket list:', err);
-        } finally {
-            setIsLoading(false);
-        }
+    const handleSearchChange = (text: string) => {
+      setSearchInput(text);
+      searchTextRef.current = text;
+
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+
+      if (!text.trim()) {
+        triggerSearch("", appliedFiltersRef.current);
+        return;
+      }
+
+      searchDebounceRef.current = setTimeout(() => {
+        triggerSearch(searchTextRef.current, appliedFiltersRef.current);
+      }, 800);
     };
 
+    const handleSearchSubmit = () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      triggerSearch(searchTextRef.current, appliedFiltersRef.current);
+    };
 
-    const filterTickets = () => {
-        let filteredTickets = fetchedTickets;
+    const handleLoadMore = useCallback(() => {
 
-        // Filter to show only scanned tickets
-        filteredTickets = filteredTickets.filter((ticket) => ticket.status === 'SCANNED');
+      if (isFetchingRef.current) return;
+      if (pageRef.current >= totalPagesRef.current) return;
+      if (!eventUuidRef.current) return;
 
-        if (searchText) {
-            filteredTickets = filteredTickets.filter(
-                (ticket) =>
-                    (ticket.id && ticket.id.toLowerCase().includes(searchText.toLowerCase())) ||
-                    (ticket.type && ticket.type.toLowerCase().includes(searchText.toLowerCase())) ||
-                    (ticket.ticketHolder && ticket.ticketHolder.toLowerCase().includes(searchText.toLowerCase())) ||
-                    (ticket.userfirstname && ticket.userfirstname.toLowerCase().includes(searchText.toLowerCase())) ||
-                    (ticket.category && ticket.category.toLowerCase().includes(searchText.toLowerCase())) ||
-                    (ticket.ticketClass && ticket.ticketClass.toLowerCase().includes(searchText.toLowerCase()))
-            );
-        }
+      fetchTickets(
+        eventUuidRef.current,
+        pageRef.current + 1,
+        searchTextRef.current,
+        appliedFiltersRef.current,
+        true,
+      );
+    }, [fetchTickets]);
 
-        // Apply filter
-        if (selectedFilter) {
-            // Filter by matching ticket type, adding "Pricing" back for comparison
-            filteredTickets = filteredTickets.filter((ticket) => {
-                const ticketTypeDisplay = ticket.type.replace(/\s*Pricing$/, '');
-                return ticketTypeDisplay === selectedFilter;
-            });
-        }
+    const handleApplyFilters = () => {
+      appliedFiltersRef.current = pendingFilters;
+      setAppliedFilters(pendingFilters);
+      setModalVisible(false);
+      if (!eventUuidRef.current) return;
+      pageRef.current = 1;
+      totalPagesRef.current = 1;
+      fetchTickets(
+        eventUuidRef.current,
+        1,
+        searchTextRef.current,
+        pendingFilters,
+        false,
+      );
+    };
 
-        return filteredTickets;
+    const handleClearFilters = () => {
+      setPendingFilters(DEFAULT_FILTERS);
     };
 
     const handleTicketPress = (ticket: any) => {
-        const scanResponse = {
-            message: ticket.status === 'SCANNED' ? 'Ticket Scanned' : 'Ticket Scanned',
-            ticket_holder: ticket.ticketHolder || 'No Record',
-            ticket: ticket.type || 'No Record',
-            currency: ticket.currency || 'No Record',
-            ticket_price: ticket.price || 'No Record',
-            last_scan: ticket.lastScannedOn || 'No Record',
-            ticket_number: ticket.id || 'No Record',
-            scan_count: ticket.scanCount || 0,
-            note: ticket.note || 'No note added',
-            qrCodeUrl: ticket.qrCodeUrl,
-            name: ticket.name,
-            date: ticket.date,
-            user_email: ticket.user_email,
-            category: ticket.category,
-            ticketClass: ticket.ticketClass,
-            scanned_by: ticket.scannedBy || 'No Record',
-            staff_id: ticket.staffId || 'No Record',
-            scanned_on: ticket.scannedOn || 'No Record',
-        };
-
-        (navigation as any).navigate('TicketScanned', {
-            scanResponse: scanResponse,
-            eventInfo: eventInfo,
-        });
+      (navigation as any).navigate("TicketScanned", {
+        scanResponse: {
+          ticketNumber: ticket.id,
+          ticketHolder: ticket.ticketHolder,
+          ticketHolderEmail: ticket.user_email,
+          ticket: ticket.type,
+          ticketClass: ticket.ticketClass,
+          ticketPrice: ticket.price,
+          currency: ticket.currency,
+          scanCount: ticket.scanCount,
+          note: ticket.note,
+          status: ticket.status,
+          message:
+            ticket.status === "SCANNED" ? "Ticket Scanned" : "Ticket Unscanned",
+          scannedBy: {
+            name: ticket.lastScannedByName,
+            staffId: ticket.staffId,
+            scannedOn: ticket.scannedOn,
+          },
+        },
+        eventInfo,
+      });
     };
 
-    const handleSearchChange = (text: string) => {
-        setSearchText(text);
+    const toggleTicketType = (type: string) => {
+      setPendingFilters((prev) => ({
+        ...prev,
+        ticketTypes: prev.ticketTypes.includes(type)
+          ? prev.ticketTypes.filter((t) => t !== type)
+          : [...prev.ticketTypes, type],
+      }));
     };
 
-    const handleTabPress = (tab: any) => {
-        setSearchText('');
-    };
+    const hasActiveFilters =
+      appliedFilters.checkinStatus !== DEFAULT_FILTERS.checkinStatus ||
+      appliedFilters.ticketTypes.length > 0 ||
+      appliedFilters.status !== DEFAULT_FILTERS.status;
 
-    const handleFilterButtonPress = () => {
-        setModalVisible(true);
-    };
-
-    const clearFilter = () => {
-        setSelectedFilter(null);
-    };
-
-
-    const getNoResultsMessage = () => {
-        if (searchText) {
-            return "No Matching Results";
-        }
-        return "No Matching Results";
-    };
-
-    const filteredTickets = filterTickets();
+    useImperativeHandle(ref, () => ({
+      loadMore: handleLoadMore,
+    }), [handleLoadMore]);
 
     return (
-        <ScrollView
-            style={styles.container}
-        >
-            <View><Text style={styles.title}>Scans</Text></View>
-            <View style={styles.searchFilterContainer}>
-                <View style={[
-                    styles.searchBar,
-                    isSearchFocused && styles.searchBarFocused
-                ]}>
-                    <TextInput
+      <View style={styles.container}>
+        <Text style={styles.title}>Scans</Text>
+
+        <View style={styles.searchFilterContainer}>
+          <View
+            style={[
+              styles.searchBar,
+              isSearchFocused && styles.searchBarFocused,
+            ]}
+          >
+            <TextInput
+              style={[
+                styles.searchInput,
+                searchInput
+                  ? styles.searchInputWithText
+                  : styles.searchInputPlaceholder,
+              ]}
+              placeholder="John Doe"
+              placeholderTextColor={color.brown_766F6A}
+              onChangeText={handleSearchChange}
+              onSubmitEditing={handleSearchSubmit}
+              value={searchInput}
+              selectionColor={color.selectField_CEBCA0}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setIsSearchFocused(false)}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+            />
+            <TouchableOpacity onPress={handleSearchSubmit}>
+              <SvgIcons.searchIcon width={20} height={20} fill="transparent" />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              hasActiveFilters && { borderColor: color.btnBrown_AE6F28 },
+            ]}
+            onPress={() => {
+              setPendingFilters(appliedFilters);
+              setModalVisible(true);
+            }}
+          >
+            <SvgIcons.filterIcon width={20} height={20} />
+          </TouchableOpacity>
+        </View>
+
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color={color.btnBrown_AE6F28} />
+          </View>
+        ) : (
+          <FlatList
+            data={tickets}
+            keyExtractor={(item, index) => `${item.uuid}-${index}`}
+            scrollEnabled={false}
+            nestedScrollEnabled={false}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.card}
+                onPress={() => handleTicketPress(item)}
+              >
+                <View style={styles.cardContent}>
+                  <View>
+                    <Text style={styles.label}>Name</Text>
+                    <Text style={styles.value}>{item.name}</Text>
+                    <Text style={styles.label}>Category</Text>
+                    <Text style={styles.value}>{item.category}</Text>
+                    <Text style={styles.label}>Class</Text>
+                    <Text style={styles.value}>{item.ticketClass}</Text>
+                  </View>
+                  <View style={styles.qrCode}>
+                    {item.qrCodeUrl ? (
+                      <QRCode
+                        value={item.qrCodeUrl}
+                        size={100}
+                        logoSize={30}
+                        logoBackgroundColor="transparent"
+                        quietZone={5}
+                      />
+                    ) : null}
+                  </View>
+                </View>
+                <View style={[styles.badge, styles.checkInBadge]}>
+                  <Text style={[styles.badgeText, styles.checkInText]}>
+                    {item.status === "SCANNED" ? "Scanned" : item.status}
+                  </Text>
+                </View>
+                <View style={styles.statusContainer}>
+                  <Text style={styles.valueID}>Tix ID: {item.id}</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={<NoResults message="No Matching Results" />}
+            ListFooterComponent={
+              isLoadingMore ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator
+                    size="small"
+                    color={color.btnBrown_AE6F28}
+                  />
+                </View>
+              ) : null
+            }
+          />
+        )}
+
+        <Modal visible={isModalVisible} transparent animationType="fade">
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setModalVisible(false)}
+          >
+            <TouchableOpacity
+              style={styles.modalContainer}
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Filters</Text>
+                <TouchableOpacity onPress={handleClearFilters}>
+                  <Text style={styles.clearAllText}>Clear all</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.filterOptionsContainer}>
+                <View style={styles.lineView} />
+                <Text style={styles.tickettype}>Check-in Status</Text>
+                {(["SCANNED", "UNSCANNED"] as const).map((status) => (
+                  <TouchableOpacity
+                    key={status}
+                    style={styles.filterOption}
+                    onPress={() =>
+                      setPendingFilters((prev) => ({
+                        ...prev,
+                        checkinStatus:
+                          prev.checkinStatus === status ? null : status,
+                      }))
+                    }
+                  >
+                    <View style={styles.checkboxContainer}>
+                      <View
                         style={[
-                            styles.searchInput,
-                            searchText ? styles.searchInputWithText : styles.searchInputPlaceholder
+                          styles.checkbox,
+                          pendingFilters.checkinStatus === status &&
+                            styles.checkedCheckbox,
                         ]}
-                        placeholder="John Doe"
-                        placeholderTextColor={color.brown_766F6A}
-                        onChangeText={handleSearchChange}
-                        value={searchText}
-                        selectionColor={color.selectField_CEBCA0}
-                        onFocus={() => setIsSearchFocused(true)}
-                        onBlur={() => setIsSearchFocused(false)}
-                    />
-                    <TouchableOpacity onPress={() => handleSearchChange(searchText)}>
-                        <SvgIcons.searchIcon width={20} height={20} fill="transparent" />
-                    </TouchableOpacity>
-                </View>
+                      >
+                        {pendingFilters.checkinStatus === status && (
+                          <SvgIcons.tickIcon width={15} height={15} />
+                        )}
+                      </View>
+                      <Text style={styles.filterOptionText}>
+                        {status === "SCANNED" ? "Scanned" : "Unscanned"}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
 
-                <TouchableOpacity style={styles.filterButton} onPress={handleFilterButtonPress}>
-                    <SvgIcons.filterIcon width={20} height={20} />
-                </TouchableOpacity>
-            </View>
-
-            {filteredTickets.length > 0 ? (
-                filteredTickets.map((item, index) => (
-                    <TouchableOpacity
+                {availableTicketTypes.length > 0 && (
+                  <>
+                    <View style={styles.lineView} />
+                    <Text style={styles.tickettype}>Ticket Type</Text>
+                    {availableTicketTypes.map((ticketType, index) => (
+                      <TouchableOpacity
                         key={index}
-                        style={styles.card}
-                        onPress={() => handleTicketPress(item)}
-                    >
-                        <View style={styles.cardContent}>
-                            <View>
-                                <Text style={styles.label}>Name</Text>
-                                <Text style={styles.value}>{item.name || 'No Record'}</Text>
-                                <Text style={styles.label}>Category</Text>
-                                <Text style={styles.value}>{item.category}</Text>
-                                <Text style={styles.label}>Class</Text>
-                                <Text style={styles.value}>{item.ticketClass}</Text>
-                            </View>
-                            <View style={styles.qrCode}>
-                                {item.qrCodeUrl && (
-                                    <QRCode
-                                        value={item.qrCodeUrl}
-                                        size={100}
-                                        style={{ width: '100%', height: '100%' }}
-                                        logoSize={30}
-                                        logoBackgroundColor="transparent"
-                                        quietZone={5}
-                                    />
-                                )}
-                            </View>
-                        </View>
-
-                        <View
+                        style={styles.filterOption}
+                        onPress={() => toggleTicketType(ticketType)}
+                      >
+                        <View style={styles.checkboxContainer}>
+                          <View
                             style={[
-                                styles.badge,
-                                styles.checkInBadge,
+                              styles.checkbox,
+                              pendingFilters.ticketTypes.includes(ticketType) &&
+                                styles.checkedCheckbox,
                             ]}
-                        >
-                            <Text
-                                style={[
-                                    styles.badgeText,
-                                    styles.checkInText,
-                                ]}
-                            >
-                                {item.status === 'SCANNED' ? 'Scanned' : item.status}
-                            </Text>
+                          >
+                            {pendingFilters.ticketTypes.includes(
+                              ticketType,
+                            ) && <SvgIcons.tickIcon width={15} height={15} />}
+                          </View>
+                          <Text style={styles.filterOptionText}>
+                            {ticketType}
+                          </Text>
                         </View>
-                        <View style={styles.statusContainer}>
-                            <Text style={styles.valueID}>Tix ID: {item.id}</Text>
-                        </View>
-                    </TouchableOpacity>
-                ))
-            ) : !isLoading ? (
-                <NoResults message={getNoResultsMessage()} />
-            ) : (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={color.btnBrown_AE6F28} />
-                </View>
-            )}
+                      </TouchableOpacity>
+                    ))}
+                  </>
+                )}
+              </View>
 
-            {isLoading && filteredTickets.length > 0 && (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={color.btnBrown_AE6F28} />
-                </View>
-            )}
-
-            <Modal visible={isModalVisible} transparent animationType="fade">
-                <TouchableOpacity
-                    style={styles.modalOverlay}
-                    activeOpacity={1}
-                    onPress={() => setModalVisible(false)}
-                >
-                    <TouchableOpacity
-                        style={styles.modalContainer}
-                        activeOpacity={1}
-                        onPress={(e) => e.stopPropagation()}
-                    >
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Filters</Text>
-                            <TouchableOpacity onPress={clearFilter}>
-                                <Text style={styles.clearAllText}>Clear all</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.filterOptionsContainer}>
-                            <View style={styles.lineView} />
-                            <Text style={styles.tickettype}>Ticket Type</Text>
-                            {availableTicketTypes.map((ticketType, index) => (
-                                <TouchableOpacity
-                                    key={index}
-                                    style={styles.filterOption}
-                                    onPress={() =>
-                                        setSelectedFilter(
-                                            selectedFilter === ticketType ? null : ticketType
-                                        )
-                                    }
-                                >
-                                    <View style={styles.checkboxContainer}>
-                                        <View
-                                            style={[
-                                                styles.checkbox,
-                                                selectedFilter === ticketType && styles.checkedCheckbox,
-                                            ]}
-                                        >
-                                            {selectedFilter === ticketType && (
-                                                <SvgIcons.tickIcon width={15} height={15} />
-                                            )}
-                                        </View>
-                                        <Text style={styles.filterOptionText}>{ticketType}</Text>
-                                    </View>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-
-                        <TouchableOpacity
-                            style={[
-                                styles.applyButton,
-                                !selectedFilter && styles.applyButtonDisabled
-                            ]}
-                            onPress={() => setModalVisible(false)}
-                            disabled={!selectedFilter}
-                        >
-                            <Text style={[
-                                styles.applyButtonText,
-                                !selectedFilter && styles.applyButtonTextDisabled
-                            ]}>Apply</Text>
-                        </TouchableOpacity>
-                    </TouchableOpacity>
-                </TouchableOpacity>
-            </Modal>
-        </ScrollView>
+              <TouchableOpacity
+                style={styles.applyButton}
+                onPress={handleApplyFilters}
+              >
+                <Text style={styles.applyButtonText}>Apply</Text>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
+      </View>
     );
-};
+  },
+);
 
 export default ScanListComponent;

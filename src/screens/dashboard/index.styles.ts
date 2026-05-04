@@ -121,7 +121,7 @@ export const styles = StyleSheet.create({
     height: 40,
   },
   saleScanTabButtonText: { color: color.black_544B45, fontWeight: '400', fontSize: 14 },
-  adminTabContainer: { marginHorizontal: 16, marginVertical: 12 },
+  adminTabContainer: { marginHorizontal: 16, marginVertical: 20},
   adminTabRow: { flexDirection: 'row', justifyContent: 'space-around', width: '100%' },
   adminTabButton: {
     padding: 10,

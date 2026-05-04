@@ -4,11 +4,16 @@ import { color } from '../../../color/color';
 export const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    //backgroundColor: color.btnBrown_AE6F28,
+  },
+  scrollContentContainer: {
+    flexGrow: 1,
+    paddingBottom: 20,
   },
   contentContainer: {
     flex: 1,
-    //backgroundColor: color.white_FFFFFF,
+  },
+  listContainer: {
+    flex: 1,
   },
   searchContainer: {
     backgroundColor: color.white_FFFFFF,
@@ -42,7 +47,8 @@ export const styles = StyleSheet.create({
   ticketCard: {
     backgroundColor: color.white_FFFFFF,
     borderRadius: 10,
-    padding: 20,
+    paddingVertical: 20,
+    paddingHorizontal: 10,
     marginBottom: 15,
     marginHorizontal: 16,
   },
@@ -64,7 +70,7 @@ export const styles = StyleSheet.create({
     marginBottom: 8,
   },
   columnData: {
-    fontSize: 14,
+    fontSize: 12,
     color: color.placeholderTxt_24282C,
     fontWeight: '400',
   },

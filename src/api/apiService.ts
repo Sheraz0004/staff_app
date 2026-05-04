@@ -1117,6 +1117,50 @@ export const ticketService = {
     }
   },
 
+  fetchUserTickets: async (params: {
+    eventId: string;
+    page?: number;
+    pageSize?: number;
+    status?: string;
+    checkinStatus?: string;
+    search?: string;
+    ticketTypes?: string;
+    scannedBy?: string;
+    boughtBy?: string;
+  }) => {
+    const {
+      eventId,
+      page = 1,
+      pageSize = 20,
+      status,
+      checkinStatus,
+      search,
+      ticketTypes,
+      scannedBy,
+      boughtBy,
+    } = params;
+
+    let url = `${endpoints.ticketStatslist}?event_id=${eventId}&page=${page}&page_size=${pageSize}`;
+    if (status) url += `&status=${status}`;
+    if (checkinStatus) url += `&checkin_status=${checkinStatus}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    if (ticketTypes) url += `&ticket_types=${encodeURIComponent(ticketTypes)}`;
+    if (scannedBy) url += `&scanned_by=${scannedBy}`;
+    if (boughtBy) url += `&bought_by=${boughtBy}`;
+
+    try {
+      const response = await apiClient.get(url);
+      return response.data;
+    } catch (error: any) {
+      console.log('[fetchUserTickets] Error:', error?.response?.data || error?.message);
+      logger.error('fetchUserTickets error:', error);
+      if (error.response?.data) {
+        throw { message: error.response.data.message || 'Failed to fetch tickets.', response: error.response };
+      }
+      throw { message: 'Network error. Please check your connection.', error };
+    }
+  },
+
   fetchTicketDetails: async (ticketNumber: string) => {
     try {
       const response = await apiClient.get(endpoints.ticketDetails(ticketNumber));
