@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useDispatch, useSelector } from "react-redux";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { color } from "../../../color/color";
@@ -15,7 +16,20 @@ import { color } from "../../../color/color";
 import { useApi } from "../../../services/useApi";
 import { DASHBOARD_SERVICES } from "../../../services/DashboardService";
 import SvgIcons from "../../../components/SvgIcons";
-import EventsModal from "../../../components/EventsModal";
+import BottomSheetRadioPicker from "../../../constants/bottomSheetRadioPicker";
+import {
+  selectEvents,
+  selectEventsPage,
+  selectEventsTotalPages,
+  selectEventsLoadingMore,
+  setEvents,
+  appendEvents,
+  setEventsLoading,
+  setEventsError,
+  setEventsPage,
+  setEventsTotalPages,
+  setEventsLoadingMore,
+} from "../../../redux/reducers/dashboardReducer";
 import { admindashboardterminaltab as originalAdminTabs } from "../../../constants/admindashboardterminaltab";
 import { dashboardsalesscantab } from "../../../constants/dashboardsalesscantab";
 import { formatDateWithMonthName } from "../../../constants/dateAndTime";
@@ -51,11 +65,17 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
   onEventChange,
   showEventDashboard,
 }) => {
+  const dispatch = useDispatch();
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const scrollViewRef = useRef<any>(null);
   const scanListRef = useRef<ScanListHandle>(null);
+
+  const events = useSelector(selectEvents) ?? [];
+  const eventsPage = useSelector(selectEventsPage) ?? 0;
+  const eventsTotalPages = useSelector(selectEventsTotalPages) ?? 1;
+  const eventsLoadingMore = useSelector(selectEventsLoadingMore) ?? false;
 
   const isFromRootStack = route?.name === "DashboardDetail";
   const initialEventInfo = isFromRootStack
@@ -77,6 +97,7 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
   // Sale/Scan tab state
   const [selectedSaleScanTab, setSelectedSaleScanTab] = useState(dashboardsalesscantab[0]);
   const [dashboardStats, setDashboardStats] = useState<any>(null);
+  const [isEventLoading, setIsEventLoading] = useState(false);
 
   const [error, setError] = useState<any>(null);
 
@@ -85,15 +106,22 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
     false,
     true,
   );
+  console.log("loading000-->",loading)
 
   useEffect(() => {
     const eventId = eventInfo?.eventUuid;
     if (!eventId) return;
-    fetchStatsOverview(eventId).then((res: any) => {
-      const data = res?.data;
-      // console.log('[DashboardDetail] stats-overview response:', JSON.stringify(data, null, 2));
-      setDashboardStats(data);
-    }).catch((err: any) => { setError(err?.message || 'Failed to load stats'); });
+    const timer = setTimeout(() => {
+      fetchStatsOverview(eventId).then((res: any) => {
+        const data = res?.data;
+        setDashboardStats(data);
+        setIsEventLoading(false);
+      }).catch((err: any) => {
+        setError(err?.message || 'Failed to load stats');
+        setIsEventLoading(false);
+      });
+    }, 500);
+    return () => clearTimeout(timer);
   }, [eventInfo?.eventUuid]);
 
   const [analyticsData, setAnalyticsData] = useState<any>(null);
@@ -126,12 +154,65 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
     }
   };
 
+  const fetchEventsForPicker = async (page = 0) => {
+    if (page === 0) {
+      dispatch(setEventsLoading(true));
+      dispatch(setEventsError(null));
+    } else {
+      dispatch(setEventsLoadingMore(true));
+    }
+    try {
+      const response = await DASHBOARD_SERVICES.fetchEvents(page);
+      const data = response?.data?.data ?? [];
+      const totalPages = response?.data?.totalPages ?? 1;
+      const currentPage = response?.data?.currentPage ?? page;
+      if (page === 0) {
+        dispatch(setEvents(data));
+      } else {
+        dispatch(appendEvents(data));
+      }
+      dispatch(setEventsPage(currentPage));
+      dispatch(setEventsTotalPages(totalPages));
+    } catch (error: any) {
+      dispatch(setEventsError(error?.message ?? 'Failed to fetch events'));
+    } finally {
+      if (page === 0) {
+        dispatch(setEventsLoading(false));
+      } else {
+        dispatch(setEventsLoadingMore(false));
+      }
+    }
+  };
+
+  const loadMoreEventsForPicker = () => {
+    const nextPage = (eventsPage ?? 0) + 1;
+    if (nextPage < (eventsTotalPages ?? 1) && !eventsLoadingMore) {
+      fetchEventsForPicker(nextPage);
+    }
+  };
+
+  const eventPickerOptions = (events ?? []).map((e: any) => ({
+    label: e?.title ?? '',
+    value: e?.uuid ?? String(e?.id ?? ''),
+  }));
+
   const handleEventSelect = (event: any) => {
     setSelectedEvent(event);
     logger.log("Selected event:", event);
 
-    if (event.uuid !== eventInfo?.eventUuid) {
-      const eventUuid = event.uuid || event.eventUuid;
+    const eventUuid = event.uuid || event.eventUuid || String(event.id ?? '');
+
+    if (eventUuid && eventUuid !== eventInfo?.eventUuid) {
+      setIsEventLoading(true);
+      setDashboardStats(null);
+      setError(null);
+      setAnalyticsData(null);
+      setAnalyticsTitle('');
+      setActiveAnalytics(null);
+      setScanAnalyticsData(null);
+      setScanAnalyticsTitle('');
+      setActiveScanAnalytics(null);
+
       setLocalEventInfo({
         ...eventInfo,
         eventUuid: eventUuid,
@@ -144,9 +225,9 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
       if (onEventChange) {
         onEventChange(event);
       }
-
-      setEventsModalVisible(false);
     }
+
+    setEventsModalVisible(false);
   };
 
   const handleAnalyticsPress = (ticketType: any, title: any, ticketUuid: any = null, subitemLabel: any = null) => {
@@ -368,7 +449,10 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
               </Text>
               <TouchableOpacity
                 style={styles.dropdownButton}
-                onPress={() => setEventsModalVisible(true)}
+                onPress={() => {
+                  if ((events ?? []).length === 0) fetchEventsForPicker(0);
+                  setEventsModalVisible(true);
+                }}
               >
                 <SvgIcons.downArrowWhite
                   width={12}
@@ -491,14 +575,25 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
         </KeyboardAwareScrollView>
       )}
 
-      <EventsModal
+      <BottomSheetRadioPicker
         visible={eventsModalVisible}
         onClose={() => setEventsModalVisible(false)}
-        onEventSelect={handleEventSelect}
-        currentEventUuid={eventInfo?.eventUuid}
+        title="Select Event"
+        options={eventPickerOptions}
+        selectedValue={eventInfo?.eventUuid}
+        onSelect={(option: any) => {
+          const event = (events ?? []).find(
+            (e: any) => (e?.uuid ?? String(e?.id ?? '')) === option.value,
+          );
+          if (event) handleEventSelect(event);
+          else setEventsModalVisible(false);
+        }}
+        hasMore={(eventsPage ?? 0) + 1 < (eventsTotalPages ?? 1)}
+        isLoadingMore={eventsLoadingMore}
+        onLoadMore={loadMoreEventsForPicker}
       />
 
-      <Loader isLoading={loading} />
+      <Loader isLoading={loading || isEventLoading} />
     </View>
   );
 };

@@ -92,10 +92,13 @@ const BottomSheetRadioPicker: React.FC<BottomSheetRadioPickerProps> = ({
     setTimeout(() => onClose(), 260);
   };
 
+  const flatListScrollY = useRef(0);
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) =>
+        flatListScrollY.current <= 0 &&
         gestureState.dy > 10 &&
         Math.abs(gestureState.dy) > Math.abs(gestureState.dx),
       onPanResponderMove: (_, gestureState) => {
@@ -195,6 +198,10 @@ const BottomSheetRadioPicker: React.FC<BottomSheetRadioPickerProps> = ({
             onEndReachedThreshold={0.3}
             ListFooterComponent={renderFooter}
             nestedScrollEnabled
+            scrollEventThrottle={16}
+            onScroll={(e) => {
+              flatListScrollY.current = e.nativeEvent.contentOffset.y;
+            }}
           />
         </Animated.View>
       </View>

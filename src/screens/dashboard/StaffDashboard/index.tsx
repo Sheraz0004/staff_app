@@ -7,12 +7,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useDispatch, useSelector } from "react-redux";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import SvgIcons from "../../../components/SvgIcons";
 import Loader from "../../../components/Loader/Loader";
-import EventsModal from "../../../components/EventsModal";
+import BottomSheetRadioPicker from "../../../constants/bottomSheetRadioPicker";
 import { dashboardsalesscantab } from "../../../constants/dashboardsalesscantab";
 import { formatDateWithMonthName } from "../../../constants/dateAndTime";
 import { truncateEventName } from "../../../utils/stringUtils";
@@ -20,6 +21,19 @@ import { color } from "../../../color/color";
 import { logger } from "../../../utils/logger";
 import { useApi } from "../../../services/useApi";
 import { DASHBOARD_SERVICES } from "../../../services/DashboardService";
+import {
+  selectEvents,
+  selectEventsPage,
+  selectEventsTotalPages,
+  selectEventsLoadingMore,
+  setEvents,
+  appendEvents,
+  setEventsLoading,
+  setEventsError,
+  setEventsPage,
+  setEventsTotalPages,
+  setEventsLoadingMore,
+} from "../../../redux/reducers/dashboardReducer";
 import AdminOverallStatistics from "../AdminOverallStatistics";
 import AnalyticsChart from "../AnalyticsChart";
 import AdminBoxOfficePaymentChannel from "../AdminBoxOfficePaymentChannel";
@@ -32,6 +46,7 @@ import ScanListComponent, { ScanListHandle } from "../ScanListComponent";
 import { styles } from "./index.styles";
 
 const StaffDashboard: React.FC = () => {
+  const dispatch = useDispatch();
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
@@ -50,10 +65,16 @@ const StaffDashboard: React.FC = () => {
   const [localEventInfo, setLocalEventInfo] = useState<any>(null);
   const eventInfo = localEventInfo || initialEventInfo;
 
+  const events = useSelector(selectEvents) ?? [];
+  const eventsPage = useSelector(selectEventsPage) ?? 0;
+  const eventsTotalPages = useSelector(selectEventsTotalPages) ?? 1;
+  const eventsLoadingMore = useSelector(selectEventsLoadingMore) ?? false;
+
   const [selectedSaleScanTab, setSelectedSaleScanTab] = useState(
     dashboardsalesscantab[0],
   );
   const [dashboardStats, setDashboardStats] = useState<any>(null);
+  const [isEventLoading, setIsEventLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [eventsModalVisible, setEventsModalVisible] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<any>(null);
@@ -63,23 +84,97 @@ const StaffDashboard: React.FC = () => {
   const [scanAnalyticsTitle, setScanAnalyticsTitle] = useState("");
   const [activeScanAnalytics, setActiveScanAnalytics] = useState<any>(null);
 
-  const { loading, requestCall: fetchStaffEventStats } = useApi(
-    DASHBOARD_SERVICES.fetchStaffEventStats,
+  const { loading, requestCall: fetchStaffStatsOverview } = useApi(
+    DASHBOARD_SERVICES.fetchStaffStatsOverview,
     false,
     false,
   );
 
   useEffect(() => {
-    if (!staffUuid) return;
-    fetchStaffEventStats(staffUuid)
+    const eventId = eventInfo?.eventUuid;
+    if (!eventId || !staffUuid) return;
+
+    fetchStaffStatsOverview({ eventId, staffUuid })
       .then((res: any) => {
         setDashboardStats(res?.data);
+        console.log("object", res?.data);
+        setIsEventLoading(false);
       })
       .catch((err: any) => {
         logger.error("[StaffDashboard] stats error:", err.response);
         setHasError(true);
+        setIsEventLoading(false);
       });
-  }, [staffUuid]);
+  }, [eventInfo?.eventUuid, staffUuid]);
+
+  const fetchEventsForPicker = async (page = 0) => {
+    if (page === 0) {
+      dispatch(setEventsLoading(true));
+      dispatch(setEventsError(null));
+    } else {
+      dispatch(setEventsLoadingMore(true));
+    }
+    try {
+      const response = await DASHBOARD_SERVICES.fetchEvents(page);
+      const data = response?.data?.data ?? [];
+      const totalPages = response?.data?.totalPages ?? 1;
+      const currentPage = response?.data?.currentPage ?? page;
+      if (page === 0) {
+        dispatch(setEvents(data));
+      } else {
+        dispatch(appendEvents(data));
+      }
+      dispatch(setEventsPage(currentPage));
+      dispatch(setEventsTotalPages(totalPages));
+    } catch (error: any) {
+      dispatch(setEventsError(error?.message ?? "Failed to fetch events"));
+    } finally {
+      if (page === 0) {
+        dispatch(setEventsLoading(false));
+      } else {
+        dispatch(setEventsLoadingMore(false));
+      }
+    }
+  };
+
+  const loadMoreEventsForPicker = () => {
+    const nextPage = (eventsPage ?? 0) + 1;
+    if (nextPage < (eventsTotalPages ?? 1) && !eventsLoadingMore) {
+      fetchEventsForPicker(nextPage);
+    }
+  };
+
+  const eventPickerOptions = (events ?? []).map((e: any) => ({
+    label: e?.title ?? "",
+    value: e?.uuid ?? String(e?.id ?? ""),
+  }));
+
+  const handleEventSelect = (event: any) => {
+    setEventsModalVisible(false);
+
+    setTimeout(() => {
+      const eventUuid = event.uuid || event.eventUuid || String(event.id ?? "");
+      if (eventUuid && eventUuid !== eventInfo?.eventUuid) {
+        setIsEventLoading(true);
+        setDashboardStats(null);
+        setHasError(false);
+        setAnalyticsData(null);
+        setAnalyticsTitle("");
+        setActiveAnalytics(null);
+        setScanAnalyticsData(null);
+        setScanAnalyticsTitle("");
+        setActiveScanAnalytics(null);
+
+        setLocalEventInfo({
+          ...eventInfo,
+          eventUuid,
+          event_title: event.title || event.event_title || event.name,
+          date: event.start_date || event.date || eventInfo?.date,
+          time: event.start_time || event.time || eventInfo?.time,
+        });
+      }
+    }, 1000);
+  };
 
   const handleAnalyticsPress = (
     ticketType: any,
@@ -317,7 +412,10 @@ const StaffDashboard: React.FC = () => {
               </Text>
               <TouchableOpacity
                 style={styles.dropdownButton}
-                onPress={() => setEventsModalVisible(true)}
+                onPress={() => {
+                  if ((events ?? []).length === 0) fetchEventsForPicker(0);
+                  setEventsModalVisible(true);
+                }}
               >
                 <SvgIcons.downArrowWhite
                   width={12}
@@ -354,7 +452,8 @@ const StaffDashboard: React.FC = () => {
         <View style={styles.emptyStateContainer}>
           <Text style={styles.emptyStateTitle}>No Stats Available</Text>
           <Text style={styles.emptyStateSubtext}>
-            This staff member has no event assigned or stats could not be loaded.
+            This staff member has no event assigned or stats could not be
+            loaded.
           </Text>
         </View>
       ) : loading && !dashboardStats ? null : (
@@ -369,7 +468,8 @@ const StaffDashboard: React.FC = () => {
           extraScrollHeight={40}
           scrollEventThrottle={400}
           onScroll={({ nativeEvent }: { nativeEvent: any }) => {
-            const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+            const { layoutMeasurement, contentOffset, contentSize } =
+              nativeEvent;
             const nearBottom =
               layoutMeasurement.height + contentOffset.y >=
               contentSize.height - 300;
@@ -435,24 +535,24 @@ const StaffDashboard: React.FC = () => {
         </KeyboardAwareScrollView>
       )}
 
-      <EventsModal
+      <BottomSheetRadioPicker
         visible={eventsModalVisible}
         onClose={() => setEventsModalVisible(false)}
-        onEventSelect={(event: any) => {
-          if (event.uuid !== eventInfo?.eventUuid) {
-            setLocalEventInfo({
-              ...eventInfo,
-              eventUuid: event.uuid || event.eventUuid,
-              event_title: event.title || event.event_title || event.name,
-              date: event.start_date || event.date || eventInfo?.date,
-              time: event.start_time || event.time || eventInfo?.time,
-            });
-          }
-          setEventsModalVisible(false);
+        title="Select Event"
+        options={eventPickerOptions}
+        selectedValue={eventInfo?.eventUuid}
+        onSelect={(option: any) => {
+          const event = (events ?? []).find(
+            (e: any) => (e?.uuid ?? String(e?.id ?? "")) === option.value,
+          );
+          if (event) handleEventSelect(event);
+          else setEventsModalVisible(false);
         }}
-        currentEventUuid={eventInfo?.eventUuid}
+        hasMore={(eventsPage ?? 0) + 1 < (eventsTotalPages ?? 1)}
+        isLoadingMore={eventsLoadingMore}
+        onLoadMore={loadMoreEventsForPicker}
       />
-      <Loader isLoading={loading} />
+      <Loader isLoading={loading || isEventLoading} />
     </View>
   );
 };
