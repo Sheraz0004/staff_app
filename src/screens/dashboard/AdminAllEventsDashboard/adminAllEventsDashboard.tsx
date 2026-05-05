@@ -13,7 +13,7 @@ import { getUser } from "../../../redux/reducers/userReducer";
 import SvgIcons from "../../../components/SvgIcons";
 import { color } from "../../../color/color";
 import Typography from "../../../components/Typography";
-import BottomSheetRadioPicker from "../../../constants/bottomSheetRadioPicker";
+import BottomSheetRadioPicker, { RadioOption } from "../../../constants/bottomSheetRadioPicker";
 import AdminEarningCard from "./AdminEarningCard";
 import AdminAttendeesCard from "./AdminAttendeesCard";
 import AdminEventCard from "./AdminEventCard";
@@ -84,11 +84,6 @@ import {
 } from "../../../redux/reducers/dashboardReducer";
 import Loader from "@components/Loader/Loader";
 import Svg, { Circle, Path, Line, Rect } from "react-native-svg";
-
-interface RadioOption {
-  label: string;
-  value: string;
-}
 
 interface DateRange {
   startDate: Date;
@@ -263,17 +258,22 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
 
   const fetchDashboardData = async () => {
     const params = buildParams();
+    console.log("[Dashboard] fetchDashboardData → params:", JSON.stringify(params, null, 2));
     dispatch(setDashboardDataLoading(true));
     dispatch(setDashboardDataError(null));
     try {
       const response = await DASHBOARD_SERVICES.fetchDashboardStats(params);
-      // console.log("response dasboard--->",response)
+      console.log("[Dashboard] fetchDashboardStats → status:", response?.status);
+      console.log("[Dashboard] fetchDashboardStats → data:", JSON.stringify(response?.data, null, 2));
       dispatch(setDashboardData(response?.data ?? {}));
     } catch (error: any) {
       const status = error?.response?.status;
+      console.log("[Dashboard] fetchDashboardStats → ERROR status:", status);
+      console.log("[Dashboard] fetchDashboardStats → ERROR response data:", JSON.stringify(error?.response?.data, null, 2));
+      console.log("[Dashboard] fetchDashboardStats → ERROR message:", error?.message);
       dispatch(
         setDashboardDataError(
-          status === 502 ? "502" : (error?.message ?? "Failed to fetch dashboard data"),
+          status === 502 ? "502" : status === 403 ? "403" : (error?.message ?? "Failed to fetch dashboard data"),
         ),
       );
     } finally {
@@ -598,7 +598,7 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
           <View style={styles.headerDivider} />
           <TouchableOpacity
             style={styles.avatar}
-            onPress={() => navigation.navigate('Profile', { userRole: 'ADMIN' })}
+            onPress={() => navigation.navigate('Profile', { userRole: currentUser?.role ?? 'ADMIN' })}
             activeOpacity={0.7}
           >
             {currentUser?.profile_image ? (
@@ -628,6 +628,14 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
               <Rect x="37.5" y="50" width="5" height="14" rx="2.5" fill="#EF3E32" />
               <Circle cx="40" cy="69" r="3" fill="#EF3E32" />
             </Svg>
+          ) : dashboardDataError === "403" ? (
+            <Svg width={80} height={80} viewBox="0 0 80 80" fill="none">
+              <Circle cx="40" cy="40" r="38" fill="#FFF6DF" stroke="#F7E4B6" strokeWidth="1.5" />
+              <Rect x="28" y="38" width="24" height="18" rx="3" fill="#E4D5C0" stroke="#CEBCA0" strokeWidth="1.5" />
+              <Path d="M33 38 V30 C33 24.477 47 24.477 47 30 V38" stroke="#AE6F28" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+              <Circle cx="40" cy="47" r="3" fill="#AE6F28" />
+              <Rect x="39" y="47" width="2" height="5" rx="1" fill="#AE6F28" />
+            </Svg>
           ) : (
             <Svg width={80} height={80} viewBox="0 0 80 80" fill="none">
               <Circle cx="40" cy="40" r="38" fill="#FFF6DF" stroke="#F7E4B6" strokeWidth="1.5" />
@@ -639,20 +647,28 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
             </Svg>
           )}
           <Text style={styles.errorTitle}>
-            {dashboardDataError === "502" ? "Server Unavailable" : "Network Error"}
+            {dashboardDataError === "502"
+              ? "Server Unavailable"
+              : dashboardDataError === "403"
+              ? "Access Denied"
+              : "Network Error"}
           </Text>
           <Text style={styles.errorSubtitle}>
             {dashboardDataError === "502"
               ? "The server is temporarily unavailable.\nPlease try again in a few moments."
+              : dashboardDataError === "403"
+              ? "You don't have permission to view\nthis dashboard. Contact your admin."
               : "Unable to load dashboard data.\nCheck your connection and try again."}
           </Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={fetchDashboardData}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.retryButtonText}>Reload</Text>
-          </TouchableOpacity>
+          {dashboardDataError !== "403" && (
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={fetchDashboardData}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.retryButtonText}>Reload</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : (
         <ScrollView
@@ -724,7 +740,7 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
         options={eventTypeOptions}
         selectedValue={selectedEventTypeValue}
         onSelect={(option: RadioOption) =>
-          dispatch(setSelectedEventTypeValue(option?.value ?? "all"))
+          dispatch(setSelectedEventTypeValue(String(option?.value ?? "all")))
         }
       />
 
@@ -735,7 +751,7 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
         options={ticketingTypeOptions}
         selectedValue={selectedTicketingTypeValue}
         onSelect={(option: RadioOption) =>
-          dispatch(setSelectedTicketingTypeValue(option?.value ?? "all"))
+          dispatch(setSelectedTicketingTypeValue(String(option?.value ?? "all")))
         }
       />
 
@@ -746,7 +762,7 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
         options={organizationOptions}
         selectedValue={selectedOrganizationValue}
         onSelect={(option: RadioOption) =>
-          dispatch(setSelectedOrganizationValue(option?.value ?? "all"))
+          dispatch(setSelectedOrganizationValue(String(option?.value ?? "all")))
         }
         hasMore={(organizationsPage ?? 0) + 1 < (organizationsTotalPages ?? 1)}
         isLoadingMore={organizationsLoadingMore}

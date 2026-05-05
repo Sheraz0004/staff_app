@@ -125,7 +125,7 @@ const Header: React.FC<HeaderProps> = ({
           params: { eventInfo },
         });
       } else if (tab === "Manual") {
-        if (userRole === "ADMIN") {
+        if (userRole === "ADMIN" || userRole === "ORGANIZER") {
           if (currentRouteName === "ManualScanDetail") return;
           navigation.navigate("ManualScanDetail", {
             eventInfo,
@@ -140,7 +140,7 @@ const Header: React.FC<HeaderProps> = ({
           });
         }
       } else if (tab === "Sell") {
-        if (userRole === "ADMIN") {
+        if (userRole === "ADMIN" || userRole === "ORGANIZER") {
           if (currentRouteName === "TicketsDetail") return;
           navigation.navigate("Home", {
             screen: "Tickets",
@@ -157,7 +157,7 @@ const Header: React.FC<HeaderProps> = ({
       if (tab === "Auto") {
         navigation.navigate("Check In");
       } else if (tab === "Manual") {
-        if (userRole === "ADMIN") {
+        if (userRole === "ADMIN" || userRole === "ORGANIZER") {
           navigation.navigate("ManualScanDetail", {
             eventInfo,
             userRole,
@@ -167,7 +167,7 @@ const Header: React.FC<HeaderProps> = ({
           navigation.navigate("Manual");
         }
       } else if (tab === "Sell") {
-        if (userRole === "ADMIN") {
+        if (userRole === "ADMIN" || userRole === "ORGANIZER") {
           navigation.navigate("Tickets", { eventInfo });
         } else {
           navigation.navigate("Tickets", { screen: "BoxOfficeTab" });
@@ -177,7 +177,7 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   const handleCountPress = (): void => {
-    if (userRole === "ADMIN") {
+    if (userRole === "ADMIN" || userRole === "ORGANIZER") {
       const currentRouteName = route.name;
       if (currentRouteName === "TicketsDetail") {
         navigation.setParams({

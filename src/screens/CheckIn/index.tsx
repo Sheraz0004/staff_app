@@ -307,7 +307,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         />
       <View
         style={
-          userRole === "ADMIN"
+          userRole === "ADMIN" || userRole === "ORGANIZER"
             ? styles.darkBackgroundAdmin
             : styles.darkBackground
         }
