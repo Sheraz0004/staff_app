@@ -20,6 +20,8 @@ export const AUTH_SERVICES = {
 
   fetchUserProfile: () => HTTP_CLIENT.get(API_CONFIG.AUTH.userProfile),
 
+  fetchProfileMe: () => HTTP_CLIENT.get("/api/users/me"),
+
   updateProfile: (formData: FormData) =>
     HTTP_CLIENT.patch("/api/users/profile", formData, {
       headers: { "Content-Type": "multipart/form-data" },

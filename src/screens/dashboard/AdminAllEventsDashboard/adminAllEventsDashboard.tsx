@@ -7,6 +7,7 @@ import {
   Image,
   Text,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { useDispatch, useSelector } from "react-redux";
 import { getUser } from "../../../redux/reducers/userReducer";
 import SvgIcons from "../../../components/SvgIcons";
@@ -128,6 +129,7 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
   renderEventContent,
 }) => {
   const dispatch = useDispatch();
+  const navigation = useNavigation<any>();
   const currentUser = useSelector(getUser);
   // console.log("currentUser--->",currentUser)
   const eventTypes = useSelector(selectEventTypes) ?? [];
@@ -594,7 +596,11 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
             <SvgIcons.bellIcon width={28} height={28} fill="transparent" />
           </TouchableOpacity>
           <View style={styles.headerDivider} />
-          <View style={styles.avatar}>
+          <TouchableOpacity
+            style={styles.avatar}
+            onPress={() => navigation.navigate('Profile', { userRole: 'ADMIN' })}
+            activeOpacity={0.7}
+          >
             {currentUser?.profile_image ? (
               <Image
                 source={{ uri: currentUser.profile_image }}
@@ -604,7 +610,7 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
             ) : (
               <SvgIcons.profileImage width={40} height={40} />
             )}
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
 

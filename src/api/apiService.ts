@@ -101,13 +101,18 @@ apiClient.interceptors.response.use(
 
     if (error.response?.status === 401) {
       try {
-        await SecureStore.deleteItemAsync("accessToken");
+        await Promise.all([
+          SecureStore.deleteItemAsync("accessToken").catch(() => {}),
+          SecureStore.deleteItemAsync("refreshToken").catch(() => {}),
+          offlineStorage.clearAllData(),
+          require("../redux/store").persistor?.purge(),
+        ]);
       } catch (clearError) {
-        logger.error("Error clearing token from SecureStore:", clearError);
+        logger.error("Error clearing session on 401:", clearError);
       }
       const { logout } = require("../redux/reducers/userReducer");
       getStore()?.dispatch(logout());
-      logger.log("Token expired or invalid — auth cleared");
+      logger.log("Token expired or invalid — session cleared");
     }
 
     return Promise.reject(error);

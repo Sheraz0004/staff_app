@@ -498,6 +498,17 @@ class OfflineStorageService {
         }
     }
 
+    async clearAllData(): Promise<void> {
+        try {
+            const allKeys = await AsyncStorage.getAllKeys();
+            const offlineKeys = allKeys.filter((key) => key.startsWith('offline_'));
+            if (offlineKeys.length > 0) await AsyncStorage.multiRemove(offlineKeys);
+            logger.log(`Cleared all offline data (${offlineKeys.length} keys)`);
+        } catch (error) {
+            logger.error('Error clearing all offline data:', error);
+        }
+    }
+
     async cleanupAllOldData(): Promise<number> {
         try {
             const events = await this.getCachedEvents();
