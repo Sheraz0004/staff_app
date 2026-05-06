@@ -4,12 +4,12 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-  Image,
   Text,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useDispatch, useSelector } from "react-redux";
 import { getUser } from "../../../redux/reducers/userReducer";
+import ProfileImage from "../../../components/ProfileImage";
 import SvgIcons from "../../../components/SvgIcons";
 import { color } from "../../../color/color";
 import Typography from "../../../components/Typography";
@@ -126,7 +126,6 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
   const dispatch = useDispatch();
   const navigation = useNavigation<any>();
   const currentUser = useSelector(getUser);
-  // console.log("currentUser--->",currentUser)
   const eventTypes = useSelector(selectEventTypes) ?? [];
   const ticketingTypes = useSelector(selectTicketingTypes) ?? [];
   const organizations = useSelector(selectOrganizations) ?? [];
@@ -531,6 +530,7 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
                     <View style={dashboardStyles.overallStatisticsContainer}>
                       <AdminOverallStatistics
                         stats={dashboardStats}
+                        isLoading={dashboardLoading}
                         onTotalTicketsPress={onTotalTicketsPress ?? (() => {})}
                         onTotalScannedPress={onTotalScannedPress ?? (() => {})}
                         onTotalUnscannedPress={onTotalUnscannedPress ?? (() => {})}
@@ -601,10 +601,10 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
             onPress={() => navigation.navigate('Profile', { userRole: currentUser?.role ?? 'ADMIN' })}
             activeOpacity={0.7}
           >
-            {currentUser?.profile_image ? (
-              <Image
-                source={{ uri: currentUser.profile_image }}
-                style={{ width: 40, height: 40, borderRadius: 20 }}
+            {currentUser?.profileImage ?? currentUser?.profile_image ? (
+              <ProfileImage
+                uri={currentUser.profileImage ?? currentUser.profile_image}
+                style={{ width: 40, height: 40, borderRadius: 40 }}
                 resizeMode="cover"
               />
             ) : (

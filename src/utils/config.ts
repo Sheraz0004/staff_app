@@ -14,12 +14,11 @@ const HTTP_CLIENT: AxiosInstance = axios.create({
 
 HTTP_CLIENT.interceptors.request.use(
   async (config: AxiosRequestConfig): Promise<any> => {
-    // Prefer in-memory token from Redux; fall back to SecureStore
-    let token: string | null = (store.getState() as any)?.auth?.accessToken ?? null;
-    console.log({token})
-    if (!token) {
-      token = await SecureStore.getItemAsync("accessToken");
-    }
+    let token: string | null = (store.getState() as any)?.entities?.user?.userToken ?? null;
+    // // if (!token) {
+    // //   token = await SecureStore.getItemAsync("accessToken");
+    // // }
+    // console.log("token-->",tokenNew)
 
     config.headers = {
       Accept: "application/json",

@@ -82,6 +82,7 @@ export const styles = StyleSheet.create({
         fontWeight: '400',
         color: color.drak_black_000000,
         marginLeft: 10,
+        flex: 1,
     },
     tabContainer: {
         flexDirection: 'row',

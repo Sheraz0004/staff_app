@@ -7,9 +7,9 @@ import {
   SafeAreaView,
   Platform,
   StatusBar,
-  Image,
   Alert,
 } from "react-native";
+import ProfileImage from "./ProfileImage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { color } from "../color/color";
 import SvgIcons from "./SvgIcons";
@@ -18,6 +18,8 @@ import {
   useRoute,
   useFocusEffect,
 } from "@react-navigation/native";
+import { useSelector } from "react-redux";
+import { getUser } from "../redux/reducers/userReducer";
 import { truncateCityName, truncateEventName } from "../utils/stringUtils";
 import { formatDateWithMonthName } from "../constants/dateAndTime";
 import { formatValue } from "../constants/formatValue";
@@ -58,11 +60,11 @@ const Header: React.FC<HeaderProps> = ({
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const insets = useSafeAreaInsets();
+  const currentUser = useSelector(getUser);
   const [localActiveTab, setLocalActiveTab] = useState<string>("Manual");
   const activeTab =
     activeTabProp !== undefined ? activeTabProp : localActiveTab;
   const [userData, setUserData] = useState<any>(null);
-  const [profileImage, setProfileImage] = useState<any>(null);
   const [currentScanCount, setCurrentScanCount] = useState<number | string>(
     eventInfo?.scanCount || "0",
   );
@@ -271,24 +273,24 @@ const Header: React.FC<HeaderProps> = ({
                   navigation.navigate("Profile", { userRole, eventInfo })
                 }
               >
-                {profileImage ? (
-                  <Image
-                    source={profileImage}
+                {currentUser?.profileImage ?? currentUser?.profile_image ?? userData?.profileImage ?? userData?.profile_image ? (
+                  <ProfileImage
+                    uri={currentUser?.profileImage ?? currentUser?.profile_image ?? userData?.profileImage ?? userData?.profile_image}
                     style={styles.avatar}
                     resizeMode="cover"
-                  />
-                ) : userData?.profile_image ? (
-                  <Image
-                    source={{ uri: userData.profile_image }}
-                    style={styles.avatar}
-                    resizeMode="contain"
                   />
                 ) : (
                   <SvgIcons.placeholderImage width={22} height={22} />
                 )}
               </TouchableOpacity>
               <Text style={styles.staffName} numberOfLines={1}>
-                {eventInfo?.staff_name || "John Doe"}
+                {[
+                  currentUser?.firstName ?? currentUser?.first_name,
+                  currentUser?.lastName ?? currentUser?.last_name,
+                ].filter(Boolean).join(" ") ||
+                  (userData?.displayName ?? userData?.display_name) ||
+                  eventInfo?.staff_name ||
+                  "John Doe"}
               </Text>
             </View>
 

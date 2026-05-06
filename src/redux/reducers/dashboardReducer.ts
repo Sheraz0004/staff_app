@@ -261,6 +261,7 @@ export const dashboardReducer = createSlice({
     setEarningsLoading: (state, action: PayloadAction<boolean>) => {
       state.earningsLoading = action.payload;
     },
+    resetDashboard: () => initialState,
   },
 });
 
@@ -365,6 +366,9 @@ export const {
   setDashboardDataLoading,
   setDashboardDataError,
   setEarningsLoading,
+  resetDashboard,
 } = dashboardReducer.actions;
+
+export { resetDashboard };
 
 export default dashboardReducer.reducer;

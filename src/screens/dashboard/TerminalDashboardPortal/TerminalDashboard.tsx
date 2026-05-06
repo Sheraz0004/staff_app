@@ -8,6 +8,9 @@ import {
     Animated,
     Dimensions,
 } from 'react-native';
+import { useSelector } from 'react-redux';
+import { getUser } from '../../../redux/reducers/userReducer';
+import ProfileImage from '../../../components/ProfileImage';
 import SvgIcons from '../../../components/SvgIcons';
 import { color } from '../../../color/color';
 import Typography from '../../../components/Typography';
@@ -719,6 +722,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ visible, onClose, onD
 
 // Main Dashboard Component
 const TerminalDashboard: React.FC = () => {
+    const currentUser = useSelector(getUser);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [selectedDate, setSelectedDate] = useState('Jan 23, 2026');
 
@@ -778,7 +782,15 @@ const TerminalDashboard: React.FC = () => {
                     </TouchableOpacity>
                     <View style={styles.headerDivider} />
                     <View style={styles.avatar}>
-                        <SvgIcons.profileImage width={40} height={40} />
+                        {currentUser?.profileImage ?? currentUser?.profile_image ? (
+                            <ProfileImage
+                                uri={currentUser.profileImage ?? currentUser.profile_image}
+                                style={{ width: 40, height: 40, borderRadius: 20 }}
+                                resizeMode="cover"
+                            />
+                        ) : (
+                            <SvgIcons.profileImage width={40} height={40} />
+                        )}
                     </View>
                 </View>
             </View>

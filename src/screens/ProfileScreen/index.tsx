@@ -8,7 +8,10 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  ActivityIndicator,
 } from "react-native";
+import ProfileImageComponent from "../../components/ProfileImage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useDispatch, useSelector } from "react-redux";
@@ -19,6 +22,7 @@ import {
   setUser,
   loginSuccess,
 } from "../../redux/reducers/userReducer";
+import { resetDashboard } from "../../redux/reducers/dashboardReducer";
 import { clearUserSession } from "../../utils/clearUserSession";
 import SvgIcons from "../../components/SvgIcons";
 import * as ImagePicker from "expo-image-picker";
@@ -40,11 +44,13 @@ const ProfileScreen: React.FC = () => {
   const topPadding = Platform.OS === "android" ? 24 : insets.top;
   const currentUser = useSelector(getUser);
   const authToken = useSelector(userAuthToken);
+  console.log("currentUser--->", currentUser);
 
   const [profileImage, setProfileImage] = useState<ProfileImage | null>(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   useEffect(() => {
     if (currentUser) {
       setFirstName(currentUser.firstName ?? currentUser.first_name ?? "");
@@ -61,8 +67,8 @@ const ProfileScreen: React.FC = () => {
   const refreshProfileInRedux = async (): Promise<void> => {
     try {
       const profileResponse = await AUTH_SERVICES.fetchUserProfile();
-      const userData = profileResponse?.data;
-      console.log("userData--->",userData);
+      const apiBody = profileResponse?.data;
+      const userData = apiBody?.data ?? apiBody;
       dispatch(setUser({ user: userData }));
       dispatch(loginSuccess({ token: authToken, user: userData }));
     } catch (err: any) {
@@ -108,53 +114,75 @@ const ProfileScreen: React.FC = () => {
   };
 
   const handleSave = async (): Promise<void> => {
+    setIsSaving(true);
     try {
-      const formData = new FormData();
+      let profileImageUrl: string | undefined;
 
       if (profileImage) {
-        const fileType = profileImage.mimeType || "image/jpeg";
-        const ext = fileType.split("/")[1] || "jpg";
-        formData.append("profile_image", {
-          uri: profileImage.uri,
-          name: `profile.${ext}`,
-          type: fileType,
-        } as any);
+        const mimeType = profileImage.mimeType || "image/jpeg";
+        const ext = mimeType.split("/")[1] || "jpg";
+        const fileName = `profile-${Date.now()}.${ext}`;
+
+        // Step 1: get pre-signed upload URL
+        const uploadRequestRes = await AUTH_SERVICES.getUploadRequest(fileName);
+        const { accessUrl, uploadUrl } = uploadRequestRes.data;
+
+        // Step 2: PUT file binary to S3
+        await AUTH_SERVICES.uploadImageToS3(
+          uploadUrl,
+          profileImage.uri,
+          mimeType,
+        );
+
+        profileImageUrl = accessUrl;
       }
 
-      const reduxFirstName =
-        currentUser?.firstName ?? currentUser?.firstName ?? "";
-      const reduxLastName =
-        currentUser?.lastName ?? currentUser?.lastName ?? "";
+      // Step 3: PATCH profile with access URL + name fields
+      const body: {
+        profileImage?: string;
+        firstName?: string;
+        lastName?: string;
+      } = {
+        firstName,
+        lastName,
+      };
+      if (profileImageUrl) {
+        body.profileImage = profileImageUrl;
+      }
 
-      // if (firstName !== reduxFirstName) {
-        formData.append("firstName", firstName);
-      // }
-      // if (lastName !== reduxLastName) {
-        formData.append("lastName", lastName);
-      // }
-
-      console.log("formData--->",formData)
-      const res = await saveProfile(formData);
+      const res = await saveProfile(body);
 
       if (res) {
         showSuccessToast("Profile updated successfully.");
-        setProfileImage(null);
         setHasChanges(false);
         await refreshProfileInRedux();
+        setProfileImage(null);
       }
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleLogout = async (): Promise<void> => {
-    dispatch(logout());
-    await clearUserSession();
+  const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
+
+  const handleLogoutConfirm = async (): Promise<void> => {
+    setLogoutLoading(true);
+    try {
+      await AUTH_SERVICES.logout();
+      dispatch(resetDashboard());
+      dispatch(logout());
+      await clearUserSession();
+    } catch (_) {
+      console.log("_---->",_?.response?.data)
+      showErrorToast("Failed to log out. Please try again.");
+      setLogoutLoading(false);
+      setLogoutConfirmVisible(false);
+    }
   };
 
-  const avatarUri =
-    profileImage?.uri ??
-    currentUser?.profileImage ??
-    currentUser?.profile_image ??
-    null;
+  const savedAvatarUri = currentUser?.profileImage ?? currentUser?.profile_image ?? null;
 
   const displayName =
     firstName || lastName
@@ -171,7 +199,7 @@ const ProfileScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <Loader isLoading={saveLoading} />
+      <Loader isLoading={isSaving || saveLoading} />
       <View style={[styles.header, { paddingTop: topPadding }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -198,9 +226,15 @@ const ProfileScreen: React.FC = () => {
                 style={styles.avatarContainer}
                 onPress={pickImage}
               >
-                {avatarUri ? (
+                {profileImage?.uri ? (
                   <Image
-                    source={{ uri: avatarUri }}
+                    source={{ uri: profileImage.uri }}
+                    style={styles.avatar}
+                    resizeMode="cover"
+                  />
+                ) : savedAvatarUri ? (
+                  <ProfileImageComponent
+                    uri={savedAvatarUri}
                     style={styles.avatar}
                     resizeMode="cover"
                   />
@@ -262,7 +296,7 @@ const ProfileScreen: React.FC = () => {
           <View style={styles.menuSection}>
             <TouchableOpacity
               style={styles.logoutButton}
-              onPress={handleLogout}
+              onPress={() => setLogoutConfirmVisible(true)}
             >
               <SvgIcons.logoutMenuIcon width={24} height={24} />
               <Text style={styles.logoutText}>Log Out</Text>
@@ -280,6 +314,47 @@ const ProfileScreen: React.FC = () => {
           <Text style={styles.saveButtonText}>Save Changes</Text>
         </TouchableOpacity>
       )}
+
+      <Modal
+        visible={logoutConfirmVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => !logoutLoading && setLogoutConfirmVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => !logoutLoading && setLogoutConfirmVisible(false)}
+        >
+          <View style={[styles.logoutSheet, { paddingBottom: insets.bottom + 1 }]}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Log Out</Text>
+            <Text style={styles.sheetSubtitle}>Are you sure you want to log out?</Text>
+            <View style={styles.sheetButtonRow}>
+              <TouchableOpacity
+                style={styles.sheetCancelButton}
+                onPress={() => setLogoutConfirmVisible(false)}
+                activeOpacity={0.7}
+                disabled={logoutLoading}
+              >
+                <Text style={styles.sheetCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.sheetLogoutButton}
+                onPress={handleLogoutConfirm}
+                activeOpacity={0.85}
+                disabled={logoutLoading}
+              >
+                {logoutLoading ? (
+                  <ActivityIndicator color="#FFF6DF" size="small" />
+                ) : (
+                  <Text style={styles.sheetLogoutButtonText}>Log Out</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };

@@ -529,6 +529,7 @@ const DashboardDetail: React.FC<DashboardDetailProps> = ({
         >
           <AdminOverallStatistics
             stats={dashboardStats}
+            isLoading={loading || isEventLoading}
             onTotalTicketsPress={() => {}}
             onTotalScannedPress={() => {}}
             onTotalUnscannedPress={() => {}}

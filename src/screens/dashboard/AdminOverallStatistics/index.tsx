@@ -80,6 +80,7 @@ interface AdminOverallStatisticsProps {
     onTotalUnscannedPress: () => void;
     onAvailableTicketsPress: () => void;
     showOnlyTopRow?: boolean;
+    isLoading?: boolean;
 }
 
 const AdminOverallStatistics: React.FC<AdminOverallStatisticsProps> = ({
@@ -89,6 +90,7 @@ const AdminOverallStatistics: React.FC<AdminOverallStatisticsProps> = ({
     onTotalUnscannedPress,
     onAvailableTicketsPress,
     showOnlyTopRow = false,
+    isLoading = false,
 }) => {
     const ticketStats = stats?.tickets || {};
     const totalTickets = ticketStats?.totalTickets || 0;
@@ -101,7 +103,7 @@ const AdminOverallStatistics: React.FC<AdminOverallStatisticsProps> = ({
             <View style={styles.wrapper}>
                 <Text style={styles.heading}>Tickets Statistics</Text>
 
-                {totalTickets === 0 ? (
+                {!isLoading && totalTickets === 0 ? (
                     <NoDataMessage
                         message="No Ticket Data Available"
                         subtext="Ticket statistics will appear once tickets are configured for this event."

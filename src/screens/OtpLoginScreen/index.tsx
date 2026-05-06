@@ -114,7 +114,8 @@ const OtpLoginScreen: React.FC<OtpLoginScreenProps> = ({ route }) => {
         await SecureStore.setItemAsync("refreshToken", refreshToken);
       }
       const profileResponse = await AUTH_SERVICES.fetchUserProfile();
-      const userData = profileResponse?.data;
+      const apiBody = profileResponse?.data;
+      const userData = apiBody?.data ?? apiBody;
 
       dispatch(setUser({ user: userData }));
       dispatch(loginSuccess({ token: authToken, user: userData }));
