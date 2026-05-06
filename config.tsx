@@ -125,6 +125,50 @@ const API_CONFIG = {
       if (search) url += `&search=${encodeURIComponent(search)}`;
       return url;
     },
+    userTickets: (params: {
+      eventId: string;
+      page?: number;
+      pageSize?: number;
+      status?: string;
+      checkinStatus?: string;
+      search?: string;
+      ticketTypes?: string;
+      scannedBy?: string;
+      boughtBy?: string;
+      staffUuid?: string;
+    }) => {
+      const { eventId, page = 1, pageSize = 20, status, checkinStatus, search, ticketTypes, scannedBy, boughtBy, staffUuid } = params;
+      let url = `/api/user-tickets/?event_id=${eventId}&page=${page}&page_size=${pageSize}`;
+      if (status) url += `&status=${status}`;
+      if (checkinStatus) url += `&checkin_status=${checkinStatus}`;
+      if (search) url += `&search=${encodeURIComponent(search)}`;
+      if (ticketTypes) url += `&ticket_types=${encodeURIComponent(ticketTypes)}`;
+      if (scannedBy) url += `&scanned_by=${scannedBy}`;
+      if (boughtBy) url += `&bought_by=${boughtBy}`;
+      if (staffUuid) url += `&staff_uuid=${staffUuid}`;
+      return url;
+    },
+    ticketDetails: (ticketNumber: string) => `/api/ticket/${ticketNumber}/details/`,
+  },
+  EVENT_STATS: {
+    dashboardStats: (params: {
+      eventUuid: string;
+      sales?: string | null;
+      ticketType?: string | null;
+      ticketUuid?: string | null;
+      staffUuid?: string | null;
+      paymentChannel?: string | null;
+    }) => {
+      const base = "/api/event/stats/";
+      const queryParams: string[] = [`event_id=${params.eventUuid}`];
+      if (params.sales) queryParams.push(`sales=${params.sales}`);
+      if (params.ticketType) queryParams.push(`ticket_type=${params.ticketType}`);
+      if (params.ticketUuid) queryParams.push(`ticket_uuid=${params.ticketUuid}`);
+      if (params.staffUuid) queryParams.push(`staff_uuid=${params.staffUuid}`);
+      if (params.paymentChannel) queryParams.push(`payment_channel=${params.paymentChannel}`);
+      return `${base}?${queryParams.join("&")}`;
+    },
+    adminTerminals: (eventUuid: string) => `/api/event/dashboard/terminals/?event_id=${eventUuid}`,
   },
 };
 

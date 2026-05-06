@@ -17,7 +17,8 @@ import {
 } from "react-native";
 import { color } from "../../../color/color";
 import SvgIcons from "../../../components/SvgIcons";
-import { ticketService, BASE_URL } from "../../../api/apiService";
+import { TICKET_SERVICES } from "../../../services/TicketService";
+import API_CONFIG from "../../../../config";
 import QRCode from "react-native-qrcode-svg";
 import { useNavigation } from "@react-navigation/native";
 import NoResults from "../../../components/NoResults";
@@ -53,12 +54,12 @@ const ScanListComponent = forwardRef<ScanListHandle, ScanListComponentProps>(
   ({ eventInfo, onScanCountUpdate, staffUuid, isActive }, ref) => {
     const navigation = useNavigation();
     const { loading: isLoading, requestCall: callFetch } = useApi(
-      ticketService.fetchUserTickets,
+      TICKET_SERVICES.fetchUserTickets,
       false,
       false,
     );
     const { loading: isLoadingMore, requestCall: callFetchMore } = useApi(
-      ticketService.fetchUserTickets,
+      TICKET_SERVICES.fetchUserTickets,
       false,
       false,
     );
@@ -104,7 +105,7 @@ const ScanListComponent = forwardRef<ScanListHandle, ScanListComponentProps>(
         "No Record",
       scanCount: ticket.scanCount ?? 0,
       lastScannedOn: ticket.scannedBy?.scannedOn || "No Record",
-      qrCodeUrl: `${BASE_URL}/api/ticket/scan/${ticket.eventId}/${ticket.code}/`,
+      qrCodeUrl: `${API_CONFIG.BASE_URL}/api/ticket/scan/${ticket.eventId}/${ticket.code}/`,
       currency: ticket.currency || "No Record",
       userfirstname: ticket.userFirstName,
       name:

@@ -5,7 +5,7 @@ import { color } from '../../../color/color';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import SvgIcons from '../../../components/SvgIcons';
 import AnalyticsChart from '../AnalyticsChart';
-import { ticketService } from '../../../api/apiService';
+import { DASHBOARD_SERVICES } from '../../../services/DashboardService';
 import BoxOfficeSales from '../BoxOfficeSales';
 import CheckInSoldTicketsCard from '../CheckInSolidTicketsCard';
 import ScanAnalytics from '../ScanAnalytics';
@@ -95,7 +95,7 @@ const AdminTerminalDashboard: React.FC = () => {
             staffUuid: staffUuid,
           });
 
-          const stats = await ticketService.fetchDashboardStats(currentEventInfo.eventUuid, salesParam, null, null, staffUuid);
+          const stats = await DASHBOARD_SERVICES.fetchEventStats({ eventUuid: currentEventInfo.eventUuid, sales: salesParam, staffUuid });
           setDashboardStats(stats);
           setError(null);
         }
@@ -140,8 +140,7 @@ const AdminTerminalDashboard: React.FC = () => {
     }
 
     try {
-      let salesParam = null;
-      const response = await ticketService.fetchDashboardStats(currentEventInfo.eventUuid, salesParam, ticketType, ticketUuid, staffUuid);
+      const response = await DASHBOARD_SERVICES.fetchEventStats({ eventUuid: currentEventInfo.eventUuid, ticketType, ticketUuid, staffUuid });
 
       let data = null;
       let aTitle = '';
@@ -187,8 +186,7 @@ const AdminTerminalDashboard: React.FC = () => {
     }
 
     try {
-      let salesParam = null;
-      const response = await ticketService.fetchDashboardStats(currentEventInfo.eventUuid, salesParam, parentCategory, ticketUuid, staffUuid);
+      const response = await DASHBOARD_SERVICES.fetchEventStats({ eventUuid: currentEventInfo.eventUuid, ticketType: parentCategory, ticketUuid, staffUuid });
 
       if (response?.data?.scan_analytics?.data) {
         const data = response.data.scan_analytics.data;
@@ -228,8 +226,7 @@ const AdminTerminalDashboard: React.FC = () => {
     }
 
     try {
-      let salesParam = null;
-      const response = await ticketService.fetchDashboardStats(currentEventInfo.eventUuid, salesParam, ticketType, ticketUuid, staffUuid);
+      const response = await DASHBOARD_SERVICES.fetchEventStats({ eventUuid: currentEventInfo.eventUuid, ticketType, ticketUuid, staffUuid });
 
       if (response?.data?.checkin_analytics?.data) {
         const data = response.data.checkin_analytics.data;

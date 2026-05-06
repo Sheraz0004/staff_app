@@ -1,6 +1,6 @@
 import { networkService } from './network';
 import { offlineQueue } from './offlineQueue';
-import { ticketService } from '../api/apiService';
+import { CHECK_IN_SERVICES } from '../services/CheckInService';
 import { logger } from './logger';
 
 interface SyncProgress {
@@ -149,17 +149,21 @@ class SyncService {
 
     async syncScanTicket(data: { scannedData: string; note: string | null }): Promise<void> {
         const { scannedData, note } = data;
-        await ticketService.scanTicket(scannedData, note);
+        const parts = scannedData.split('/api/ticket/scan/')[1]?.split('/');
+        const eventId = parts?.[0];
+        const code = parts?.[1];
+        if (!eventId || !code) throw new Error('Invalid scanned data format');
+        await CHECK_IN_SERVICES.scanTicket(`${eventId}:${code}`, note ?? undefined);
     }
 
     async syncUpdateNote(data: { code: string; note: string; eventUuid: string }): Promise<void> {
         const { code, note, eventUuid } = data;
-        await ticketService.updateTicketNote(code, note, eventUuid);
+        await CHECK_IN_SERVICES.updateTicketNote(code, note, eventUuid);
     }
 
     async syncManualCheckin(data: { uuid: string; code: string }): Promise<any> {
         const { uuid, code } = data;
-        const response = await ticketService.manualDetailCheckin(uuid, code);
+        const response = await CHECK_IN_SERVICES.manualCheckin(uuid, code);
         logger.log('Manual checkin synced successfully:', response);
         return response;
     }

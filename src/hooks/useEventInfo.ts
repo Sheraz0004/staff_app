@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { eventService } from '../api/apiService';
+import { EVENT_SERVICES } from '../services/EventService';
 import { fetchUpdatedScanCount, updateEventInfoScanCount } from '../utils/scanCountUpdater';
 import { logger } from '../utils/logger';
 
@@ -48,12 +48,12 @@ export const useEventInfo = (routeEventInfo: EventInformation | null, userId: st
                 const lastEventUuid = await SecureStore.getItemAsync('lastSelectedEventUuid');
 
                 if (lastEventUuid) {
-                    const res = await eventService.fetchEventInfo(lastEventUuid);
+                    const res = await EVENT_SERVICES.fetchEventInfo(lastEventUuid);
                     setEventInformation(transformEventInfo(res?.data, lastEventUuid));
                     return;
                 }
 
-                const staffRes = await eventService.fetchStaffEvents(userId);
+                const staffRes = await EVENT_SERVICES.fetchStaffEvents(userId);
                 const list = staffRes?.data;
                 if (!list?.length) return;
 
@@ -63,7 +63,7 @@ export const useEventInfo = (routeEventInfo: EventInformation | null, userId: st
 
                 const eventUuid = selected.uuid || selected.eventUuid;
                 await SecureStore.setItemAsync('lastSelectedEventUuid', eventUuid);
-                const res = await eventService.fetchEventInfo(eventUuid);
+                const res = await EVENT_SERVICES.fetchEventInfo(eventUuid);
                 setEventInformation(transformEventInfo(res?.data, eventUuid));
             } catch (error) {
                 logger.error('useEventInfo — error fetching event on mount:', error);
@@ -86,7 +86,7 @@ export const useEventInfo = (routeEventInfo: EventInformation | null, userId: st
 
         try {
             if (eventUuid) {
-                const { data } = await eventService.fetchEventInfo(eventUuid);
+                const { data } = await EVENT_SERVICES.fetchEventInfo(eventUuid);
                 resolved = {
                     staff_name: data?.staff_name || newEvent.staff_name,
                     event_title: data?.eventTitle || data?.event_title || newEvent.event_title || newEvent.title,

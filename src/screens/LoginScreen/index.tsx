@@ -96,6 +96,8 @@ const LoginScreen: React.FC = () => {
       const response = await requestCall({ key: identityKey, secret: values.password });
       const { traceId, maskedContact } = response?.data || {};
 
+      console.log("login ", response?.data);
+
       navigation.navigate('OtpLogin' as never, {
         traceId,
         maskedContact,

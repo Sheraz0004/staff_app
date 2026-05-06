@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text } from 'react-native';
 import AnalyticsChart from '../AnalyticsChart';
 import { color } from '../../../color/color';
-import { ticketService } from '../../../api/apiService';
+import { DASHBOARD_SERVICES } from '../../../services/DashboardService';
 import { logger } from '../../../utils/logger';
 import { styles } from './index.styles';
 
@@ -99,14 +99,12 @@ const PaymentChannelAnalytics: React.FC<PaymentChannelAnalyticsProps> = ({ stats
                     salesParam = null; // For organizer, get all data
                 }
 
-                const response = await ticketService.fetchDashboardStats(
-                    eventInfo.eventUuid,
-                    salesParam,
-                    null,
-                    null,
-                    staffUuidParam,
-                    paymentChannelParam
-                );
+                const response = await DASHBOARD_SERVICES.fetchEventStats({
+                    eventUuid: eventInfo.eventUuid,
+                    sales: salesParam,
+                    staffUuid: staffUuidParam,
+                    paymentChannel: paymentChannelParam,
+                });
                 // Extract analytics data from response
                 // The backend returns payment_channel_analytics.data for the specific payment channel
                 const newAnalyticsData = response?.data?.payment_channel_analytics?.data ||

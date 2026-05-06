@@ -12,10 +12,11 @@ import {
     Animated,
     PanResponder,
 } from 'react-native';
+import { useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { color } from '../../../../color/color';
-import { eventService } from '../../../../api/apiService';
+import { EVENT_SERVICES } from '../../../../services/EventService';
 import { logger } from '../../../../utils/logger';
 import SvgIcons from '../../../../components/SvgIcons';
 import Typography from '../../../../components/Typography';
@@ -345,7 +346,7 @@ const TerminalEventsTab: React.FC<TerminalEventsTabProps> = ({ eventInfo, onEven
         const fetchEvents = async () => {
             try {
                 setLoading(true);
-                const staffEventsData = await eventService.fetchStaffEvents(authUser?.id);
+                const staffEventsData = await EVENT_SERVICES.fetchStaffEvents(authUser?.id);
                 const eventsList = staffEventsData?.data || [];
 
                 let events: any[] = [];

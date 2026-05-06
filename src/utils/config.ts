@@ -1,7 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 import API_CONFIG from "../../config";
 import store from "../redux/store";
-import * as SecureStore from "expo-secure-store";
 import { API_KEY } from "../config/env";
 
 const controller = new AbortController();
@@ -18,7 +17,7 @@ HTTP_CLIENT.interceptors.request.use(
     // // if (!token) {
     // //   token = await SecureStore.getItemAsync("accessToken");
     // // }
-    // console.log("token-->",tokenNew)
+    console.log("token-->",token)
 
     config.headers = {
       Accept: "application/json",

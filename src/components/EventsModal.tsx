@@ -7,8 +7,9 @@ import {
     ActivityIndicator,
     Alert,
 } from 'react-native';
+import { useSelector } from 'react-redux';
 import { color } from '../color/color';
-import { eventService } from '../api/apiService';
+import { EVENT_SERVICES } from '../services/EventService';
 import { Body1 } from './Typography';
 import { logger } from '../utils/logger';
 import { styles } from './EventsModal.styles';
@@ -31,6 +32,7 @@ const EventsModal: React.FC<EventsModalProps> = ({
     onEventSelect,
     currentEventUuid,
 }) => {
+    const currentUser = useSelector((state: any) => state.entities.user.user);
     const [events, setEvents] = useState<EventItem[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
@@ -45,7 +47,8 @@ const EventsModal: React.FC<EventsModalProps> = ({
         try {
             setLoading(true);
             setError(null);
-            const response = await eventService.fetchStaffEvents();
+            const staffId = currentUser?.id || currentUser?.uuid || currentUser?.staff_id;
+            const response = await EVENT_SERVICES.fetchStaffEvents(staffId);
 
             if (response?.data && response.data.length > 0) {
                 const eventsData = response.data;

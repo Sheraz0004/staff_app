@@ -4,7 +4,7 @@ import { View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator } 
 import { color } from '../../../color/color';
 import { useNavigation } from '@react-navigation/native';
 import SvgIcons from '../../../components/SvgIcons';
-import { ticketService } from '../../../api/apiService';
+import { DASHBOARD_SERVICES } from '../../../services/DashboardService';
 import NoResults from '../../../components/NoResults';
 import { logger } from '../../../utils/logger';
 import { formatValue } from '../../../constants/formatValue';
@@ -34,7 +34,7 @@ const TerminalsComponent: React.FC<TerminalsComponentProps> = ({ eventInfo, onEv
           return; // Important: Exit if eventUuid is missing
         }
 
-        const response = await ticketService.fetchAdminTerminals(eventInfo.eventUuid);
+        const response = await DASHBOARD_SERVICES.fetchAdminTerminals(eventInfo.eventUuid);
         logger.log('admin terminals response', response);
         if (response?.data) {
           setTicketOrders(response.data);

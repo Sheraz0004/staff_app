@@ -3,7 +3,8 @@ import { View, Text, TextInput, ScrollView, TouchableOpacity, Modal, ActivityInd
 import { color } from '../../../color/color';
 import { dashboardattendeestab } from '../../../constants/dashboardattendeestab';
 import SvgIcons from '../../../components/SvgIcons';
-import { ticketService, BASE_URL } from '../../../api/apiService';
+import { TICKET_SERVICES } from '../../../services/TicketService';
+import API_CONFIG from '../../../../config';
 import QRCode from 'react-native-qrcode-svg';
 import { useNavigation } from '@react-navigation/native';
 import NoResults from '../../../components/NoResults';
@@ -45,10 +46,10 @@ const AttendeesComponent: React.FC<AttendeesComponentProps> = ({ eventInfo, onSc
   const fetchTicketList = async (eventUuid: any) => {
     try {
       setIsLoading(true);
-      const res = await ticketService.ticketStatsListing(eventUuid, 'PAID');
+      const res = await TICKET_SERVICES.fetchUserTickets({ eventId: eventUuid, pageSize: -1, status: 'PAID' });
       const list = res?.data || [];
       const mappedTickets = list.map((ticket: any) => {
-        const qrCodeUrl = `${BASE_URL}ticket/scan/${ticket.event}/${ticket.code}/`;
+        const qrCodeUrl = `${API_CONFIG.BASE_URL}/api/ticket/scan/${ticket.event}/${ticket.code}/`;
         return {
           id: ticket.ticket_number || 'No Record',
           type: ticket.ticket_type || 'No Record',
@@ -84,7 +85,7 @@ const AttendeesComponent: React.FC<AttendeesComponentProps> = ({ eventInfo, onSc
 
   const fetchTicketStats = async (eventUuid: any) => {
     try {
-      const res = await ticketService.ticketStatsInfo(eventUuid);
+      const res = await TICKET_SERVICES.fetchStats(eventUuid);
       const statsData = res?.data?.data || {};
 
       setStats({

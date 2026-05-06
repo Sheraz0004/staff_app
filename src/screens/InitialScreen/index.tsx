@@ -4,7 +4,8 @@ import { useNavigation } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { color } from '../../color/color';
-import { eventService } from '../../api/apiService';
+import { EVENT_SERVICES } from '../../services/EventService';
+import store from '../../redux/store';
 import { logger } from '../../utils/logger';
 import { styles } from './index.styles';
 
@@ -50,9 +51,9 @@ const InitialScreen: React.FC = () => {
       return;
     }
 
-    // User has seen onboarding - check auth token
+    // User has seen onboarding - check auth token from Redux store
     try {
-      token = await SecureStore.getItemAsync('accessToken');
+      token = (store.getState() as any)?.entities?.user?.userToken ?? null;
     } catch (tokenError) {
       logger.log('Error reading token:', tokenError);
       token = null;
@@ -67,7 +68,7 @@ const InitialScreen: React.FC = () => {
 
         if (lastEventUuid) {
           // Fetch event info for the last selected event
-          const eventInfoData = await eventService.fetchEventInfo(lastEventUuid);
+          const eventInfoData = await EVENT_SERVICES.fetchEventInfo(lastEventUuid);
 
           navigation.replace('LoggedIn', {
             eventInfo: {

@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Text as SvgText } from "react-native-svg";
-import { ticketService } from "../../../api/apiService";
+import { DASHBOARD_SERVICES } from "../../../services/DashboardService";
 import { color } from "../../../color/color";
 import SvgIcons from "../../../components/SvgIcons";
 import { formatDateWithMonthName } from "../../../constants/dateAndTime";
@@ -206,12 +206,11 @@ const AgentDashboard: React.FC<AgentDashboardProps> = ({
     }
 
     try {
-      const response = await ticketService.fetchDashboardStats(
-        eventInfo.eventUuid,
-        null,
+      const response = await DASHBOARD_SERVICES.fetchEventStats({
+        eventUuid: eventInfo.eventUuid,
         ticketType,
         ticketUuid,
-      );
+      });
 
       if (response?.data?.sold_tickets_analytics?.data) {
         const data = response.data.sold_tickets_analytics.data;

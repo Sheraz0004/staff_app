@@ -11,7 +11,7 @@ import { truncateStaffName } from "../../utils/stringUtils";
 import { useSelector } from "react-redux";
 import { RootState } from "../../redux/reducers/rootReducer";
 import { styles } from "./index.styles";
-import { ticketService } from "../../api/apiService";
+import { TICKET_SERVICES } from "../../services/TicketService";
 import { logger } from "../../utils/logger";
 import Loader from "@/src/components/Loader/Loader";
 
@@ -72,7 +72,7 @@ const TicketScanned: React.FC<{ route: any }> = ({ route }) => {
         ticketNumber,
       );
 
-      const response = await ticketService.fetchTicketDetails(ticketNumber);
+      const response = await TICKET_SERVICES.fetchTicketDetails(ticketNumber);
 
       logger.log("[TicketScanned] Raw response:", response);
 

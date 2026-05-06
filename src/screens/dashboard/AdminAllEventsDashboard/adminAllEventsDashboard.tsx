@@ -13,7 +13,9 @@ import ProfileImage from "../../../components/ProfileImage";
 import SvgIcons from "../../../components/SvgIcons";
 import { color } from "../../../color/color";
 import Typography from "../../../components/Typography";
-import BottomSheetRadioPicker, { RadioOption } from "../../../constants/bottomSheetRadioPicker";
+import BottomSheetRadioPicker, {
+  RadioOption,
+} from "../../../constants/bottomSheetRadioPicker";
 import AdminEarningCard from "./AdminEarningCard";
 import AdminAttendeesCard from "./AdminAttendeesCard";
 import AdminEventCard from "./AdminEventCard";
@@ -162,7 +164,9 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
   const [showTicketingTypePicker, setShowTicketingTypePicker] = useState(false);
   const [showOrganizationPicker, setShowOrganizationPicker] = useState(false);
   const [showEventPicker, setShowEventPicker] = useState(false);
-  const [selectedAdminTab, setSelectedAdminTab] = useState(admindashboardterminaltab[0]);
+  const [selectedAdminTab, setSelectedAdminTab] = useState(
+    admindashboardterminaltab[0],
+  );
 
   const eventTypeOptions: RadioOption[] = [
     { label: "All", value: "all" },
@@ -257,22 +261,29 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
 
   const fetchDashboardData = async () => {
     const params = buildParams();
-    console.log("[Dashboard] fetchDashboardData → params:", JSON.stringify(params, null, 2));
+    console.log(
+      "[Dashboard] fetchDashboardData → params:",
+      JSON.stringify(params, null, 2),
+    );
     dispatch(setDashboardDataLoading(true));
     dispatch(setDashboardDataError(null));
     try {
       const response = await DASHBOARD_SERVICES.fetchDashboardStats(params);
-      console.log("[Dashboard] fetchDashboardStats → status:", response?.status);
-      console.log("[Dashboard] fetchDashboardStats → data:", JSON.stringify(response?.data, null, 2));
+      // console.log("[Dashboard] fetchDashboardStats → status:", response?.status);
+      // console.log("[Dashboard] fetchDashboardStats → data:", JSON.stringify(response?.data, null, 2));
       dispatch(setDashboardData(response?.data ?? {}));
     } catch (error: any) {
       const status = error?.response?.status;
-      console.log("[Dashboard] fetchDashboardStats → ERROR status:", status);
-      console.log("[Dashboard] fetchDashboardStats → ERROR response data:", JSON.stringify(error?.response?.data, null, 2));
-      console.log("[Dashboard] fetchDashboardStats → ERROR message:", error?.message);
+      // console.log("[Dashboard] fetchDashboardStats → ERROR status:", status);
+      // console.log("[Dashboard] fetchDashboardStats → ERROR response data:", JSON.stringify(error?.response?.data, null, 2));
+      // console.log("[Dashboard] fetchDashboardStats → ERROR message:", error?.message);
       dispatch(
         setDashboardDataError(
-          status === 502 ? "502" : status === 403 ? "403" : (error?.message ?? "Failed to fetch dashboard data"),
+          status === 502
+            ? "502"
+            : status === 403
+              ? "403"
+              : (error?.message ?? "Failed to fetch dashboard data"),
         ),
       );
     } finally {
@@ -496,14 +507,16 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
                 key={item}
                 style={[
                   dashboardStyles.adminTabButton,
-                  selectedAdminTab === item && dashboardStyles.selectedAdminTabButton,
+                  selectedAdminTab === item &&
+                    dashboardStyles.selectedAdminTabButton,
                 ]}
                 onPress={() => setSelectedAdminTab(item)}
               >
                 <Text
                   style={[
                     dashboardStyles.adminTabButtonText,
-                    selectedAdminTab === item && dashboardStyles.selectedAdminTabButtonText,
+                    selectedAdminTab === item &&
+                      dashboardStyles.selectedAdminTabButtonText,
                   ]}
                 >
                   {item}
@@ -514,14 +527,22 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
         </View>
 
         {selectedAdminTab === "Terminals" ? (
-          <TerminalsComponent eventInfo={eventInfo} onEventChange={onEventChange} />
+          <TerminalsComponent
+            eventInfo={eventInfo}
+            onEventChange={onEventChange}
+          />
         ) : selectedAdminTab === "Staff" ? (
-          <StaffListComponent eventInfo={eventInfo} onEventChange={onEventChange} />
+          <StaffListComponent
+            eventInfo={eventInfo}
+            onEventChange={onEventChange}
+          />
         ) : (
           <ScrollView contentContainerStyle={dashboardStyles.scrollContainer}>
             <View style={dashboardStyles.wrapper}>
               {dashboardLoading ? (
-                <Text style={dashboardStyles.loadingText}>Loading dashboard stats...</Text>
+                <Text style={dashboardStyles.loadingText}>
+                  Loading dashboard stats...
+                </Text>
               ) : dashboardError ? (
                 <Text style={dashboardStyles.errorText}>{dashboardError}</Text>
               ) : (
@@ -533,8 +554,12 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
                         isLoading={dashboardLoading}
                         onTotalTicketsPress={onTotalTicketsPress ?? (() => {})}
                         onTotalScannedPress={onTotalScannedPress ?? (() => {})}
-                        onTotalUnscannedPress={onTotalUnscannedPress ?? (() => {})}
-                        onAvailableTicketsPress={onAvailableTicketsPress ?? (() => {})}
+                        onTotalUnscannedPress={
+                          onTotalUnscannedPress ?? (() => {})
+                        }
+                        onAvailableTicketsPress={
+                          onAvailableTicketsPress ?? (() => {})
+                        }
                       />
                     </View>
                   )}
@@ -582,7 +607,6 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
       <Loader isLoading={dashboardDataLoading} />
 
       <View style={styles.header}>
-
         <View style={styles.headerLeft}>
           {/* <TouchableOpacity>
             <SvgIcons.drawerSvg width={24} height={24} fill="transparent" />
@@ -598,10 +622,14 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
           <View style={styles.headerDivider} />
           <TouchableOpacity
             style={styles.avatar}
-            onPress={() => navigation.navigate('Profile', { userRole: currentUser?.role ?? 'ADMIN' })}
+            onPress={() =>
+              navigation.navigate("Profile", {
+                userRole: currentUser?.role ?? "ADMIN",
+              })
+            }
             activeOpacity={0.7}
           >
-            {currentUser?.profileImage ?? currentUser?.profile_image ? (
+            {(currentUser?.profileImage ?? currentUser?.profile_image) ? (
               <ProfileImage
                 uri={currentUser.profileImage ?? currentUser.profile_image}
                 style={{ width: 40, height: 40, borderRadius: 40 }}
@@ -618,47 +646,150 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
         <View style={styles.errorContainer}>
           {dashboardDataError === "502" ? (
             <Svg width={80} height={80} viewBox="0 0 80 80" fill="none">
-              <Circle cx="40" cy="40" r="38" fill="#FFF6DF" stroke="#F7E4B6" strokeWidth="1.5" />
-              <Rect x="18" y="16" width="44" height="13" rx="3" fill="#E4D5C0" stroke="#CEBCA0" strokeWidth="1.5" />
+              <Circle
+                cx="40"
+                cy="40"
+                r="38"
+                fill="#FFF6DF"
+                stroke="#F7E4B6"
+                strokeWidth="1.5"
+              />
+              <Rect
+                x="18"
+                y="16"
+                width="44"
+                height="13"
+                rx="3"
+                fill="#E4D5C0"
+                stroke="#CEBCA0"
+                strokeWidth="1.5"
+              />
               <Circle cx="25" cy="22.5" r="2.5" fill="#AE6F28" />
-              <Rect x="30" y="20" width="16" height="5" rx="1.5" fill="#CEBCA0" />
-              <Rect x="18" y="32" width="44" height="13" rx="3" fill="#E4D5C0" stroke="#CEBCA0" strokeWidth="1.5" />
+              <Rect
+                x="30"
+                y="20"
+                width="16"
+                height="5"
+                rx="1.5"
+                fill="#CEBCA0"
+              />
+              <Rect
+                x="18"
+                y="32"
+                width="44"
+                height="13"
+                rx="3"
+                fill="#E4D5C0"
+                stroke="#CEBCA0"
+                strokeWidth="1.5"
+              />
               <Circle cx="25" cy="38.5" r="2.5" fill="#CEBCA0" />
-              <Rect x="30" y="36" width="16" height="5" rx="1.5" fill="#E4D5C0" stroke="#CEBCA0" strokeWidth="1" />
-              <Rect x="37.5" y="50" width="5" height="14" rx="2.5" fill="#EF3E32" />
+              <Rect
+                x="30"
+                y="36"
+                width="16"
+                height="5"
+                rx="1.5"
+                fill="#E4D5C0"
+                stroke="#CEBCA0"
+                strokeWidth="1"
+              />
+              <Rect
+                x="37.5"
+                y="50"
+                width="5"
+                height="14"
+                rx="2.5"
+                fill="#EF3E32"
+              />
               <Circle cx="40" cy="69" r="3" fill="#EF3E32" />
             </Svg>
           ) : dashboardDataError === "403" ? (
             <Svg width={80} height={80} viewBox="0 0 80 80" fill="none">
-              <Circle cx="40" cy="40" r="38" fill="#FFF6DF" stroke="#F7E4B6" strokeWidth="1.5" />
-              <Rect x="28" y="38" width="24" height="18" rx="3" fill="#E4D5C0" stroke="#CEBCA0" strokeWidth="1.5" />
-              <Path d="M33 38 V30 C33 24.477 47 24.477 47 30 V38" stroke="#AE6F28" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+              <Circle
+                cx="40"
+                cy="40"
+                r="38"
+                fill="#FFF6DF"
+                stroke="#F7E4B6"
+                strokeWidth="1.5"
+              />
+              <Rect
+                x="28"
+                y="38"
+                width="24"
+                height="18"
+                rx="3"
+                fill="#E4D5C0"
+                stroke="#CEBCA0"
+                strokeWidth="1.5"
+              />
+              <Path
+                d="M33 38 V30 C33 24.477 47 24.477 47 30 V38"
+                stroke="#AE6F28"
+                strokeWidth="2.5"
+                fill="none"
+                strokeLinecap="round"
+              />
               <Circle cx="40" cy="47" r="3" fill="#AE6F28" />
               <Rect x="39" y="47" width="2" height="5" rx="1" fill="#AE6F28" />
             </Svg>
           ) : (
             <Svg width={80} height={80} viewBox="0 0 80 80" fill="none">
-              <Circle cx="40" cy="40" r="38" fill="#FFF6DF" stroke="#F7E4B6" strokeWidth="1.5" />
-              <Path d="M15 33 Q40 16 65 33" stroke="#E4E4E4" strokeWidth="3" fill="none" strokeLinecap="round" />
-              <Path d="M23 41 Q40 29 57 41" stroke="#CEBCA0" strokeWidth="3" fill="none" strokeLinecap="round" />
-              <Path d="M31 49 Q40 43 49 49" stroke="#AE6F28" strokeWidth="3" fill="none" strokeLinecap="round" />
+              <Circle
+                cx="40"
+                cy="40"
+                r="38"
+                fill="#FFF6DF"
+                stroke="#F7E4B6"
+                strokeWidth="1.5"
+              />
+              <Path
+                d="M15 33 Q40 16 65 33"
+                stroke="#E4E4E4"
+                strokeWidth="3"
+                fill="none"
+                strokeLinecap="round"
+              />
+              <Path
+                d="M23 41 Q40 29 57 41"
+                stroke="#CEBCA0"
+                strokeWidth="3"
+                fill="none"
+                strokeLinecap="round"
+              />
+              <Path
+                d="M31 49 Q40 43 49 49"
+                stroke="#AE6F28"
+                strokeWidth="3"
+                fill="none"
+                strokeLinecap="round"
+              />
               <Circle cx="40" cy="57" r="3.5" fill="#AE6F28" />
-              <Line x1="20" y1="20" x2="60" y2="60" stroke="#EF3E32" strokeWidth="3.5" strokeLinecap="round" />
+              <Line
+                x1="20"
+                y1="20"
+                x2="60"
+                y2="60"
+                stroke="#EF3E32"
+                strokeWidth="3.5"
+                strokeLinecap="round"
+              />
             </Svg>
           )}
           <Text style={styles.errorTitle}>
             {dashboardDataError === "502"
               ? "Server Unavailable"
               : dashboardDataError === "403"
-              ? "Access Denied"
-              : "Network Error"}
+                ? "Access Denied"
+                : "Network Error"}
           </Text>
           <Text style={styles.errorSubtitle}>
             {dashboardDataError === "502"
               ? "The server is temporarily unavailable.\nPlease try again in a few moments."
               : dashboardDataError === "403"
-              ? "You don't have permission to view\nthis dashboard. Contact your admin."
-              : "Unable to load dashboard data.\nCheck your connection and try again."}
+                ? "You don't have permission to view\nthis dashboard. Contact your admin."
+                : "Unable to load dashboard data.\nCheck your connection and try again."}
           </Text>
           {dashboardDataError !== "403" && (
             <TouchableOpacity
@@ -751,7 +882,9 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
         options={ticketingTypeOptions}
         selectedValue={selectedTicketingTypeValue}
         onSelect={(option: RadioOption) =>
-          dispatch(setSelectedTicketingTypeValue(String(option?.value ?? "all")))
+          dispatch(
+            setSelectedTicketingTypeValue(String(option?.value ?? "all")),
+          )
         }
       />
 

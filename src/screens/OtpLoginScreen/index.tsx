@@ -13,7 +13,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view
 import { useNavigation } from "@react-navigation/native";
 import { color } from "../../color/color";
 import { useDispatch } from "react-redux";
-import { loginSuccess, setUser } from "../../redux/reducers/userReducer";
+import { loginSuccess, setUser, setUserToken } from "../../redux/reducers/userReducer";
 import { LinearGradient } from "expo-linear-gradient";
 import Typography from "../../components/Typography";
 import MiddleSection from "../../components/MiddleSection";
@@ -21,7 +21,6 @@ import { logger } from "../../utils/logger";
 import { useApi } from "../../services/useApi";
 import { AUTH_SERVICES } from "../../services/AuthService";
 import { useToast } from "../../components/Toast";
-import * as SecureStore from "expo-secure-store";
 import { styles } from "./index.styles";
 
 interface OtpLoginScreenProps {
@@ -97,7 +96,8 @@ const OtpLoginScreen: React.FC<OtpLoginScreenProps> = ({ route }) => {
     try {
       logger.log("twoFactorVerify payload:", { traceId, otp: enteredOtp });
       const response = await requestCall({ traceId, otp: enteredOtp });
-      const { authToken, refreshToken } = response?.data || {};
+      console.log("response otp --->",response.data )
+      const { authToken } = response?.data || {};
 
       if (!authToken) {
         logger.error(
@@ -108,11 +108,7 @@ const OtpLoginScreen: React.FC<OtpLoginScreenProps> = ({ route }) => {
         return;
       }
 
-      // Persist tokens
-      await SecureStore.setItemAsync("accessToken", authToken);
-      if (refreshToken) {
-        await SecureStore.setItemAsync("refreshToken", refreshToken);
-      }
+      dispatch(setUserToken({ userToken: authToken }));
       const profileResponse = await AUTH_SERVICES.fetchUserProfile();
       const apiBody = profileResponse?.data;
       const userData = apiBody?.data ?? apiBody;

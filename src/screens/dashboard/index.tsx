@@ -1,6 +1,6 @@
 import { useRoute } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
-import { userService } from "../../api/apiService";
+import { AUTH_SERVICES } from "../../services/AuthService";
 import { logger } from "../../utils/logger";
 import AdminAllEventsDashboard from "./AdminAllEventsDashboard/adminAllEventsDashboard";
 import AgentDashboard from "./AgentDashboard/AgentDashboard";
@@ -33,7 +33,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({
     const fetchUserProfile = async () => {
       try {
         setUserProfileLoading(true);
-        const profile = await userService.getProfile();
+        const res = await AUTH_SERVICES.fetchProfileMe();
+        const profile = res?.data?.data ?? res?.data;
         const role =
           profile?.role ||
           profile?.user_role ||

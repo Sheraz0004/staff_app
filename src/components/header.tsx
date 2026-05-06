@@ -23,7 +23,7 @@ import { getUser } from "../redux/reducers/userReducer";
 import { truncateCityName, truncateEventName } from "../utils/stringUtils";
 import { formatDateWithMonthName } from "../constants/dateAndTime";
 import { formatValue } from "../constants/formatValue";
-import { userService } from "../api/apiService";
+import { AUTH_SERVICES } from "../services/AuthService";
 import { styles } from "./header.styles";
 
 const { width } = Dimensions.get("window");
@@ -83,14 +83,12 @@ const Header: React.FC<HeaderProps> = ({
 
   const fetchProfile = async (): Promise<void> => {
     try {
-      const response = await userService.getProfile();
-      if (response.success) {
-        setUserData(response.data);
-      } else {
-        // Alert.alert('Error', 'Failed to fetch profile data');
+      const response = await AUTH_SERVICES.fetchProfileMe();
+      if (response?.data) {
+        setUserData(response.data?.data ?? response.data);
       }
     } catch (error) {
-      // Alert.alert('Error', 'Failed to fetch profile data');
+      // profile fetch failed silently
     }
   };
 

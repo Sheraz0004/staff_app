@@ -1,6 +1,15 @@
 import API_CONFIG from "../../config";
 import HTTP_CLIENT from "../utils/config";
 
+type EventStatsParams = {
+  eventUuid: string;
+  sales?: string | null;
+  ticketType?: string | null;
+  ticketUuid?: string | null;
+  staffUuid?: string | null;
+  paymentChannel?: string | null;
+};
+
 export const DASHBOARD_SERVICES = {
   fetchEventStatsOverview: (eventId: string) =>
     HTTP_CLIENT.get(API_CONFIG.EVENTS.eventStatsOverview(eventId)),
@@ -30,4 +39,10 @@ export const DASHBOARD_SERVICES = {
     start_date?: string;
     end_date?: string;
   }) => HTTP_CLIENT.get(API_CONFIG.DASHBOARD.dashboardStats(params)),
+
+  fetchEventStats: (params: EventStatsParams) =>
+    HTTP_CLIENT.get(API_CONFIG.EVENT_STATS.dashboardStats(params)),
+
+  fetchAdminTerminals: (eventUuid: string) =>
+    HTTP_CLIENT.get(API_CONFIG.EVENT_STATS.adminTerminals(eventUuid)),
 };
