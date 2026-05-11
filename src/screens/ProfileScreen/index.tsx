@@ -44,8 +44,6 @@ const ProfileScreen: React.FC = () => {
   const topPadding = Platform.OS === "android" ? 24 : insets.top;
   const currentUser = useSelector(getUser);
   const authToken = useSelector(userAuthToken);
-  console.log("currentUser--->", currentUser);
-
   const [profileImage, setProfileImage] = useState<ProfileImage | null>(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -175,14 +173,15 @@ const ProfileScreen: React.FC = () => {
       dispatch(logout());
       await clearUserSession();
     } catch (_) {
-      console.log("_---->",_?.response?.data)
+      console.log("_---->", _?.response?.data);
       showErrorToast("Failed to log out. Please try again.");
       setLogoutLoading(false);
       setLogoutConfirmVisible(false);
     }
   };
 
-  const savedAvatarUri = currentUser?.profileImage ?? currentUser?.profile_image ?? null;
+  const savedAvatarUri =
+    currentUser?.profileImage ?? currentUser?.profile_image ?? null;
 
   const displayName =
     firstName || lastName
@@ -326,10 +325,14 @@ const ProfileScreen: React.FC = () => {
           activeOpacity={1}
           onPress={() => !logoutLoading && setLogoutConfirmVisible(false)}
         >
-          <View style={[styles.logoutSheet, { paddingBottom: insets.bottom + 1 }]}>
+          <View
+            style={[styles.logoutSheet, { paddingBottom: insets.bottom + 1 }]}
+          >
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Log Out</Text>
-            <Text style={styles.sheetSubtitle}>Are you sure you want to log out?</Text>
+            <Text style={styles.sheetSubtitle}>
+              Are you sure you want to log out?
+            </Text>
             <View style={styles.sheetButtonRow}>
               <TouchableOpacity
                 style={styles.sheetCancelButton}
