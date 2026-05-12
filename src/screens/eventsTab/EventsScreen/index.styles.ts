@@ -4,8 +4,9 @@ import { color } from "../../../color/color";
 const { width } = Dimensions.get("window");
 
 export const styles = StyleSheet.create({
-  container: { flex: 1, 
-    // backgroundColor: color.white_FFFFFF 
+  container: {
+    flex: 1,
+    // backgroundColor: color.white_FFFFFF
   },
   loadingContainer: { justifyContent: "center", alignItems: "center" },
   loadingText: { marginTop: 12 },
@@ -15,7 +16,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingBottom: 2,
-    paddingTop:Platform.OS=='android'?40:60
+    paddingTop: Platform.OS == "android" ? 40 : 60,
   },
   headerDivider: {
     height: 1.5,

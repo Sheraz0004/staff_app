@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, ScrollView, StyleSheet, Modal } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import SvgIcons from '../../../components/SvgIcons';
 import { color } from '../../../color/color';
@@ -47,6 +47,8 @@ const EarningsChart: React.FC<EarningsChartProps> = ({ chartData, currency }) =>
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [tooltipVisible, setTooltipVisible] = useState(false);
+  const [tooltipPagePos, setTooltipPagePos] = useState({ x: 0, y: 0 });
+  const chartContentRef = useRef<View>(null);
 
   useEffect(() => {
     if (safeData.length === 0) return;
@@ -107,14 +109,7 @@ const EarningsChart: React.FC<EarningsChartProps> = ({ chartData, currency }) =>
             ))}
           </View>
         {/* position: relative wrapper so tooltip can be absolutely placed */}
-        <View style={styles.chartContent}>
-          {tooltipVisible && (
-            <TouchableOpacity
-              style={StyleSheet.absoluteFillObject}
-              activeOpacity={1}
-              onPress={() => setTooltipVisible(false)}
-            />
-          )}
+        <View ref={chartContentRef} collapsable={false} style={styles.chartContent}>
           <View style={styles.chartContainer}>
             {safeData.map((item: any, index: number) => {
               const gross = typeof item?.gross === 'number' ? item.gross : 0;
@@ -127,10 +122,20 @@ const EarningsChart: React.FC<EarningsChartProps> = ({ chartData, currency }) =>
                   activeOpacity={0.85}
                   onPress={() => {
                     if (selectedIndex === index) {
-                      setTooltipVisible((v) => !v);
+                      if (tooltipVisible) {
+                        setTooltipVisible(false);
+                      } else {
+                        chartContentRef.current?.measure((_fx, _fy, _w, _h, px, py) => {
+                          setTooltipPagePos({ x: px, y: py });
+                          setTooltipVisible(true);
+                        });
+                      }
                     } else {
                       setSelectedIndex(index);
-                      setTooltipVisible(true);
+                      chartContentRef.current?.measure((_fx, _fy, _w, _h, px, py) => {
+                        setTooltipPagePos({ x: px, y: py });
+                        setTooltipVisible(true);
+                      });
                     }
                   }}
                 >
@@ -170,50 +175,48 @@ const EarningsChart: React.FC<EarningsChartProps> = ({ chartData, currency }) =>
             })}
           </View>
 
-          {/* Tooltip — visible after tapping a selected bar group */}
-          {tooltipVisible && selectedItem && (
-            <View
-              style={[
-                styles.earningTooltip,
-                { left: tooltipLeft, top: tooltipTop },
-              ]}
-            >
-              <Typography weight="600" size={11} color={color.grey_87807C}>
-                {selectedItem.month ?? ''}
-              </Typography>
-              <View style={styles.tooltipRow}>
-                <View style={[styles.tooltipDash, { backgroundColor: color.brown_F7E4B6 }]} />
-                <Typography
-                  weight="400"
-                  size={11}
-                  color={color.grey_87807C}
-                  style={styles.tooltipLabel}
-                >
-                  Gross
-                </Typography>
-                <Typography weight="700" size={12} color={color.black_2F251D}>
-                  {safeFormatAmount(currency, selectedGross)}
-                </Typography>
-              </View>
-              <View style={styles.tooltipRow}>
-                <View style={[styles.tooltipDash, { backgroundColor: color.btnBrown_AE6F28 }]} />
-                <Typography
-                  weight="400"
-                  size={11}
-                  color={color.grey_87807C}
-                  style={styles.tooltipLabel}
-                >
-                  Net
-                </Typography>
-                <Typography weight="700" size={12} color={color.black_2F251D}>
-                  {safeFormatAmount(currency, selectedNet)}
-                </Typography>
-              </View>
-            </View>
-          )}
         </View>
         </View>
       </ScrollView>
+
+      {tooltipVisible && selectedItem && (
+        <Modal transparent visible={tooltipVisible} onRequestClose={() => setTooltipVisible(false)}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            activeOpacity={1}
+            onPress={() => setTooltipVisible(false)}
+          />
+          <View
+            style={[
+              styles.earningTooltip,
+              { left: tooltipPagePos.x + tooltipLeft, top: tooltipPagePos.y + tooltipTop },
+            ]}
+            pointerEvents="none"
+          >
+            <Typography weight="600" size={11} color={color.grey_87807C}>
+              {selectedItem.month ?? ''}
+            </Typography>
+            <View style={styles.tooltipRow}>
+              <View style={[styles.tooltipDash, { backgroundColor: color.brown_F7E4B6 }]} />
+              <Typography weight="400" size={11} color={color.grey_87807C} style={styles.tooltipLabel}>
+                Gross
+              </Typography>
+              <Typography weight="700" size={12} color={color.black_2F251D}>
+                {safeFormatAmount(currency, selectedGross)}
+              </Typography>
+            </View>
+            <View style={styles.tooltipRow}>
+              <View style={[styles.tooltipDash, { backgroundColor: color.btnBrown_AE6F28 }]} />
+              <Typography weight="400" size={11} color={color.grey_87807C} style={styles.tooltipLabel}>
+                Net
+              </Typography>
+              <Typography weight="700" size={12} color={color.black_2F251D}>
+                {safeFormatAmount(currency, selectedNet)}
+              </Typography>
+            </View>
+          </View>
+        </Modal>
+      )}
 
       <View style={styles.divider} />
       <View style={styles.legend}>

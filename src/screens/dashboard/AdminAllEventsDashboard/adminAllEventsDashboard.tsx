@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   ScrollView,
   RefreshControl,
+  StyleSheet,
   TouchableOpacity,
   Text,
 } from "react-native";
@@ -26,6 +27,7 @@ import DateRangePicker from "./components/DateRangePicker";
 import { styles } from "./adminAllEventsDashboard.styles";
 import { styles as dashboardStyles } from "../index.styles";
 import { DASHBOARD_SERVICES } from "../../../services/DashboardService";
+import { NOTIFICATION_SERVICES, notifCurrentMonthRange } from "../../../services/NotificationService";
 import AdminOverallStatistics from "../AdminOverallStatistics";
 import TerminalsComponent from "../TerminalsComponent";
 import StaffListComponent from "../StaffListComponent";
@@ -216,11 +218,19 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
     eventFilterOptions.find((o) => o.value === selectedEventFilterValue)
       ?.label ?? "All Events";
 
+  const [unreadCount, setUnreadCount] = useState(0);
+
   useEffect(() => {
     if ((eventTypes ?? []).length === 0) fetchEventTypes();
     if ((ticketingTypes ?? []).length === 0) fetchTicketingTypes();
     if ((organizations ?? []).length === 0) fetchOrganizations();
     if ((events ?? []).length === 0) fetchEvents();
+    const { from, till } = notifCurrentMonthRange();
+    NOTIFICATION_SERVICES.fetchUnreadCount(from, till)
+      .then((res: any) => {
+        setUnreadCount(res?.data?.unreadCount ?? res?.data?.count ?? 0);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -616,8 +626,18 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
           </Typography>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.bellButton}>
-            <SvgIcons.bellIcon width={28} height={28} fill="transparent" />
+          <TouchableOpacity
+            style={styles.bellButton}
+            onPress={() => navigation.navigate('Notifications')}
+          >
+            <SvgIcons.bellIcon width={22} height={22} fill="transparent" />
+            {unreadCount > 0 && (
+              <View style={bellBadgeStyle.badge}>
+                <Text style={bellBadgeStyle.badgeText}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
           <View style={styles.headerDivider} />
           <TouchableOpacity
@@ -920,5 +940,28 @@ const AdminAllEventsDashboard: React.FC<AdminAllEventsDashboardProps> = ({
     </View>
   );
 };
+
+const bellBadgeStyle = StyleSheet.create({
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#EF3E32',
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 13,
+  },
+});
 
 export default AdminAllEventsDashboard;

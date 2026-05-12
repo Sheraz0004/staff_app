@@ -45,7 +45,19 @@ import ScanCategoriesDetails from "../ScanCategoriesDetails";
 import ScanListComponent, { ScanListHandle } from "../ScanListComponent";
 import { styles } from "./index.styles";
 
-const StaffDashboard: React.FC = () => {
+interface StaffDashboardProps {
+  eventInfoProp?: any;
+  staffUuidProp?: string;
+  staffNameProp?: string;
+  salesOnlyProp?: boolean;
+}
+
+const StaffDashboard: React.FC<StaffDashboardProps> = ({
+  eventInfoProp,
+  staffUuidProp,
+  staffNameProp,
+  salesOnlyProp,
+}) => {
   const dispatch = useDispatch();
   const navigation = useNavigation();
   const route = useRoute();
@@ -53,12 +65,12 @@ const StaffDashboard: React.FC = () => {
   const scrollViewRef = useRef<any>(null);
   const scanListRef = useRef<ScanListHandle>(null);
 
-  const {
-    eventInfo: initialEventInfo,
-    staffUuid,
-    staffName,
-    salesOnly = false,
-  } = route.params as any;
+  const routeParams = (route.params as any) ?? {};
+  const initialEventInfo = eventInfoProp ?? routeParams.eventInfo;
+  const staffUuid = staffUuidProp ?? routeParams.staffUuid;
+  const staffName = staffNameProp ?? routeParams.staffName;
+  const salesOnly = salesOnlyProp ?? routeParams.salesOnly ?? false;
+  const canGoBack = navigation.canGoBack();
   const topPadding =
     Platform.OS === "android" ? StatusBar.currentHeight || 0 : insets.top;
 
@@ -439,12 +451,14 @@ const StaffDashboard: React.FC = () => {
       </SafeAreaView>
 
       <View style={styles.staffNameContainer}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <SvgIcons.backArrow width={21} height={21} />
-        </TouchableOpacity>
+        {canGoBack && (
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
+            <SvgIcons.backArrow width={21} height={21} />
+          </TouchableOpacity>
+        )}
         <Text style={styles.staffName}>{staffName}</Text>
       </View>
 
@@ -480,6 +494,7 @@ const StaffDashboard: React.FC = () => {
         >
           <AdminOverallStatistics
             stats={dashboardStats}
+            isLoading={loading || isEventLoading}
             onTotalTicketsPress={() => {}}
             onTotalScannedPress={() => {}}
             onTotalUnscannedPress={() => {}}
@@ -527,7 +542,7 @@ const StaffDashboard: React.FC = () => {
                 ref={scanListRef}
                 isActive={selectedSaleScanTab === "Scans"}
                 eventInfo={eventInfo}
-                staffUuid={null}
+                staffUuid={staffUuid ?? null}
                 onScanCountUpdate={null}
               />
             </View>

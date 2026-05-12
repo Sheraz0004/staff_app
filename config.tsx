@@ -5,7 +5,7 @@ export const STRIPE_API_KEY =
 
 const API_CONFIG = {
   BASE_URL:
-    process.env.EXPO_PUBLIC_API_BASE_URL || "https://dev-api.hexallo.com",
+    process.env.EXPO_PUBLIC_API_BASE_URL || "https://stg-api.hexallo.com",
   AUTH: {
     twoFactorInitiate: "/login/2fa/initiate",
     twoFactorVerify: "/login/2fa/verify",
@@ -149,6 +149,20 @@ const API_CONFIG = {
       return url;
     },
     ticketDetails: (ticketNumber: string) => `/api/ticket/${ticketNumber}/details/`,
+  },
+  NOTIFICATIONS: {
+    pushInbox: (params: {
+      page?: number;
+      pageSize?: number;
+      from: string;
+      till: string;
+    }) => {
+      const { page = 1, pageSize = 20, from, till } = params;
+      return `/notifications/push?page=${page}&page_size=${pageSize}&from=${encodeURIComponent(from)}&till=${encodeURIComponent(till)}`;
+    },
+    markRead: (id: number) => `/notifications/push/${id}/read`,
+    unreadCount: (from: string, till: string) =>
+      `/notifications/push/unread-count?from=${encodeURIComponent(from)}&till=${encodeURIComponent(till)}`,
   },
   EVENT_STATS: {
     dashboardStats: (params: {

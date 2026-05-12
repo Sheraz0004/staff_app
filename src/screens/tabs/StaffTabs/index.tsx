@@ -1,6 +1,8 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import DashboardScreen from '../../dashboard';
+import { useSelector } from 'react-redux';
+import { getUser } from '../../../redux/reducers/userReducer';
+import StaffDashboard from '../../dashboard/StaffDashboard';
 import Tickets from '../../Tickets';
 import HomeScreen from '../../CheckIn';
 import ManualScan from '../../ManualScan';
@@ -30,6 +32,11 @@ function StaffTabs({
   tabBarHeight,
   insets,
 }: StaffTabsProps) {
+  const authUser = useSelector(getUser);
+  const staffName = [authUser?.firstName ?? authUser?.first_name, authUser?.lastName ?? authUser?.last_name]
+    .filter(Boolean)
+    .join(' ') || authUser?.name || 'Staff';
+
   return (
     <Tab.Navigator
       screenOptions={({ route, navigation }) =>
@@ -39,10 +46,10 @@ function StaffTabs({
     >
       <Tab.Screen name="Dashboard" options={commonTabOptions}>
         {() => (
-          <DashboardScreen
-            eventInfo={eventInformation}
-            onScanCountUpdate={updateScanCount}
-            onEventChange={handleEventChange}
+          <StaffDashboard
+            eventInfoProp={eventInformation}
+            staffUuidProp={authUser?.identityId}
+            staffNameProp={staffName}
           />
         )}
       </Tab.Screen>

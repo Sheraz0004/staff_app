@@ -2,12 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     ScrollView,
+    StyleSheet,
+    Text,
     TouchableOpacity,
     Modal,
     PanResponder,
     Animated,
     Dimensions,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import { getUser } from '../../../redux/reducers/userReducer';
 import ProfileImage from '../../../components/ProfileImage';
@@ -21,6 +24,7 @@ import TerminalEventCard from './TerminalEventCard';
 import TerminalStatisticsCard from './TerminalStatisticsCard';
 import TerminalCouponsCard from './TerminalCouponsCard';
 import { styles } from './TerminalDashboard.styles';
+import { NOTIFICATION_SERVICES, notifCurrentMonthRange } from '../../../services/NotificationService';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -129,6 +133,15 @@ const MonthPicker: React.FC<MonthPickerProps> = ({ onMonthSelect, selectedMonth,
             setDisplayYear(selectedYear);
         }
     }, [selectedYear]);
+
+    useEffect(() => {
+        const { from, till } = notifCurrentMonthRange();
+        NOTIFICATION_SERVICES.fetchUnreadCount(from, till)
+            .then((res: any) => {
+                setUnreadCount(res?.data?.unreadCount ?? res?.data?.count ?? 0);
+            })
+            .catch(() => {});
+    }, []);
 
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -722,7 +735,9 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ visible, onClose, onD
 
 // Main Dashboard Component
 const TerminalDashboard: React.FC = () => {
+    const navigation = useNavigation<any>();
     const currentUser = useSelector(getUser);
+    const [unreadCount, setUnreadCount] = useState(0);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [selectedDate, setSelectedDate] = useState('Jan 23, 2026');
 
@@ -777,8 +792,18 @@ const TerminalDashboard: React.FC = () => {
                     </Typography>
                 </View>
                 <View style={styles.headerRight}>
-                    <TouchableOpacity style={styles.bellButton}>
-                        <SvgIcons.bellIcon width={28} height={28} fill="transparent" />
+                    <TouchableOpacity
+                        style={styles.bellButton}
+                        onPress={() => navigation.navigate('Notifications')}
+                    >
+                        <SvgIcons.bellIcon width={24} height={24} fill="transparent" />
+                        {unreadCount > 0 && (
+                            <View style={terminalBellBadge.badge}>
+                                <Text style={terminalBellBadge.badgeText}>
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                </Text>
+                            </View>
+                        )}
                     </TouchableOpacity>
                     <View style={styles.headerDivider} />
                     <View style={styles.avatar}>
@@ -846,5 +871,28 @@ const TerminalDashboard: React.FC = () => {
         </View>
     );
 };
+
+const terminalBellBadge = StyleSheet.create({
+    badge: {
+        position: 'absolute',
+        top: -4,
+        right: -4,
+        backgroundColor: '#EF3E32',
+        borderRadius: 9,
+        minWidth: 18,
+        height: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 4,
+        borderWidth: 1.5,
+        borderColor: '#FFFFFF',
+    },
+    badgeText: {
+        color: '#FFFFFF',
+        fontSize: 10,
+        fontWeight: '700',
+        lineHeight: 13,
+    },
+});
 
 export default TerminalDashboard;

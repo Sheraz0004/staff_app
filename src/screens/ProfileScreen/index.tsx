@@ -173,7 +173,6 @@ const ProfileScreen: React.FC = () => {
       dispatch(logout());
       await clearUserSession();
     } catch (_) {
-      console.log("_---->", _?.response?.data);
       showErrorToast("Failed to log out. Please try again.");
       setLogoutLoading(false);
       setLogoutConfirmVisible(false);

@@ -35,6 +35,7 @@ import OrderDetails from "../screens/OrderDetails";
 import ProfileScreen from "../screens/ProfileScreen";
 import AdminTerminalDashboard from "../screens/dashboard/AdminTerminalDashboard";
 import DashboardDetail from "../screens/dashboard/DashboardDetail/DashboardDetail";
+import NotificationsScreen from "../screens/NotificationsScreen";
 
 const RootStack = createNativeStackNavigator();
 const AuthNav = createNativeStackNavigator();
@@ -177,6 +178,11 @@ function MainStack(): React.ReactElement {
       <MainNav.Screen
         name="AdminTerminalDashboard"
         component={AdminTerminalDashboard}
+        options={mainScreenOptions}
+      />
+      <MainNav.Screen
+        name="Notifications"
+        component={NotificationsScreen}
         options={mainScreenOptions}
       />
     </MainNav.Navigator>
