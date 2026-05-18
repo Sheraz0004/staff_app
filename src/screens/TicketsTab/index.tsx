@@ -49,6 +49,7 @@ const TicketsTab: React.FC<TicketsTabProps> = ({ eventInfo }) => {
   const isFocused = useIsFocused();
   const flatListRef = useRef<FlatList<any>>(null);
   const { isOnline, triggerSync, queueSize } = useOfflineSync();
+  // console.log("eventInfo-->",eventInfo)
 
   const tickets = useSelector(selectTickets);
   const stats = useSelector(selectTicketStats);

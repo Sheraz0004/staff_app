@@ -125,7 +125,7 @@ const OtpLoginScreen: React.FC<OtpLoginScreenProps> = ({ route }) => {
       showErrorToast(message);
       logger.error("twoFactorVerify error:", {
         message: error?.message,
-        response: error?.response?.data,
+        response: error?.response,
       });
     }
   };

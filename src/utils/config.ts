@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 import API_CONFIG from "../../config";
 import store from "../redux/store";
+import { logout } from "../redux/reducers/userReducer";
 import { API_KEY } from "../config/env";
 
 const controller = new AbortController();
@@ -34,7 +35,7 @@ HTTP_CLIENT.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.log("here is ---?", error.response.data);
+    console.log("here is ---> ", error.response.data);
     return Promise.reject(error);
   },
 );
@@ -43,10 +44,18 @@ HTTP_CLIENT.interceptors.response.use(
     return response;
   },
   async (error) => {
+    console.error("[HTTP_CLIENT] API error:", {
+      url: error?.config?.url,
+      method: error?.config?.method,
+      status: error?.response?.status,
+      data: error?.response?.data,
+    });
     if (
       error.response &&
-      (error.response.status === 401 || error.response.data.code === 401)
+      error.response.status === 401 &&
+      error.response.data?.errorCode === "invalid.token"
     ) {
+      store.dispatch(logout());
     }
     return Promise.reject(error);
   },

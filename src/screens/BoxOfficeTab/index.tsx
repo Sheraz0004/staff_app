@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -31,9 +31,11 @@ import {
   selectBoxOfficeActiveTab,
   selectBoxOfficeSelectedTickets,
   selectBoxOfficeLoading,
+  selectBoxOfficeError,
   BoxOfficeTicket,
 } from "../../redux/reducers/boxOfficeSlice";
 import { selectSellSelectedEvent } from "../../redux/reducers/sellCheckinSlice";
+import { useToast } from "../../components/Toast/ToastContext";
 import { styles } from "./index.styles";
 import Loader from "@/src/components/Loader/Loader";
 
@@ -95,12 +97,14 @@ const validationSchema = Yup.object().shape({
 const BoxOfficeTab: React.FC<BoxOfficeTabProps> = ({ onScanCountUpdate }) => {
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<any>();
+  const { showErrorToast } = useToast();
 
   const selectedEvent = useSelector(selectSellSelectedEvent);
   const pricingCategories = useSelector(selectBoxOfficePricingCategories);
   const activeTab = useSelector(selectBoxOfficeActiveTab);
   const selectedTickets = useSelector(selectBoxOfficeSelectedTickets);
   const isLoading = useSelector(selectBoxOfficeLoading);
+  const error = useSelector(selectBoxOfficeError);
 
   const { requestCall: doBoxOfficeGetTicket } = useApi(
     CHECK_IN_SERVICES.boxOfficeGetTicket,
@@ -156,12 +160,16 @@ const BoxOfficeTab: React.FC<BoxOfficeTabProps> = ({ onScanCountUpdate }) => {
     setPurchaseCodeModalVisible(false);
   };
 
+  useEffect(() => {
+    if (error) showErrorToast(error, 'Failed to load box office');
+  }, [error]);
+
   useFocusEffect(
     React.useCallback(() => {
-      const uuid = selectedEvent?.eventUuid;
-      if (!uuid) return;
       dispatch(resetBoxOffice());
       resetForm();
+      const uuid = selectedEvent?.eventUuid;
+      if (!uuid) return;
       dispatch(fetchBoxOfficeDataThunk({ eventUuid: uuid }));
     }, [selectedEvent?.eventUuid]),
   );
@@ -234,7 +242,7 @@ const BoxOfficeTab: React.FC<BoxOfficeTabProps> = ({ onScanCountUpdate }) => {
       });
       return true;
     } catch (err: any) {
-      logger.error("BoxOffice submit error:", err?.response?.data);
+      logger.error("BoxOffice submit error:", err?.response);
       const msg =
         err?.response?.data?.message ||
         err?.message ||
@@ -269,6 +277,17 @@ const BoxOfficeTab: React.FC<BoxOfficeTabProps> = ({ onScanCountUpdate }) => {
       transactionId,
       activeTab === "Members" ? purchaseCode : undefined,
     );
+  };
+
+  const handleCashPinSubmit = async () => {
+    if (!cashPinModal.trim()) return;
+    const transactionId = `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const success = await submitOrder(
+      "CASH",
+      transactionId,
+      activeTab === "Members" ? purchaseCode : undefined,
+    );
+    if (success) setPinModalVisible(false);
   };
 
   const handlePOSPayment = async () => {
@@ -847,10 +866,20 @@ const BoxOfficeTab: React.FC<BoxOfficeTabProps> = ({ onScanCountUpdate }) => {
                 <Text style={styles.errorTextTransaction}>{cashPinError}</Text>
               )}
               <TouchableOpacity
-                style={[styles.getTicketsButtonPOS, styles.disabledButton]}
-                disabled
+                style={[
+                  styles.getTicketsButtonPOS,
+                  (!cashPinModal.trim() || isSubmitting) && {
+                    backgroundColor: "#AE6F28A0",
+                  },
+                ]}
+                onPress={handleCashPinSubmit}
+                disabled={!cashPinModal.trim() || isSubmitting}
               >
-                <Text style={styles.getTicketsButtonTextPOS}>Continue</Text>
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.getTicketsButtonTextPOS}>Continue</Text>
+                )}
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => {

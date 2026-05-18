@@ -292,23 +292,25 @@ const Header: React.FC<HeaderProps> = ({
               </Text>
             </View>
 
-            <View style={styles.tabContainer}>
-              {tabs.map((tab) => (
-                <TouchableOpacity
-                  key={tab}
-                  style={[styles.tab, activeTab === tab && styles.activeTab]}
-                  onPress={() => handleTabPress(tab)}
-                >
-                  <Text
-                    style={[
-                      styles.tabText,
-                      activeTab === tab && styles.activeTabText,
-                    ]}
+            <View style={styles.tabWrapper}>
+              <View style={styles.tabContainer}>
+                {tabs.map((tab) => (
+                  <TouchableOpacity
+                    key={tab}
+                    style={[styles.tab, activeTab === tab && styles.activeTab]}
+                    onPress={() => handleTabPress(tab)}
                   >
-                    {tab}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={[
+                        styles.tabText,
+                        activeTab === tab && styles.activeTabText,
+                      ]}
+                    >
+                      {tab}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             <TouchableOpacity

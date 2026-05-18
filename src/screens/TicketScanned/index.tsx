@@ -56,6 +56,7 @@ const TicketScanned: React.FC<{ route: any }> = ({ route }) => {
   const [error, setError] = useState<string | null>(null);
 
   const ticketNumber = paramScanResponse?.ticketNumber;
+  console.log("paramScanResponse-->",paramScanResponse)
 
   const fetchDetails = useCallback(async () => {
     if (!ticketNumber) {

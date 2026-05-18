@@ -9,6 +9,7 @@ import {
   fetchEventDetailThunk,
   setActiveView,
   setActiveHeaderTab,
+  setSelectedEvent,
   selectSellSelectedEvent,
   selectSellEventDetail,
   selectSellActiveView,
@@ -17,6 +18,8 @@ import {
 import { setTicketsSelectedTab, resetTicketsTab } from "../../redux/reducers/ticketsTabSlice";
 import { resetBoxOffice } from "../../redux/reducers/boxOfficeSlice";
 import { AppDispatch } from "../../redux/store";
+import { DASHBOARD_SERVICES } from "../../services/DashboardService";
+import { logger } from "../../utils/logger";
 import { styles } from "./index.styles";
 
 interface SettingsScreenProps {
@@ -45,6 +48,29 @@ const SettingsScreen = (props: SettingsScreenProps) => {
     : selectedEvent;
 
   const isFromRootStack = route?.name === "TicketsDetail";
+
+  useEffect(() => {
+    if (userRole !== 'STAFF' || selectedEvent) return;
+    DASHBOARD_SERVICES.fetchMyEventsForStaff()
+      .then((res: any) => {
+        const raw: any[] = res?.data?.events ?? res?.data ?? [];
+        const first = raw[0];
+        if (!first) return;
+        const eventUuid = first.uuid ?? String(first.id ?? '');
+        dispatch(setSelectedEvent({
+          uuid: eventUuid,
+          eventUuid,
+          title: first.title ?? first.event_title ?? first.name ?? '',
+          event_title: first.title ?? first.event_title ?? first.name ?? '',
+          cityName: first.location?.city ?? first.cityName,
+          date: first.startDate ?? first.start_date ?? first.date,
+          time: first.startTime ?? first.start_time ?? first.time,
+        }));
+      })
+      .catch((err: any) => {
+        logger.error('[Tickets] my-events error:', err?.response);
+      });
+  }, [userRole, selectedEvent]);
 
   useEffect(() => {
     const uuid = selectedEvent?.eventUuid;

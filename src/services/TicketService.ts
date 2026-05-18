@@ -16,7 +16,7 @@ export const TICKET_SERVICES = {
     checkinStatus?: string;
     search?: string;
     ticketTypes?: string;
-    scannedBy?: string;
+    scannedBy?: string; 
     boughtBy?: string;
     staffUuid?: string;
   }) => HTTP_CLIENT.get(API_CONFIG.TICKETS.userTickets(params)),

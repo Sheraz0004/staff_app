@@ -24,6 +24,7 @@ import { useApi } from "../../services/useApi";
 import { CHECK_IN_SERVICES } from "../../services/CheckInService";
 import { EVENT_SERVICES } from "../../services/EventService";
 import { styles } from "./index.styles";
+import { showErrorToast } from "@/src/components/Toast";
 
 const { width } = Dimensions.get("window");
 
@@ -116,6 +117,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
   const handleBarCodeScanned = useCallback(
     async ({ data }: { data: string }) => {
+
+      console.log("data here  ---> ",data)
       if (scanningRef.current) return;
       scanningRef.current = true;
 
@@ -123,6 +126,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
       setScanTime(getFormatDate());
       setIsDuplicateScan(false);
       const [scannedEventId] = data.split(":");
+      console.log("scannedEventId--->",scannedEventId)
+
       if (scannedEventId) {
         requestEventInfo(scannedEventId)
           .then((infoRes: any) => {
@@ -141,14 +146,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
               }));
             }
           })
-          .catch(() => {});
+          .catch((err: any) => {
+            console.warn("[CheckIn] fetchEventInfo error (pre-scan):", err?.response?.status, err?.response?.data);
+          });
       }
 
       try {
         const note = notesRef.current[data] || "";
         const res = await requestScan(data, note);
         const scanData = res?.data;
-        console.log("scanData->", scanData);
+        console.log("scanData---->", scanData);
         scanResponseRef.current = scanData;
 
         if (scanData?.note) {
@@ -191,12 +198,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                   }));
                 }
               })
-              .catch(() => {});
+              .catch((err: any) => {
+                console.warn("[CheckIn] fetchEventInfo error (post-scan):", err?.response?.status, err?.response?.data);
+              });
           }
         } else if (
           scanData?.status === "error" ||
           scanData?.status === "invalid"
         ) {
+          console.error("[CheckIn] scan returned error status:", { scanData, userRole });
           result = {
             text: "Scan Unsuccessful",
             color: "#ED4337",
@@ -208,6 +218,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
         setScanResult(result);
       } catch (error: any) {
+        console.error("[CheckIn] scanTicket API error:", {
+          url: `/api/ticket/scan/...`,
+          status: error?.response?.status,
+          data: error?.response?.data,
+          message: error?.message,
+          scannedData: data,
+          userRole,
+        });
+        showErrorToast(error?.response?.data?.reason)
         const isScanLimit = error.response?.data?.non_field_errors?.includes(
           "Scan limit reached.",
         );
@@ -216,6 +235,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
           color: isScanLimit ? "#D8A236" : "#ED4337",
           icon: "close",
         });
+
       } finally {
         animateProgressBar();
         setShowAnimation(true);
@@ -299,12 +319,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
           </Text>
         </View>
       )}
-    <Header
-          eventInfo={dynamicEventInfo || eventInfo}
-          activeTab={activeHeaderTab}
-          onTabChange={onHeaderTabChange}
-          userRole={userRole}
-        />
+      <Header
+        eventInfo={dynamicEventInfo || eventInfo}
+        activeTab={activeHeaderTab}
+        onTabChange={onHeaderTabChange}
+        userRole={userRole}
+      />
       <View
         style={
           userRole === "ADMIN" || userRole === "ORGANIZER"

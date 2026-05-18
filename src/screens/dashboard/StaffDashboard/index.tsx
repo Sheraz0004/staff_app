@@ -34,6 +34,7 @@ import {
   setEventsTotalPages,
   setEventsLoadingMore,
 } from "../../../redux/reducers/dashboardReducer";
+import { currentUserRole } from "../../../redux/reducers/userReducer";
 import AdminOverallStatistics from "../AdminOverallStatistics";
 import AnalyticsChart from "../AnalyticsChart";
 import AdminBoxOfficePaymentChannel from "../AdminBoxOfficePaymentChannel";
@@ -77,6 +78,9 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({
   const [localEventInfo, setLocalEventInfo] = useState<any>(null);
   const eventInfo = localEventInfo || initialEventInfo;
 
+  const userRole = useSelector(currentUserRole);
+  const isStaff = userRole === "STAFF";
+
   const events = useSelector(selectEvents) ?? [];
   const eventsPage = useSelector(selectEventsPage) ?? 0;
   const eventsTotalPages = useSelector(selectEventsTotalPages) ?? 1;
@@ -101,6 +105,27 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({
     false,
     false,
   );
+
+  useEffect(() => {
+    if (!isStaff) return;
+    DASHBOARD_SERVICES.fetchMyEventsForStaff()
+      .then((res: any) => {
+        console.log("[StaffDashboard] fetchMyEventsForStaff response:", JSON.stringify(res?.data, null, 2));
+        const raw: any[] = res?.data?.events ?? res?.data ?? [];
+        const first = raw[0];
+        if (!first) return;
+        const eventUuid = first.uuid ?? String(first.id ?? "");
+        setLocalEventInfo({
+          eventUuid,
+          event_title: first.title ?? first.event_title ?? first.name,
+          date: first.startDate ?? first.start_date ?? first.date,
+          time: first.startTime ?? first.start_time ?? first.time,
+        });
+      })
+      .catch((err: any) => {
+        logger.error("[StaffDashboard] my-events error:", err?.response);
+      });
+  }, [isStaff]);
 
   useEffect(() => {
     const eventId = eventInfo?.eventUuid;
@@ -422,21 +447,23 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({
               >
                 {truncateEventName(eventInfo?.event_title) || "OUTMOSPHERE"}
               </Text>
-              <TouchableOpacity
-                style={styles.dropdownButton}
-                onPress={() => {
-                  if ((events ?? []).length === 0) fetchEventsForPicker(0);
-                  setEventsModalVisible(true);
-                }}
-              >
-                <SvgIcons.downArrowWhite
-                  width={12}
-                  height={12}
-                  fill={color.white_FFFFFF}
-                  stroke={color.white_FFFFFF}
-                  strokeWidth={0}
-                />
-              </TouchableOpacity>
+              {!isStaff && (
+                <TouchableOpacity
+                  style={styles.dropdownButton}
+                  onPress={() => {
+                    if ((events ?? []).length === 0) fetchEventsForPicker(0);
+                    setEventsModalVisible(true);
+                  }}
+                >
+                  <SvgIcons.downArrowWhite
+                    width={12}
+                    height={12}
+                    fill={color.white_FFFFFF}
+                    stroke={color.white_FFFFFF}
+                    strokeWidth={0}
+                  />
+                </TouchableOpacity>
+              )}
             </View>
             <View style={styles.headerSpacer} />
             <Text style={styles.date} numberOfLines={1} ellipsizeMode="tail">
@@ -550,23 +577,25 @@ const StaffDashboard: React.FC<StaffDashboardProps> = ({
         </KeyboardAwareScrollView>
       )}
 
-      <BottomSheetRadioPicker
-        visible={eventsModalVisible}
-        onClose={() => setEventsModalVisible(false)}
-        title="Select Event"
-        options={eventPickerOptions}
-        selectedValue={eventInfo?.eventUuid}
-        onSelect={(option: any) => {
-          const event = (events ?? []).find(
-            (e: any) => (e?.uuid ?? String(e?.id ?? "")) === option.value,
-          );
-          if (event) handleEventSelect(event);
-          else setEventsModalVisible(false);
-        }}
-        hasMore={(eventsPage ?? 0) + 1 < (eventsTotalPages ?? 1)}
-        isLoadingMore={eventsLoadingMore}
-        onLoadMore={loadMoreEventsForPicker}
-      />
+      {!isStaff && (
+        <BottomSheetRadioPicker
+          visible={eventsModalVisible}
+          onClose={() => setEventsModalVisible(false)}
+          title="Select Event"
+          options={eventPickerOptions}
+          selectedValue={eventInfo?.eventUuid}
+          onSelect={(option: any) => {
+            const event = (events ?? []).find(
+              (e: any) => (e?.uuid ?? String(e?.id ?? "")) === option.value,
+            );
+            if (event) handleEventSelect(event);
+            else setEventsModalVisible(false);
+          }}
+          hasMore={(eventsPage ?? 0) + 1 < (eventsTotalPages ?? 1)}
+          isLoadingMore={eventsLoadingMore}
+          onLoadMore={loadMoreEventsForPicker}
+        />
+      )}
       <Loader isLoading={loading || isEventLoading} />
     </View>
   );

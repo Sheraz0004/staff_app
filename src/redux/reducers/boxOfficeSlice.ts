@@ -27,6 +27,7 @@ interface BoxOfficeState {
   activeTab: string;
   selectedTickets: BoxOfficeTicket[];
   loading: boolean;
+  error: string | null;
 }
 
 const initialState: BoxOfficeState = {
@@ -34,7 +35,8 @@ const initialState: BoxOfficeState = {
   ticketPricing: [],
   activeTab: '',
   selectedTickets: [],
-  loading: true,
+  loading: false,
+  error: null,
 };
 
 // ─── Thunk ────────────────────────────────────────────────────────────────────
@@ -122,13 +124,15 @@ const boxOfficeSlice = createSlice({
       state.ticketPricing = [];
       state.activeTab = '';
       state.selectedTickets = [];
-      state.loading = true;
+      state.loading = false;
+      state.error = null;
     },
   },
   extraReducers: (builder) => {
     builder
       .addCase(fetchBoxOfficeDataThunk.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(fetchBoxOfficeDataThunk.fulfilled, (state, action) => {
         state.loading = false;
@@ -137,8 +141,9 @@ const boxOfficeSlice = createSlice({
         state.activeTab = action.payload.activeTab;
         state.selectedTickets = action.payload.selectedTickets;
       })
-      .addCase(fetchBoxOfficeDataThunk.rejected, (state) => {
+      .addCase(fetchBoxOfficeDataThunk.rejected, (state, action) => {
         state.loading = false;
+        state.error = (action.payload as string) ?? 'Failed to fetch box office data';
       });
   },
 });
@@ -158,5 +163,7 @@ export const selectBoxOfficeSelectedTickets = (state: any): BoxOfficeTicket[] =>
   state.boxOffice.selectedTickets ?? [];
 export const selectBoxOfficeLoading = (state: any): boolean =>
   state.boxOffice.loading ?? false;
+export const selectBoxOfficeError = (state: any): string | null =>
+  state.boxOffice.error ?? null;
 
 export default boxOfficeSlice.reducer;

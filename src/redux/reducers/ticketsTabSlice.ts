@@ -45,18 +45,20 @@ interface TicketsTabState {
   hasMore: boolean;
   searchText: string;
   selectedTab: string;
+  error: string | null;
 }
 
 const initialState: TicketsTabState = {
   tickets: [],
   stats: { total: 0, scanned: 0, unscanned: 0 },
-  loading: true,
+  loading: false,
   loadingMore: false,
   refreshing: false,
   page: 1,
   hasMore: false,
   searchText: '',
   selectedTab: 'All',
+  error: null,
 };
 
 // ─── Mapper ───────────────────────────────────────────────────────────────────
@@ -91,6 +93,7 @@ export const fetchTicketStatsThunk = createAsyncThunk(
   async (eventUuid: string, { rejectWithValue }) => {
     try {
       const res = await TICKET_SERVICES.fetchStats(eventUuid);
+      // console.log('[Tickets] Stats response:', JSON.stringify(res?.data, null, 2));
       const data = res?.data?.data || {};
       return {
         total: data.total || 0,
@@ -98,6 +101,7 @@ export const fetchTicketStatsThunk = createAsyncThunk(
         unscanned: data.unscanned || 0,
       } as TicketStats;
     } catch (e: any) {
+      console.log('[Tickets] Stats error:', e?.message, e?.response?.data);
       return rejectWithValue(e?.message ?? 'Failed to fetch stats');
     }
   },
@@ -106,7 +110,7 @@ export const fetchTicketStatsThunk = createAsyncThunk(
 export const fetchTicketsThunk = createAsyncThunk(
   'ticketsTab/fetchTickets',
   async (
-    { eventUuid, page, reset, isRefresh = false }: {
+    { eventUuid, page, reset }: {
       eventUuid: string;
       page: number;
       reset: boolean;
@@ -131,6 +135,7 @@ export const fetchTicketsThunk = createAsyncThunk(
         checkinStatus,
         searchText.trim() || undefined,
       );
+      // console.log('[Tickets] List response:', JSON.stringify(res?.data, null, 2));
       const body = res?.data || {};
       const raw: any[] = body.data || [];
       const currentPage = body.currentPage || page;
@@ -143,6 +148,7 @@ export const fetchTicketsThunk = createAsyncThunk(
         reset,
       };
     } catch (e: any) {
+      console.log('[Tickets] List error:', e?.message, e?.response?.data);
       return rejectWithValue(e?.message ?? 'Failed to fetch tickets');
     }
   },
@@ -166,21 +172,26 @@ const ticketsTabSlice = createSlice({
       state.tickets = [];
       state.page = 1;
       state.hasMore = false;
-      state.loading = true;
+      state.loading = false;
       state.searchText = '';
       state.selectedTab = 'All';
       state.stats = { total: 0, scanned: 0, unscanned: 0 };
+      state.error = null;
     },
   },
   extraReducers: (builder) => {
     builder
       .addCase(fetchTicketStatsThunk.fulfilled, (state, action) => {
         state.stats = action.payload;
+      })
+      .addCase(fetchTicketStatsThunk.rejected, (state, action) => {
+        state.error = (action.payload as string) ?? 'Failed to fetch ticket stats';
       });
 
     builder
       .addCase(fetchTicketsThunk.pending, (state, action) => {
-        const { reset, isRefresh } = action.meta.arg;
+        const { reset, isRefresh = false } = action.meta.arg;
+        state.error = null;
         if (isRefresh) {
           state.refreshing = true;
         } else if (reset) {
@@ -198,10 +209,11 @@ const ticketsTabSlice = createSlice({
         state.page = page;
         state.hasMore = hasMore;
       })
-      .addCase(fetchTicketsThunk.rejected, (state) => {
+      .addCase(fetchTicketsThunk.rejected, (state, action) => {
         state.loading = false;
         state.loadingMore = false;
         state.refreshing = false;
+        state.error = (action.payload as string) ?? 'Failed to fetch tickets';
       });
   },
 });
@@ -229,5 +241,7 @@ export const selectTicketsSearchText = (state: any): string =>
   state.ticketsTab.searchText ?? '';
 export const selectTicketsSelectedTab = (state: any): string =>
   state.ticketsTab.selectedTab ?? 'All';
+export const selectTicketsError = (state: any): string | null =>
+  state.ticketsTab.error ?? null;
 
 export default ticketsTabSlice.reducer;

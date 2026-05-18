@@ -66,23 +66,26 @@ export const styles = StyleSheet.create({
     },
     profileRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 16,
         paddingVertical: 10,
         width: '100%',
+    },
+    tabWrapper: {
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     leftSection: {
         flexDirection: 'row',
         alignItems: 'center',
         flex: 1,
+        paddingLeft: 16,
     },
     staffName: {
         fontSize: 12,
         fontWeight: '400',
         color: color.drak_black_000000,
         marginLeft: 10,
-        flex: 1,
+        flexShrink: 1,
     },
     tabContainer: {
         flexDirection: 'row',
@@ -105,15 +108,16 @@ export const styles = StyleSheet.create({
         color: color.white_FFFFFF,
     },
     activeTabText: {
-        color: '241F21',
+        color: '#241F21',
         fontWeight: '400',
         fontSize: 10,
     },
     rightSection: {
         flexDirection: 'row',
         alignItems: 'center',
-        flex: 1,
         justifyContent: 'flex-end',
+        paddingRight: 16,
+        paddingLeft: 12,
     },
     scansLabel: {
         fontSize: 14,
