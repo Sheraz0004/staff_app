@@ -126,7 +126,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
       setScanTime(getFormatDate());
       setIsDuplicateScan(false);
       const [scannedEventId] = data.split(":");
-      console.log("scannedEventId--->",scannedEventId)
 
       if (scannedEventId) {
         requestEventInfo(scannedEventId)
